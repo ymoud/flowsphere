@@ -673,11 +673,15 @@ execute_step() {
                 if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
                     echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but expected field '$jsonpath' to exist${NC}"
                     exit 1
+                else
+                    echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
                 fi
             else
                 if [ "$extracted" != "null" ] && [ -n "$extracted" ]; then
                     echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but expected field '$jsonpath' to NOT exist${NC}"
                     exit 1
+                else
+                    echo -e "  ${GREEN}✓${NC} Confirmed $jsonpath does not exist"
                 fi
             fi
         else
@@ -685,6 +689,8 @@ execute_step() {
             if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
                 echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but JSON path '$jsonpath' not found${NC}"
                 exit 1
+            else
+                echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
             fi
         fi
 
@@ -694,6 +700,8 @@ execute_step() {
             if [ "$extracted" != "$expected_value" ]; then
                 echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected '$expected_value')${NC}"
                 exit 1
+            else
+                echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC}"
             fi
         fi
 
@@ -703,6 +711,8 @@ execute_step() {
             if [ "$extracted" = "$unwanted_value" ]; then
                 echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected NOT '$unwanted_value')${NC}"
                 exit 1
+            else
+                echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (not '$unwanted_value')"
             fi
         fi
     fi
