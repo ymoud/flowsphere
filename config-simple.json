@@ -1,0 +1,45 @@
+{
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "expect": {
+      "status": 200
+    }
+  },
+  "steps": [
+    {
+      "name": "Check API health",
+      "method": "GET",
+      "url": "/posts/1",
+      "expect": {
+        "jsonpath": ".id"
+      }
+    },
+    {
+      "name": "Fetch user details",
+      "method": "GET",
+      "url": "/users/{{ .responses[0].userId }}",
+      "expect": {
+        "jsonpath": ".id"
+      }
+    },
+    {
+      "name": "Get user's todos (only if user exists)",
+      "method": "GET",
+      "url": "/users/{{ .responses[1].id }}/todos",
+      "condition": {
+        "response": 1,
+        "field": ".id",
+        "exists": true
+      }
+    },
+    {
+      "name": "Get user's albums",
+      "method": "GET",
+      "url": "/users/{{ .responses[1].id }}/albums",
+      "condition": {
+        "response": 1,
+        "statusCode": 200
+      }
+    }
+  ]
+}

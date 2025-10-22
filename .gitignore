@@ -1,0 +1,6 @@
+# Claude
+*.claude
+
+# Bash scripts (except apiseq.sh)
+*.sh
+!apiseq.sh

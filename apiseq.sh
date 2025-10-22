@@ -1,0 +1,396 @@
+#!/usr/bin/env bash
+
+# apiseq.sh - HTTP Sequence Runner
+# Executes a sequence of HTTP requests defined in a JSON configuration file
+# Dependencies: bash, curl, jq
+
+set -euo pipefail
+
+# Color codes for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Array to store responses from each step
+declare -a responses_json=()
+# Array to store status codes from each step
+declare -a responses_status=()
+
+# Temporary directory for storing response files
+TEMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TEMP_DIR"' EXIT
+
+# Global defaults
+DEFAULTS_JSON="{}"
+
+# Function to print usage
+usage() {
+    echo "Usage: $0 <config.json>"
+    echo ""
+    echo "Execute a sequence of HTTP requests defined in a JSON configuration file."
+    echo ""
+    echo "Requirements:"
+    echo "  - curl"
+    echo "  - jq"
+    exit 1
+}
+
+# Function to check prerequisites
+check_prerequisites() {
+    if ! command -v curl &> /dev/null; then
+        echo "Error: curl is not installed"
+        exit 1
+    fi
+
+    if ! command -v jq &> /dev/null; then
+        echo "Error: jq is not installed"
+        exit 1
+    fi
+}
+
+# Function to merge defaults with step configuration
+merge_with_defaults() {
+    local step_json="$1"
+    local merged="$step_json"
+
+    # Get baseUrl from defaults
+    local base_url=$(echo "$DEFAULTS_JSON" | jq -r '.baseUrl // empty')
+    if [ -n "$base_url" ]; then
+        # Replace {baseUrl} placeholder or prepend if URL starts with /
+        local url=$(echo "$step_json" | jq -r '.url // empty')
+        if [ -n "$url" ]; then
+            if [[ "$url" == /* ]]; then
+                merged=$(echo "$merged" | jq --arg baseUrl "$base_url" --arg url "$url" '.url = ($baseUrl + $url)')
+            else
+                merged=$(echo "$merged" | jq --arg baseUrl "$base_url" '.url = (.url | gsub("\\{baseUrl\\}"; $baseUrl))')
+            fi
+        fi
+    fi
+
+    # Merge default headers with step headers (step headers override)
+    if echo "$DEFAULTS_JSON" | jq -e '.headers' > /dev/null 2>&1; then
+        local default_headers=$(echo "$DEFAULTS_JSON" | jq '.headers')
+        local step_headers=$(echo "$step_json" | jq '.headers // {}')
+        local merged_headers=$(echo "$default_headers $step_headers" | jq -s '.[0] * .[1]')
+        merged=$(echo "$merged" | jq --argjson headers "$merged_headers" '.headers = $headers')
+    fi
+
+    # Merge default expect with step expect (step expect overrides)
+    if echo "$DEFAULTS_JSON" | jq -e '.expect' > /dev/null 2>&1; then
+        local default_expect=$(echo "$DEFAULTS_JSON" | jq '.expect')
+        local step_expect=$(echo "$step_json" | jq '.expect // {}')
+        local merged_expect=$(echo "$default_expect $step_expect" | jq -s '.[0] * .[1]')
+        merged=$(echo "$merged" | jq --argjson expect "$merged_expect" '.expect = $expect')
+    fi
+
+    echo "$merged"
+}
+
+# Function to substitute variables in a string
+# Supports syntax: {{ .responses[N].field.subfield }}
+substitute_variables() {
+    local input="$1"
+    local output="$input"
+
+    # Find all {{ .responses[N]... }} patterns
+    while [[ "$output" =~ \{\{[[:space:]]*\.responses\[([0-9]+)\]\.([^}]+)[[:space:]]*\}\} ]]; do
+        local index="${BASH_REMATCH[1]}"
+        local jsonpath="${BASH_REMATCH[2]}"
+        local full_match="${BASH_REMATCH[0]}"
+
+        # Get the value from the stored response
+        if [ "$index" -lt "${#responses_json[@]}" ]; then
+            local value=$(echo "${responses_json[$index]}" | jq -r ".$jsonpath")
+            if [ "$value" = "null" ] || [ -z "$value" ]; then
+                echo "Error: Could not extract value from .responses[$index].$jsonpath" >&2
+                exit 1
+            fi
+            # Replace the placeholder with the actual value
+            output="${output//$full_match/$value}"
+        else
+            echo "Error: Response index $index not found (only ${#responses_json[@]} responses stored)" >&2
+            exit 1
+        fi
+    done
+
+    echo "$output"
+}
+
+# Function to process body and substitute variables
+process_body() {
+    local body_json="$1"
+
+    # Convert body JSON to string, substitute variables, then parse back
+    local body_str=$(echo "$body_json" | jq -c '.')
+    body_str=$(substitute_variables "$body_str")
+
+    echo "$body_str"
+}
+
+# Function to evaluate a condition
+# Returns 0 (true) if condition passes, 1 (false) if it fails
+evaluate_condition() {
+    local condition_json="$1"
+    local step_num="$2"
+
+    # Extract condition parameters
+    local response_index=$(echo "$condition_json" | jq -r '.response // empty')
+
+    # Check if response index is valid
+    if [ -z "$response_index" ]; then
+        echo "Error: Step $step_num condition missing 'response' index" >&2
+        exit 1
+    fi
+
+    if [ "$response_index" -ge "${#responses_json[@]}" ]; then
+        echo "Error: Step $step_num condition references response[$response_index] but only ${#responses_json[@]} responses available" >&2
+        exit 1
+    fi
+
+    # Check for statusCode condition
+    if echo "$condition_json" | jq -e '.statusCode' > /dev/null 2>&1; then
+        local expected_status=$(echo "$condition_json" | jq -r '.statusCode')
+        local actual_status="${responses_status[$response_index]}"
+
+        if [ "$actual_status" = "$expected_status" ]; then
+            return 0  # Condition passes
+        else
+            return 1  # Condition fails
+        fi
+    fi
+
+    # Check for field-based conditions
+    if echo "$condition_json" | jq -e '.field' > /dev/null 2>&1; then
+        local field=$(echo "$condition_json" | jq -r '.field')
+        local response_body="${responses_json[$response_index]}"
+
+        # Check for 'exists' condition
+        if echo "$condition_json" | jq -e '.exists' > /dev/null 2>&1; then
+            local should_exist=$(echo "$condition_json" | jq -r '.exists')
+            local value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+
+            if [ "$should_exist" = "true" ]; then
+                if [ "$value" != "null" ] && [ -n "$value" ]; then
+                    return 0  # Field exists
+                else
+                    return 1  # Field doesn't exist
+                fi
+            else
+                if [ "$value" = "null" ] || [ -z "$value" ]; then
+                    return 0  # Field doesn't exist (as expected)
+                else
+                    return 1  # Field exists (but shouldn't)
+                fi
+            fi
+        fi
+
+        # Check for 'equals' condition
+        if echo "$condition_json" | jq -e '.equals' > /dev/null 2>&1; then
+            local expected_value=$(echo "$condition_json" | jq -r '.equals')
+            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+
+            if [ "$actual_value" = "$expected_value" ]; then
+                return 0  # Values match
+            else
+                return 1  # Values don't match
+            fi
+        fi
+
+        # Check for 'notEquals' condition
+        if echo "$condition_json" | jq -e '.notEquals' > /dev/null 2>&1; then
+            local unwanted_value=$(echo "$condition_json" | jq -r '.notEquals')
+            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+
+            if [ "$actual_value" != "$unwanted_value" ]; then
+                return 0  # Values don't match (as expected)
+            else
+                return 1  # Values match (but shouldn't)
+            fi
+        fi
+    fi
+
+    # If no recognizable condition found
+    echo "Error: Step $step_num has invalid condition format" >&2
+    exit 1
+}
+
+# Function to execute a single HTTP request step
+execute_step() {
+    local step_index="$1"
+    local step_json="$2"
+    local step_num=$((step_index + 1))
+
+    # Merge step with defaults
+    step_json=$(merge_with_defaults "$step_json")
+
+    # Extract step details
+    local name=$(echo "$step_json" | jq -r '.name')
+    local method=$(echo "$step_json" | jq -r '.method')
+    local url=$(echo "$step_json" | jq -r '.url')
+
+    # Substitute variables in URL
+    url=$(substitute_variables "$url")
+
+    # Build curl command
+    local curl_cmd="curl -s -w '\n%{http_code}' -X $method"
+
+    # Add headers if present
+    if echo "$step_json" | jq -e '.headers' > /dev/null 2>&1; then
+        local headers=$(echo "$step_json" | jq -r '.headers | to_entries[] | "-H \"\(.key): \(.value)\""')
+        while IFS= read -r header; do
+            if [ -n "$header" ]; then
+                # Substitute variables in headers
+                header=$(substitute_variables "$header")
+                eval "curl_cmd+=' $header'"
+            fi
+        done <<< "$headers"
+    fi
+
+    # Add body if present
+    if echo "$step_json" | jq -e '.body' > /dev/null 2>&1; then
+        local body=$(echo "$step_json" | jq -c '.body')
+        body=$(process_body "$body")
+        curl_cmd+=" -d '$body'"
+    fi
+
+    # Add URL
+    curl_cmd+=" '$url'"
+
+    # Execute curl and capture response
+    local response_file="$TEMP_DIR/response_$step_index.txt"
+    eval "$curl_cmd" > "$response_file" 2>&1
+
+    # Extract status code (last line) and body (everything else)
+    local status_code=$(tail -n 1 "$response_file")
+    local response_body=$(head -n -1 "$response_file")
+
+    # Store response JSON and status code for future reference
+    responses_json+=("$response_body")
+    responses_status+=("$status_code")
+
+    # Validate response
+    local expect_status=200
+    if echo "$step_json" | jq -e '.expect.status' > /dev/null 2>&1; then
+        expect_status=$(echo "$step_json" | jq -r '.expect.status')
+    fi
+
+    # Check status code
+    if [ "$status_code" != "$expect_status" ]; then
+        echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code (expected $expect_status)${NC}"
+        echo "Response body: $response_body"
+        exit 1
+    fi
+
+    # Check JSON path if specified
+    if echo "$step_json" | jq -e '.expect.jsonpath' > /dev/null 2>&1; then
+        local jsonpath=$(echo "$step_json" | jq -r '.expect.jsonpath')
+        local extracted=$(echo "$response_body" | jq -r "$jsonpath" 2>/dev/null || echo "null")
+
+        if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
+            echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but JSON path '$jsonpath' not found${NC}"
+            exit 1
+        fi
+
+        # Check if equals is specified
+        if echo "$step_json" | jq -e '.expect.equals' > /dev/null 2>&1; then
+            local expected_value=$(echo "$step_json" | jq -r '.expect.equals')
+            if [ "$extracted" != "$expected_value" ]; then
+                echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected '$expected_value')${NC}"
+                exit 1
+            fi
+        fi
+    fi
+
+    # Print success
+    echo -e "Step $step_num: $method $url ${GREEN}✅ Status $status_code OK${NC}"
+}
+
+# Main execution
+main() {
+    # Check for config file argument
+    if [ $# -eq 0 ]; then
+        usage
+    fi
+
+    local config_file="$1"
+
+    # Check if config file exists
+    if [ ! -f "$config_file" ]; then
+        echo "Error: Configuration file '$config_file' not found"
+        exit 1
+    fi
+
+    # Check prerequisites
+    check_prerequisites
+
+    # Load configuration
+    local config=$(cat "$config_file")
+
+    # Validate JSON
+    if ! echo "$config" | jq empty 2>/dev/null; then
+        echo "Error: Invalid JSON in configuration file"
+        exit 1
+    fi
+
+    # Load defaults if present
+    if echo "$config" | jq -e '.defaults' > /dev/null 2>&1; then
+        DEFAULTS_JSON=$(echo "$config" | jq '.defaults')
+        echo "Loaded defaults from configuration"
+    fi
+
+    # Get number of steps
+    local num_steps=$(echo "$config" | jq '.steps | length')
+
+    if [ "$num_steps" -eq 0 ]; then
+        echo "Error: No steps defined in configuration"
+        exit 1
+    fi
+
+    echo "Starting HTTP sequence with $num_steps steps..."
+    echo ""
+
+    # Track execution stats
+    local steps_executed=0
+    local steps_skipped=0
+
+    # Execute each step
+    for ((i=0; i<num_steps; i++)); do
+        local step=$(echo "$config" | jq ".steps[$i]")
+        local step_num=$((i + 1))
+        local name=$(echo "$step" | jq -r '.name')
+        local method=$(echo "$step" | jq -r '.method')
+        local url=$(echo "$step" | jq -r '.url')
+
+        # Check if step has a condition
+        if echo "$step" | jq -e '.condition' > /dev/null 2>&1; then
+            local condition=$(echo "$step" | jq '.condition')
+
+            # Evaluate the condition
+            if evaluate_condition "$condition" "$step_num"; then
+                # Condition passed, execute step
+                execute_step "$i" "$step"
+                steps_executed=$((steps_executed + 1))
+            else
+                # Condition failed, skip step
+                echo -e "Step $step_num: $method $url ${BLUE}⊘ SKIPPED${NC} (condition not met)"
+                steps_skipped=$((steps_skipped + 1))
+
+                # Store empty response and status for skipped steps to maintain indexing
+                responses_json+=("{}")
+                responses_status+=("0")
+            fi
+        else
+            # No condition, execute step normally
+            execute_step "$i" "$step"
+            steps_executed=$((steps_executed + 1))
+        fi
+    done
+
+    echo ""
+    echo -e "${GREEN}Sequence completed: $steps_executed executed, $steps_skipped skipped 🎉${NC}"
+}
+
+# Run main function
+main "$@"

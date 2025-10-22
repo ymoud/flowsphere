@@ -1,0 +1,140 @@
+{
+  "defaults": {
+    "baseUrl": "https://api.example.com",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "expect": {
+      "status": 200
+    }
+  },
+  "steps": [
+    {
+      "name": "Authenticate",
+      "method": "POST",
+      "url": "/login",
+      "body": {
+        "username": "demo",
+        "password": "demo123"
+      },
+      "expect": {
+        "jsonpath": ".token"
+      }
+    },
+    {
+      "name": "Get user profile",
+      "method": "GET",
+      "url": "/profile",
+      "headers": {
+        "Authorization": "Bearer {{ .responses[0].token }}"
+      },
+      "expect": {
+        "jsonpath": ".id"
+      }
+    },
+    {
+      "name": "Update premium user settings",
+      "method": "PUT",
+      "url": "/users/{{ .responses[1].id }}/settings",
+      "headers": {
+        "Authorization": "Bearer {{ .responses[0].token }}"
+      },
+      "body": {
+        "theme": "dark",
+        "notifications": true
+      },
+      "condition": {
+        "response": 1,
+        "field": ".isPremium",
+        "equals": "true"
+      },
+      "expect": {
+        "jsonpath": ".success",
+        "equals": "true"
+      }
+    },
+    {
+      "name": "Send welcome email (only for new users)",
+      "method": "POST",
+      "url": "/emails/welcome",
+      "headers": {
+        "Authorization": "Bearer {{ .responses[0].token }}"
+      },
+      "body": {
+        "userId": "{{ .responses[1].id }}",
+        "email": "{{ .responses[1].email }}"
+      },
+      "condition": {
+        "response": 1,
+        "field": ".isNewUser",
+        "equals": "true"
+      }
+    },
+    {
+      "name": "Handle authentication failure",
+      "method": "POST",
+      "url": "/audit/login-failed",
+      "body": {
+        "username": "demo",
+        "timestamp": "2024-01-01T00:00:00Z"
+      },
+      "condition": {
+        "response": 0,
+        "statusCode": 401
+      },
+      "expect": {
+        "status": 201
+      }
+    },
+    {
+      "name": "Fetch updated profile",
+      "method": "GET",
+      "url": "/profile",
+      "headers": {
+        "Authorization": "Bearer {{ .responses[0].token }}"
+      },
+      "condition": {
+        "response": 0,
+        "statusCode": 200
+      }
+    },
+    {
+      "name": "Verify admin access",
+      "method": "GET",
+      "url": "/admin/dashboard",
+      "headers": {
+        "Authorization": "Bearer {{ .responses[0].token }}"
+      },
+      "condition": {
+        "response": 1,
+        "field": ".role",
+        "equals": "admin"
+      }
+    },
+    {
+      "name": "Enable notifications if disabled",
+      "method": "POST",
+      "url": "/users/{{ .responses[1].id }}/notifications/enable",
+      "headers": {
+        "Authorization": "Bearer {{ .responses[0].token }}"
+      },
+      "condition": {
+        "response": 1,
+        "field": ".notificationsEnabled",
+        "notEquals": "true"
+      }
+    },
+    {
+      "name": "Logout",
+      "method": "POST",
+      "url": "/logout",
+      "headers": {
+        "Authorization": "Bearer {{ .responses[0].token }}"
+      },
+      "condition": {
+        "response": 0,
+        "statusCode": 200
+      }
+    }
+  ]
+}
