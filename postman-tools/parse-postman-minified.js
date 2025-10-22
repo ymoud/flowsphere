@@ -51,7 +51,7 @@ function replaceEnvVars(str) {
 }
 
 // Recursively collect all requests from folders
-function collectRequests(items, folderPath = '', folderOrder = 0) {
+function collectRequests(items, folderPath = '', orderPath = []) {
     const requests = [];
 
     items.forEach(item => {
@@ -60,10 +60,13 @@ function collectRequests(items, folderPath = '', folderOrder = 0) {
             const folderPrefix = getNumericPrefix(folderName);
             const cleanFolderName = removeNumericPrefix(folderName);
 
+            // Build the order path by appending this folder's prefix
+            const newOrderPath = [...orderPath, folderPrefix];
+
             const subRequests = collectRequests(
                 item.item,
                 folderPath ? `${folderPath} > ${cleanFolderName}` : cleanFolderName,
-                folderPrefix
+                newOrderPath
             );
             requests.push(...subRequests);
         } else if (item.request) {
@@ -72,7 +75,7 @@ function collectRequests(items, folderPath = '', folderOrder = 0) {
             const cleanRequestName = removeNumericPrefix(requestName);
 
             requests.push({
-                folderOrder,
+                orderPath,           // Full hierarchy path
                 requestOrder: requestPrefix,
                 folderPath,
                 name: cleanRequestName,
@@ -89,11 +92,18 @@ function collectRequests(items, folderPath = '', folderOrder = 0) {
 console.log('Collecting and ordering requests...');
 const allRequests = collectRequests(collection.item);
 
-// Sort by folder order, then request order
+// Sort by comparing the full order path hierarchy, then request order
 allRequests.sort((a, b) => {
-    if (a.folderOrder !== b.folderOrder) {
-        return a.folderOrder - b.folderOrder;
+    // Compare orderPath arrays element by element
+    const maxLen = Math.max(a.orderPath.length, b.orderPath.length);
+    for (let i = 0; i < maxLen; i++) {
+        const aVal = a.orderPath[i] || 0;
+        const bVal = b.orderPath[i] || 0;
+        if (aVal !== bVal) {
+            return aVal - bVal;
+        }
     }
+    // If orderPaths are equal, compare request order
     return a.requestOrder - b.requestOrder;
 });
 
