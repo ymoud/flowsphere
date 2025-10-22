@@ -6,7 +6,7 @@ A cross-platform command-line tool written in Bash that sequentially executes HT
 
 - **Sequential HTTP Execution** - Execute multiple HTTP requests in order
 - **Conditional Execution** - Skip steps based on previous response status codes or field values
-- **Dynamic Value Substitution** - Reference data from previous responses using `{{ .responses[N].field }}`
+- **Dynamic Value Substitution** - Reference data from previous responses using step IDs or indices
 - **Validation** - Verify HTTP status codes and JSON response values
 - **Error Handling** - Stop execution immediately on validation failure
 - **Clean Output** - Visual feedback with ✅/❌/⊘ indicators
@@ -185,22 +185,27 @@ To reduce duplication, you can define common values in a `defaults` section:
 
 ### Dynamic Value Substitution
 
-You can reference data from previous responses using the template syntax:
+You can reference data from previous responses using template syntax. Two formats are supported:
+
+#### Named References (Recommended)
+
+Reference responses by step ID for clearer, more maintainable configurations:
 
 ```
-{{ .responses[N].field.subfield }}
+{{ .responses.stepId.field.subfield }}
 ```
 
 Where:
-- `N` is the zero-based index of the previous step (0 for first step, 1 for second, etc.)
+- `stepId` is the unique ID of a previous step
 - `field.subfield` is the JSON path to the value you want
 
-**Examples:**
+**Example with Named References:**
 
 ```json
 {
   "steps": [
     {
+      "id": "login",
       "name": "Login",
       "method": "POST",
       "url": "https://api.example.com/login",
@@ -210,19 +215,21 @@ Where:
       }
     },
     {
+      "id": "getProfile",
       "name": "Get Profile",
       "method": "GET",
       "url": "https://api.example.com/profile",
       "headers": {
-        "Authorization": "Bearer {{ .responses[0].token }}"
+        "Authorization": "Bearer {{ .responses.login.token }}"
       }
     },
     {
+      "id": "updateUser",
       "name": "Update User",
       "method": "PUT",
-      "url": "https://api.example.com/users/{{ .responses[1].id }}",
+      "url": "https://api.example.com/users/{{ .responses.getProfile.id }}",
       "headers": {
-        "Authorization": "Bearer {{ .responses[0].token }}"
+        "Authorization": "Bearer {{ .responses.login.token }}"
       },
       "body": {
         "email": "newemail@example.com"
@@ -232,11 +239,51 @@ Where:
 }
 ```
 
+**Step ID Requirements:**
+- All steps must have an `id` field
+- IDs must start with a letter
+- IDs can only contain letters, numbers, underscores, and hyphens
+- IDs must be unique across all steps
+
+**Benefits of Named References:**
+- Self-documenting: `{{ .responses.login.token }}` is clearer than `{{ .responses[0].token }}`
+- Maintainable: Adding/removing steps doesn't break references
+- Less error-prone: No need to count array indices
+
+#### Index-Based References (Legacy)
+
+Reference responses by zero-based index (backward compatibility):
+
+```
+{{ .responses[N].field.subfield }}
+```
+
+Where:
+- `N` is the zero-based index of the previous step (0 for first step, 1 for second, etc.)
+- `field.subfield` is the JSON path to the value you want
+
+**Note:** Index-based references still work for backward compatibility, but named references are recommended for new configurations.
+
 ### Conditional Execution
 
 Steps can be executed conditionally based on previous responses. If a condition is not met, the step is skipped with a ⊘ indicator.
 
-**Condition Structure:**
+**Condition Structure (Named References - Recommended):**
+
+```json
+{
+  "condition": {
+    "step": "stepId",
+    "statusCode": 200,
+    "field": ".fieldName",
+    "equals": "value",
+    "notEquals": "value",
+    "exists": true
+  }
+}
+```
+
+**Condition Structure (Index-Based - Legacy):**
 
 ```json
 {
@@ -253,7 +300,8 @@ Steps can be executed conditionally based on previous responses. If a condition 
 
 **Condition Parameters:**
 
-- **response** (required) - Zero-based index of the response to check
+- **step** (required for named) - Step ID to reference (e.g., `"login"`)
+- **response** (required for index-based) - Zero-based index of the response to check
 - **statusCode** (optional) - Check if previous response had this status code
 - **field** (optional) - JSON path to a field in the response
 - **equals** (optional) - Field value must equal this value
@@ -262,10 +310,11 @@ Steps can be executed conditionally based on previous responses. If a condition 
 
 **Important Notes:**
 
+- Use either `step` (named) or `response` (index) - not both
 - You can check either `statusCode` OR field-based conditions (not both in same condition)
 - Field-based conditions require the `field` parameter
 - Skipped steps still maintain their position in the responses array (with empty values)
-- Conditions reference completed steps only (step 3 can check responses 0, 1, or 2)
+- Conditions reference completed steps only
 
 #### Conditional Execution Examples
 
@@ -273,14 +322,15 @@ Steps can be executed conditionally based on previous responses. If a condition 
 
 ```json
 {
+  "id": "getUserData",
   "name": "Get user data",
   "method": "GET",
   "url": "https://api.example.com/user",
   "headers": {
-    "Authorization": "Bearer {{ .responses[0].token }}"
+    "Authorization": "Bearer {{ .responses.login.token }}"
   },
   "condition": {
-    "response": 0,
+    "step": "login",
     "statusCode": 200
   }
 }
@@ -290,11 +340,12 @@ Steps can be executed conditionally based on previous responses. If a condition 
 
 ```json
 {
+  "id": "accessPremium",
   "name": "Access premium features",
   "method": "GET",
   "url": "https://api.example.com/premium/dashboard",
   "condition": {
-    "response": 1,
+    "step": "getProfile",
     "field": ".isPremium",
     "equals": "true"
   }
@@ -305,11 +356,12 @@ Steps can be executed conditionally based on previous responses. If a condition 
 
 ```json
 {
+  "id": "showRegularContent",
   "name": "Show regular user content",
   "method": "GET",
   "url": "https://api.example.com/content/regular",
   "condition": {
-    "response": 0,
+    "step": "login",
     "field": ".role",
     "notEquals": "admin"
   }
@@ -320,14 +372,15 @@ Steps can be executed conditionally based on previous responses. If a condition 
 
 ```json
 {
+  "id": "applyReferral",
   "name": "Use referral code",
   "method": "POST",
   "url": "https://api.example.com/referrals/apply",
   "body": {
-    "code": "{{ .responses[0].referralCode }}"
+    "code": "{{ .responses.login.referralCode }}"
   },
   "condition": {
-    "response": 0,
+    "step": "login",
     "field": ".referralCode",
     "exists": true
   }
@@ -340,6 +393,7 @@ Steps can be executed conditionally based on previous responses. If a condition 
 {
   "steps": [
     {
+      "id": "tryLogin",
       "name": "Try to login",
       "method": "POST",
       "url": "https://api.example.com/login",
@@ -349,20 +403,22 @@ Steps can be executed conditionally based on previous responses. If a condition 
       }
     },
     {
+      "id": "logSuccess",
       "name": "Log successful login",
       "method": "POST",
       "url": "https://api.example.com/audit/login-success",
       "condition": {
-        "response": 0,
+        "step": "tryLogin",
         "statusCode": 200
       }
     },
     {
+      "id": "logFailure",
       "name": "Log failed login",
       "method": "POST",
       "url": "https://api.example.com/audit/login-failed",
       "condition": {
-        "response": 0,
+        "step": "tryLogin",
         "statusCode": 401
       }
     }

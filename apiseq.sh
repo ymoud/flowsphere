@@ -22,6 +22,8 @@ NC='\033[0m' # No Color
 declare -a responses_json=()
 # Array to store status codes from each step
 declare -a responses_status=()
+# Associative array to map step IDs to indices
+declare -A response_ids=()
 # Storage for user input (as JSON object)
 USER_INPUT_JSON="{}"
 
@@ -290,6 +292,57 @@ check_prerequisites() {
     fi
 }
 
+# Function to validate step IDs
+# Ensures all steps have valid, unique IDs
+validate_step_ids() {
+    local config="$1"
+    local num_steps=$(echo "$config" | jq '.steps | length')
+
+    if [ "$num_steps" -eq 0 ]; then
+        return 0  # No steps to validate
+    fi
+
+    # Track seen IDs for duplicate detection
+    declare -A seen_ids
+
+    for ((i=0; i<num_steps; i++)); do
+        local step=$(echo "$config" | jq ".steps[$i]")
+        local step_num=$((i + 1))
+        local name=$(echo "$step" | jq -r '.name // "Unknown"')
+
+        # Check if 'id' field exists
+        if ! echo "$step" | jq -e '.id' > /dev/null 2>&1; then
+            echo "Error: Step $step_num ('$name') is missing required 'id' field" >&2
+            echo "All steps must have an 'id' field for named references" >&2
+            exit 1
+        fi
+
+        local id=$(echo "$step" | jq -r '.id')
+
+        # Validate ID format: must start with letter, then alphanumeric/underscore/hyphen
+        if ! [[ "$id" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+            echo "Error: Step $step_num ('$name') has invalid ID: '$id'" >&2
+            echo "IDs must start with a letter and contain only letters, numbers, underscores, and hyphens" >&2
+            exit 1
+        fi
+
+        # Check for duplicate IDs
+        if [[ -v seen_ids["$id"] ]]; then
+            local prev_step_num="${seen_ids[$id]}"
+            echo "Error: Duplicate step ID '$id' found" >&2
+            echo "  First occurrence: Step $prev_step_num" >&2
+            echo "  Duplicate found: Step $step_num ('$name')" >&2
+            echo "All step IDs must be unique" >&2
+            exit 1
+        fi
+
+        # Mark ID as seen
+        seen_ids["$id"]=$step_num
+    done
+
+    debug_log "DEBUG: All step IDs validated successfully"
+}
+
 # Function to merge defaults with step configuration
 merge_with_defaults() {
     local step_json="$1"
@@ -377,7 +430,59 @@ substitute_variables() {
         fi
     done
 
-    # Find all {{ .responses[N]... }} patterns
+    # Find all {{ .responses.stepId.field }} patterns (named references)
+    local named_iteration=0
+    while [[ "$output" =~ \{\{[[:space:]]*\.responses\.([a-zA-Z][a-zA-Z0-9_-]*)\.([^}]+)[[:space:]]*\}\} ]]; do
+        named_iteration=$((named_iteration + 1))
+        local step_id="${BASH_REMATCH[1]}"
+        local jsonpath="${BASH_REMATCH[2]}"
+        # Trim whitespace from jsonpath
+        jsonpath=$(echo "$jsonpath" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        local full_match="${BASH_REMATCH[0]}"
+        debug_log "DEBUG: substitute_variables - named reference found: step_id=$step_id, jsonpath=$jsonpath, full_match=$full_match"
+
+        # Look up step ID in response_ids mapping
+        if [[ -v response_ids["$step_id"] ]]; then
+            local index="${response_ids[$step_id]}"
+            debug_log "DEBUG: substitute_variables - resolved step ID '$step_id' to index $index"
+
+            # Get the value from the stored response
+            if [ "$index" -lt "${#responses_json[@]}" ]; then
+                debug_log "DEBUG: substitute_variables - extracting from responses_json[$index]"
+                debug_log "DEBUG: substitute_variables - response data: ${responses_json[$index]}"
+                local value=$(echo "${responses_json[$index]}" | jq -r ".$jsonpath")
+                debug_log "DEBUG: substitute_variables - extracted value=$value"
+                if [ "$value" = "null" ] || [ -z "$value" ]; then
+                    echo "Error: Could not extract value from .responses.$step_id.$jsonpath" >&2
+                    exit 1
+                fi
+
+                # Replace the placeholder with the actual value
+                debug_log "DEBUG: substitute_variables - replacing '$full_match' with '$value'"
+                local escaped_full_match="$full_match"
+                escaped_full_match="${escaped_full_match//\*/\\*}"
+                escaped_full_match="${escaped_full_match//\?/\\?}"
+                escaped_full_match="${escaped_full_match//\[/\\[}"
+                escaped_full_match="${escaped_full_match//\]/\\]}"
+                output="${output//$escaped_full_match/$value}"
+                debug_log "DEBUG: substitute_variables - output after replacement=$output"
+            else
+                echo "Error: Response index $index not found (only ${#responses_json[@]} responses stored)" >&2
+                exit 1
+            fi
+        else
+            echo "Error: No step with ID '$step_id' found or not yet executed" >&2
+            echo "Available step IDs: ${!response_ids[@]}" >&2
+            exit 1
+        fi
+
+        if [ $named_iteration -gt 10 ]; then
+            echo "ERROR: substitute_variables - infinite loop detected in named reference substitution" >&2
+            exit 1
+        fi
+    done
+
+    # Find all {{ .responses[N]... }} patterns (index-based references for backward compatibility)
     local iteration=0
     while [[ "$output" =~ \{\{[[:space:]]*\.responses\[([0-9]+)\]\.([^}]+)[[:space:]]*\}\} ]]; do
         iteration=$((iteration + 1))
@@ -463,15 +568,33 @@ evaluate_condition() {
     local condition_json="$1"
     local step_num="$2"
 
-    # Extract condition parameters
-    local response_index=$(echo "$condition_json" | jq -r '.response // empty')
+    # Extract condition parameters - support both "step" (ID-based) and "response" (index-based)
+    local response_index=""
 
-    # Check if response index is valid
-    if [ -z "$response_index" ]; then
-        echo "Error: Step $step_num condition missing 'response' index" >&2
-        exit 1
+    # Check for "step" field first (named reference)
+    if echo "$condition_json" | jq -e '.step' > /dev/null 2>&1; then
+        local step_id=$(echo "$condition_json" | jq -r '.step')
+
+        # Look up step ID in response_ids mapping
+        if [[ -v response_ids["$step_id"] ]]; then
+            response_index="${response_ids[$step_id]}"
+            debug_log "DEBUG: evaluate_condition - resolved step ID '$step_id' to index $response_index"
+        else
+            echo "Error: Step $step_num condition references step '$step_id' which was not found or not yet executed" >&2
+            echo "Available step IDs: ${!response_ids[@]}" >&2
+            exit 1
+        fi
+    else
+        # Fall back to "response" field (index-based, for backward compatibility)
+        response_index=$(echo "$condition_json" | jq -r '.response // empty')
+
+        if [ -z "$response_index" ]; then
+            echo "Error: Step $step_num condition must have either 'step' (ID) or 'response' (index) field" >&2
+            exit 1
+        fi
     fi
 
+    # Validate response index
     if [ "$response_index" -ge "${#responses_json[@]}" ]; then
         echo "Error: Step $step_num condition references response[$response_index] but only ${#responses_json[@]} responses available" >&2
         exit 1
@@ -763,6 +886,9 @@ main() {
         exit 1
     fi
 
+    # Validate step IDs
+    validate_step_ids "$config"
+
     # Load defaults if present
     if echo "$config" | jq -e '.defaults' > /dev/null 2>&1; then
         DEFAULTS_JSON=$(echo "$config" | jq '.defaults')
@@ -799,9 +925,14 @@ main() {
         local step=$(echo "$config" | jq ".steps[$i]")
         local step_num=$((i + 1))
         local name=$(echo "$step" | jq -r '.name')
+        local id=$(echo "$step" | jq -r '.id')
         local method=$(echo "$step" | jq -r '.method')
         local url=$(echo "$step" | jq -r '.url')
-        debug_log "DEBUG: Processing step $step_num: $name"
+        debug_log "DEBUG: Processing step $step_num: $name (id=$id)"
+
+        # Map step ID to index for named references
+        response_ids["$id"]=$i
+        debug_log "DEBUG: Mapped response_ids[$id]=$i"
 
         # Check if step has a condition
         if echo "$step" | jq -e '.condition' > /dev/null 2>&1; then
