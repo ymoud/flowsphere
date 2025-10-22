@@ -1,0 +1,53 @@
+{
+  "defaults": {
+    "baseUrl": "https://api.example.com",
+    "timeout": 30,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "expect": {
+      "status": 200
+    }
+  },
+  "steps": [
+    {
+      "name": "Request OAuth authorization URL",
+      "method": "POST",
+      "url": "/oauth/authorize",
+      "body": {
+        "client_id": "your-client-id",
+        "redirect_uri": "https://yourapp.com/callback",
+        "scope": "read write"
+      },
+      "expect": {
+        "jsonpath": ".authorizationUrl"
+      },
+      "launchBrowser": ".authorizationUrl"
+    },
+    {
+      "name": "Exchange code for token (after user approves)",
+      "method": "POST",
+      "url": "/oauth/token",
+      "prompts": {
+        "authCode": "Enter the authorization code from the browser:"
+      },
+      "body": {
+        "client_id": "your-client-id",
+        "client_secret": "your-client-secret",
+        "code": "{{ .input.authCode }}",
+        "grant_type": "authorization_code"
+      },
+      "expect": {
+        "jsonpath": ".access_token"
+      }
+    },
+    {
+      "name": "Make authenticated API call",
+      "method": "GET",
+      "url": "/user/profile",
+      "headers": {
+        "Authorization": "Bearer {{ .responses[1].access_token }}"
+      }
+    }
+  ]
+}

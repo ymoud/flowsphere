@@ -17,6 +17,8 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - `config-simple.json` - Basic example using JSONPlaceholder API
 - `config.json` - Full-featured example with authentication flow
 - `config-onboarding.json` - NBG onboarding API sequence (generated from Postman)
+- `config-test-features.json` - Demonstrates user input prompts and variable substitution
+- `config-oauth-example.json` - OAuth flow example with browser launch and user input
 
 **Prerequisites:**
 - bash (4.0+)
@@ -32,14 +34,18 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 **apiseq.sh** (main script):
 - Entry point: `main()` function parses config and orchestrates execution
 - `execute_step()`: Executes individual HTTP requests with curl
-- `substitute_variables()`: Template engine that replaces `{{ .responses[N].field }}` placeholders with values from previous responses
+- `substitute_variables()`: Template engine that replaces `{{ .responses[N].field }}` and `{{ .input.key }}` placeholders
+- `prompt_user_input()`: Collects user input interactively for steps with prompts
+- `launch_browser()`: Opens URLs in default browser (cross-platform support)
 - `evaluate_condition()`: Conditional execution logic (skip steps based on previous response status/fields)
 - `merge_with_defaults()`: Merges step config with global defaults for baseUrl, headers, timeout, and expect values
 - Response storage: Arrays `responses_json[]` and `responses_status[]` maintain state across steps
+- User input storage: `USER_INPUT_JSON` stores prompted values for current step
 
 **Config File Format:**
 ```json
 {
+  "enableDebug": false,              // Optional: enable debug logging (default: false)
   "defaults": {
     "baseUrl": "https://api.example.com",
     "timeout": 30,                   // Request timeout in seconds
@@ -54,8 +60,10 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
       "timeout": 10,                 // Optional step-level timeout override
       "headers": {},                 // Merged with defaults
       "body": {},                    // Optional request payload
+      "prompts": {},                 // Optional user input prompts
       "condition": {},               // Optional conditional execution
-      "expect": {}                   // Validation rules
+      "expect": {},                  // Validation rules
+      "launchBrowser": ".url"        // Optional: launch browser with URL from response
     }
   ]
 }
@@ -64,9 +72,12 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 ### Key Features
 
 **Dynamic Value Substitution:**
-- Syntax: `{{ .responses[N].field.subfield }}`
-- Zero-based indexing: responses[0] = first step, responses[1] = second step
-- Used in: URLs, headers, request bodies
+- Response syntax: `{{ .responses[N].field.subfield }}`
+  - Zero-based indexing: responses[0] = first step, responses[1] = second step
+  - Used in: URLs, headers, request bodies
+- User input syntax: `{{ .input.variableName }}`
+  - References values collected from `prompts` in the same step
+  - Used in: URLs, headers, request bodies
 - Implementation: `substitute_variables()` uses regex matching to find and replace placeholders
 
 **Conditional Execution:**
@@ -93,6 +104,52 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - Step-level timeout takes precedence over default timeout
 - Timeout failures are clearly reported with specific error messages
 - Execution stops immediately on timeout
+
+**User Input Prompts:**
+- Collect user input interactively before executing a step
+- Step property: `prompts` - object with key-value pairs (variable name: prompt message)
+- Values accessible via `{{ .input.variableName }}` syntax
+- Example:
+  ```json
+  {
+    "name": "Login with credentials",
+    "method": "POST",
+    "url": "/login",
+    "prompts": {
+      "username": "Enter your username:",
+      "password": "Enter your password:"
+    },
+    "body": {
+      "user": "{{ .input.username }}",
+      "pass": "{{ .input.password }}"
+    }
+  }
+  ```
+- User input is reset for each step that uses prompts
+- Can be combined with response substitution in the same step
+
+**Browser Launch:**
+- Automatically open URLs in the default browser after successful step execution
+- Step property: `launchBrowser` - jsonpath to extract URL from response
+- Supports Windows (start), macOS (open), and Linux (xdg-open)
+- Example:
+  ```json
+  {
+    "name": "Get authorization URL",
+    "method": "POST",
+    "url": "/oauth/authorize",
+    "launchBrowser": ".authorizationUrl"
+  }
+  ```
+- Browser launches only if the jsonpath successfully extracts a URL
+- Runs in background, doesn't block execution
+- Useful for OAuth flows and interactive authentication
+
+**Debug Logging:**
+- Optional detailed execution logging for troubleshooting
+- Config property: `enableDebug: true` (defaults to false)
+- Shows variable substitution, step execution flow, and internal state
+- Debug output goes to stderr, normal output to stdout
 
 ## Postman Integration
 

@@ -22,6 +22,8 @@ NC='\033[0m' # No Color
 declare -a responses_json=()
 # Array to store status codes from each step
 declare -a responses_status=()
+# Storage for user input (as JSON object)
+USER_INPUT_JSON="{}"
 
 # Temporary directory for storing response files
 TEMP_DIR=$(mktemp -d)
@@ -49,6 +51,59 @@ usage() {
 debug_log() {
     if [ "$ENABLE_DEBUG" = "true" ]; then
         echo "$@" >&2
+    fi
+}
+
+# Function to prompt user for input
+# Takes a JSON object with key-value pairs (variable: prompt message)
+# Updates USER_INPUT_JSON with the collected values
+prompt_user_input() {
+    local prompts_json="$1"
+    local step_num="$2"
+
+    echo ""
+    echo -e "${BLUE}Step $step_num requires user input:${NC}"
+
+    # Reset user input for this step
+    USER_INPUT_JSON="{}"
+
+    # Iterate through each prompt
+    local keys=$(echo "$prompts_json" | jq -r 'keys[]')
+    while IFS= read -r key; do
+        local prompt_message=$(echo "$prompts_json" | jq -r ".[\"$key\"]")
+        echo -n "$prompt_message "
+        read -r user_value
+
+        # Add to USER_INPUT_JSON
+        USER_INPUT_JSON=$(echo "$USER_INPUT_JSON" | jq --arg k "$key" --arg v "$user_value" '. + {($k): $v}')
+        debug_log "DEBUG: User input collected - $key=$user_value"
+    done <<< "$keys"
+
+    echo ""
+}
+
+# Function to launch browser with URL
+# Takes a URL and opens it in the default browser
+launch_browser() {
+    local url="$1"
+    local step_num="$2"
+
+    echo -e "${BLUE}Opening browser to: $url${NC}"
+    debug_log "DEBUG: Launching browser for step $step_num"
+
+    # Detect OS and use appropriate command
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        if command -v xdg-open &> /dev/null; then
+            xdg-open "$url" &> /dev/null &
+        else
+            echo "Warning: xdg-open not found, cannot open browser" >&2
+        fi
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        open "$url" &> /dev/null &
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
+        start "$url" &> /dev/null &
+    else
+        echo "Warning: Unsupported OS, cannot open browser" >&2
     fi
 }
 
@@ -282,13 +337,45 @@ merge_with_defaults() {
 }
 
 # Function to substitute variables in a string
-# Supports syntax: {{ .responses[N].field.subfield }}
+# Supports syntax: {{ .responses[N].field.subfield }} and {{ .input.key }}
 substitute_variables() {
     local input="$1"
     local output="$input"
 
     debug_log "DEBUG: substitute_variables - input=$input"
     debug_log "DEBUG: substitute_variables - responses_json array size=${#responses_json[@]}"
+    debug_log "DEBUG: substitute_variables - user_input_json=$USER_INPUT_JSON"
+
+    # Find all {{ .input.key }} patterns and replace with user input
+    local input_iteration=0
+    while [[ "$output" =~ \{\{[[:space:]]*\.input\.([a-zA-Z0-9_]+)[[:space:]]*\}\} ]]; do
+        input_iteration=$((input_iteration + 1))
+        local input_key="${BASH_REMATCH[1]}"
+        local full_match="${BASH_REMATCH[0]}"
+        debug_log "DEBUG: substitute_variables - input pattern found: key=$input_key, full_match=$full_match"
+
+        # Get the value from USER_INPUT_JSON
+        local value=$(echo "$USER_INPUT_JSON" | jq -r ".[\"$input_key\"]")
+        debug_log "DEBUG: substitute_variables - extracted input value=$value"
+        if [ "$value" = "null" ] || [ -z "$value" ]; then
+            echo "Error: Could not extract user input value for .input.$input_key" >&2
+            exit 1
+        fi
+
+        # Escape glob special characters
+        local escaped_full_match="$full_match"
+        escaped_full_match="${escaped_full_match//\*/\\*}"
+        escaped_full_match="${escaped_full_match//\?/\\?}"
+        escaped_full_match="${escaped_full_match//\[/\\[}"
+        escaped_full_match="${escaped_full_match//\]/\\]}"
+        output="${output//$escaped_full_match/$value}"
+        debug_log "DEBUG: substitute_variables - replaced input pattern, output=$output"
+
+        if [ $input_iteration -gt 10 ]; then
+            echo "ERROR: substitute_variables - infinite loop detected in input substitution" >&2
+            exit 1
+        fi
+    done
 
     # Find all {{ .responses[N]... }} patterns
     local iteration=0
@@ -445,6 +532,12 @@ execute_step() {
 
     debug_log "DEBUG: execute_step - start, step_num=$step_num"
 
+    # Check if step requires user input
+    if echo "$step_json" | jq -e '.prompts' > /dev/null 2>&1; then
+        local prompts=$(echo "$step_json" | jq '.prompts')
+        prompt_user_input "$prompts" "$step_num"
+    fi
+
     # Merge step with defaults
     debug_log "DEBUG: execute_step - calling merge_with_defaults"
     step_json=$(merge_with_defaults "$step_json")
@@ -577,6 +670,18 @@ execute_step() {
                 echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected NOT '$unwanted_value')${NC}"
                 exit 1
             fi
+        fi
+    fi
+
+    # Check if step should launch browser
+    if echo "$step_json" | jq -e '.launchBrowser' > /dev/null 2>&1; then
+        local browser_jsonpath=$(echo "$step_json" | jq -r '.launchBrowser')
+        local browser_url=$(echo "$response_body" | jq -r "$browser_jsonpath" 2>/dev/null || echo "null")
+
+        if [ "$browser_url" != "null" ] && [ -n "$browser_url" ]; then
+            launch_browser "$browser_url" "$step_num"
+        else
+            echo "Warning: Could not extract URL from response using jsonpath '$browser_jsonpath'" >&2
         fi
     fi
 

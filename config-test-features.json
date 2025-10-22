@@ -1,0 +1,37 @@
+{
+  "_comment": "This config demonstrates user input prompts and variable substitution. For browser launch examples, see config-oauth-example.json",
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "timeout": 10,
+    "expect": {
+      "status": 200
+    }
+  },
+  "steps": [
+    {
+      "name": "Create a post with user input",
+      "method": "POST",
+      "url": "/posts",
+      "prompts": {
+        "title": "Enter post title:",
+        "author": "Enter author name:"
+      },
+      "body": {
+        "title": "{{ .input.title }}",
+        "body": "Written by {{ .input.author }}",
+        "userId": 1
+      },
+      "expect": {
+        "jsonpath": ".id"
+      }
+    },
+    {
+      "name": "Fetch the created post",
+      "method": "GET",
+      "url": "/posts/{{ .responses[0].id }}",
+      "expect": {
+        "jsonpath": ".id"
+      }
+    }
+  ]
+}
