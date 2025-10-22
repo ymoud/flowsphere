@@ -288,9 +288,27 @@ execute_step() {
         local jsonpath=$(echo "$step_json" | jq -r '.expect.jsonpath')
         local extracted=$(echo "$response_body" | jq -r "$jsonpath" 2>/dev/null || echo "null")
 
-        if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
-            echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but JSON path '$jsonpath' not found${NC}"
-            exit 1
+        # Check for 'exists' expectation
+        if echo "$step_json" | jq -e '.expect.exists' > /dev/null 2>&1; then
+            local should_exist=$(echo "$step_json" | jq -r '.expect.exists')
+
+            if [ "$should_exist" = "true" ]; then
+                if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
+                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but expected field '$jsonpath' to exist${NC}"
+                    exit 1
+                fi
+            else
+                if [ "$extracted" != "null" ] && [ -n "$extracted" ]; then
+                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but expected field '$jsonpath' to NOT exist${NC}"
+                    exit 1
+                fi
+            fi
+        else
+            # If no 'exists' check, default behavior: field should exist
+            if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
+                echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but JSON path '$jsonpath' not found${NC}"
+                exit 1
+            fi
         fi
 
         # Check if equals is specified
@@ -298,6 +316,15 @@ execute_step() {
             local expected_value=$(echo "$step_json" | jq -r '.expect.equals')
             if [ "$extracted" != "$expected_value" ]; then
                 echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected '$expected_value')${NC}"
+                exit 1
+            fi
+        fi
+
+        # Check if notEquals is specified
+        if echo "$step_json" | jq -e '.expect.notEquals' > /dev/null 2>&1; then
+            local unwanted_value=$(echo "$step_json" | jq -r '.expect.notEquals')
+            if [ "$extracted" = "$unwanted_value" ]; then
+                echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected NOT '$unwanted_value')${NC}"
                 exit 1
             fi
         fi

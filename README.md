@@ -158,6 +158,8 @@ To reduce duplication, you can define common values in a `defaults` section:
   - **status** - Expected HTTP status code (overrides default)
   - **jsonpath** - JQ expression to extract a value (e.g., `.token`, `.data.id`)
   - **equals** - Expected value for the extracted field
+  - **notEquals** - Value the field must NOT equal
+  - **exists** - Check if field exists (true) or doesn't exist (false)
 
 ### Dynamic Value Substitution
 
@@ -343,6 +345,69 @@ Steps can be executed conditionally based on previous responses. If a condition 
       }
     }
   ]
+}
+```
+
+### Advanced Validation Examples
+
+**1. Check if a field exists:**
+
+```json
+{
+  "name": "Verify token is present",
+  "method": "GET",
+  "url": "https://api.example.com/session",
+  "expect": {
+    "status": 200,
+    "jsonpath": ".token",
+    "exists": true
+  }
+}
+```
+
+**2. Verify a field does NOT exist:**
+
+```json
+{
+  "name": "Ensure no error field",
+  "method": "POST",
+  "url": "https://api.example.com/process",
+  "expect": {
+    "status": 200,
+    "jsonpath": ".error",
+    "exists": false
+  }
+}
+```
+
+**3. Check value is NOT a specific value:**
+
+```json
+{
+  "name": "Verify user is not suspended",
+  "method": "GET",
+  "url": "https://api.example.com/user/status",
+  "expect": {
+    "status": 200,
+    "jsonpath": ".status",
+    "notEquals": "suspended"
+  }
+}
+```
+
+**4. Combine multiple validations:**
+
+```json
+{
+  "name": "Complex validation",
+  "method": "GET",
+  "url": "https://api.example.com/account",
+  "expect": {
+    "status": 200,
+    "jsonpath": ".role",
+    "exists": true,
+    "notEquals": "guest"
+  }
 }
 ```
 

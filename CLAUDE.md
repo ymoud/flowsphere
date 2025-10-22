@@ -74,9 +74,12 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - Skipped steps maintain array indexing (stored as empty responses)
 
 **Validation:**
-- Status code validation (defaults to 200)
+- Status code validation (`expect.status`, defaults to 200)
 - JSON path extraction (`expect.jsonpath`)
 - Value equality checks (`expect.equals`)
+- Value inequality checks (`expect.notEquals`)
+- Field existence checks (`expect.exists` - true/false)
+- Multiple expect options can be combined in a single step
 - Stops execution immediately on validation failure
 
 ## Postman Integration
