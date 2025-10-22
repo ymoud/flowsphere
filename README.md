@@ -559,6 +559,130 @@ Response body: {"error": "Unauthorized"}
 - Temporary files are cleaned up automatically on exit
 - Works with Bash 4.0+ (available on all modern systems)
 
+## Debugging
+
+### Enabling Debug Mode
+
+To see detailed execution logs, add `"enableDebug": true` to your configuration file:
+
+```json
+{
+  "enableDebug": true,
+  "defaults": {
+    "baseUrl": "https://api.example.com"
+  },
+  "steps": [
+    ...
+  ]
+}
+```
+
+### Debug Output
+
+When debug mode is enabled, the script outputs detailed information to stderr:
+
+```
+DEBUG: Loop iteration 0 of 5
+DEBUG: Processing step 1: Login
+DEBUG: About to execute step 1 (no condition)
+DEBUG: execute_step - start, step_num=1
+DEBUG: execute_step - calling merge_with_defaults
+DEBUG: execute_step - merge completed
+DEBUG: execute_step - extracting step details
+DEBUG: execute_step - extracted url=https://api.example.com/login
+DEBUG: execute_step - calling substitute_variables with url=https://api.example.com/login
+DEBUG: substitute_variables - input=https://api.example.com/login
+DEBUG: substitute_variables - responses_json array size=0
+DEBUG: substitute_variables - user_input_json={}
+DEBUG: substitute_variables - returning output=https://api.example.com/login
+DEBUG: execute_step - after substitution url=https://api.example.com/login
+DEBUG: Headers found in step_json
+DEBUG: step_json headers: {"Content-Type":"application/json"}
+DEBUG: Processing header: Content-Type = application/json
+DEBUG: After substitution: Content-Type = application/json
+DEBUG: Replacing GENERATED_GUID with 7e35d8d8-e1fa-4d6c-83d0-20a0262770e6
+DEBUG: Final curl command: curl -s -w '\n%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"user":"test"}' 'https://api.example.com/login'
+```
+
+### What Debug Logs Show
+
+Debug logs help you understand:
+
+- **Request flow:** See each step being processed
+- **Variable substitution:** Watch how `{{ .responses[N].field }}` placeholders are replaced
+- **Header processing:** See which headers are being sent
+- **GUID generation:** View generated UUIDs for `GENERATED_GUID` placeholders
+- **Final curl commands:** See the exact curl command being executed
+
+### Debugging Common Issues
+
+#### 1. Script hangs after "Starting HTTP sequence"
+
+**Symptoms:**
+```
+Loaded defaults from configuration
+Starting HTTP sequence with 51 steps...
+[script stops here]
+```
+
+**Solution:**
+- Enable debug mode to see where it stops
+- Check if the first step has a long timeout
+- Verify the API endpoint is accessible
+- Check for network issues or firewall blocking
+
+#### 2. Headers not being sent
+
+**Symptoms:**
+```
+Step 1: POST /endpoint ❌ Status 418 (expected 200)
+```
+
+**Debug approach:**
+- Enable debug mode and look for "Processing header" lines
+- Verify headers are in the "DEBUG: Final curl command" output
+- Check that custom headers are merged with default headers
+
+#### 3. Variable substitution fails
+
+**Symptoms:**
+```
+Error: Could not extract value from .responses[0].token
+```
+
+**Debug approach:**
+- Enable debug mode to see what's in `responses_json array`
+- Check the jsonpath is correct (case-sensitive)
+- Verify the previous step succeeded and returned the expected field
+- Look at "Response body:" output to see actual response structure
+
+#### 4. GUID generation issues
+
+**Symptoms:**
+```
+Error: Invalid UUID format
+```
+
+**Debug approach:**
+- Look for "DEBUG: Replacing GENERATED_GUID with [uuid]" messages
+- Verify uuidgen is installed: `which uuidgen`
+- Check `/proc/sys/kernel/random/uuid` exists on Linux
+
+### Redirecting Debug Output
+
+Debug logs go to stderr, so you can redirect them separately:
+
+```bash
+# Save debug logs to a file
+./apiseq.sh config.json 2> debug.log
+
+# View only debug output
+./apiseq.sh config.json 2>&1 > /dev/null
+
+# Save both stdout and stderr
+./apiseq.sh config.json > output.log 2>&1
+```
+
 ## Troubleshooting
 
 **"curl is not installed" error:**
@@ -574,6 +698,7 @@ Response body: {"error": "Unauthorized"}
 - Ensure you're using the correct syntax: `{{ .responses[N].field }}`
 - Check that the response index N exists (0-based indexing)
 - Verify the JSON path is correct by examining the response
+- Enable debug mode to see the actual substitution process
 
 ## License
 
