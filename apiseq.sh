@@ -37,15 +37,173 @@ usage() {
     exit 1
 }
 
-# Function to check prerequisites
-check_prerequisites() {
-    if ! command -v curl &> /dev/null; then
-        echo "Error: curl is not installed"
-        exit 1
+# Function to detect OS and package manager
+detect_package_manager() {
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        if command -v apt-get &> /dev/null; then
+            echo "apt"
+        elif command -v yum &> /dev/null; then
+            echo "yum"
+        elif command -v dnf &> /dev/null; then
+            echo "dnf"
+        else
+            echo "unknown"
+        fi
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        if command -v brew &> /dev/null; then
+            echo "brew"
+        else
+            echo "none"
+        fi
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
+        if command -v choco &> /dev/null; then
+            echo "choco"
+        elif command -v scoop &> /dev/null; then
+            echo "scoop"
+        else
+            echo "none"
+        fi
+    else
+        echo "unknown"
+    fi
+}
+
+# Function to attempt installing a package
+install_package() {
+    local package_name="$1"
+    local pkg_manager=$(detect_package_manager)
+
+    echo ""
+    echo "Attempting to install $package_name..."
+
+    case "$pkg_manager" in
+        apt)
+            echo "Using apt-get (requires sudo)..."
+            sudo apt-get update && sudo apt-get install -y "$package_name"
+            ;;
+        yum)
+            echo "Using yum (requires sudo)..."
+            sudo yum install -y "$package_name"
+            ;;
+        dnf)
+            echo "Using dnf (requires sudo)..."
+            sudo dnf install -y "$package_name"
+            ;;
+        brew)
+            echo "Using Homebrew..."
+            brew install "$package_name"
+            ;;
+        choco)
+            echo "Using Chocolatey (requires admin)..."
+            choco install "$package_name" -y
+            ;;
+        scoop)
+            echo "Using Scoop..."
+            scoop install "$package_name"
+            ;;
+        none)
+            echo "No package manager found."
+            return 1
+            ;;
+        unknown)
+            echo "Unsupported operating system."
+            return 1
+            ;;
+    esac
+
+    return $?
+}
+
+# Function to provide manual installation instructions
+show_install_instructions() {
+    local package_name="$1"
+
+    echo ""
+    echo "Manual installation instructions for $package_name:"
+    echo ""
+
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        echo "Ubuntu/Debian:  sudo apt-get update && sudo apt-get install $package_name"
+        echo "RHEL/CentOS:    sudo yum install $package_name"
+        echo "Fedora:         sudo dnf install $package_name"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macOS:          brew install $package_name"
+        echo "                (Install Homebrew from https://brew.sh if needed)"
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
+        if [ "$package_name" = "jq" ]; then
+            echo "Windows:        choco install jq"
+            echo "                (Install Chocolatey from https://chocolatey.org if needed)"
+            echo "    Or:         Download from https://stedolan.github.io/jq/download/"
+        else
+            echo "Windows:        curl is included with Git Bash"
+            echo "                Download Git Bash from https://git-scm.com/ if needed"
+        fi
     fi
 
+    echo ""
+}
+
+# Function to check prerequisites
+check_prerequisites() {
+    local missing_packages=()
+
+    # Check curl
+    if ! command -v curl &> /dev/null; then
+        missing_packages+=("curl")
+    fi
+
+    # Check jq
     if ! command -v jq &> /dev/null; then
-        echo "Error: jq is not installed"
+        missing_packages+=("jq")
+    fi
+
+    # If all dependencies are present, return success
+    if [ ${#missing_packages[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    # Display missing packages
+    echo "Missing required dependencies: ${missing_packages[*]}"
+    echo ""
+
+    # Prompt user for auto-install
+    read -p "Would you like to attempt automatic installation? (y/n): " -n 1 -r
+    echo ""
+
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        local install_failed=0
+
+        for package in "${missing_packages[@]}"; do
+            if install_package "$package"; then
+                # Verify installation succeeded
+                if command -v "$package" &> /dev/null; then
+                    echo "✓ Successfully installed $package"
+                else
+                    echo "✗ Installation appeared to succeed but $package is still not in PATH"
+                    install_failed=1
+                fi
+            else
+                echo "✗ Failed to install $package"
+                install_failed=1
+            fi
+        done
+
+        if [ $install_failed -eq 1 ]; then
+            echo ""
+            echo "Some packages could not be installed automatically."
+            for package in "${missing_packages[@]}"; do
+                if ! command -v "$package" &> /dev/null; then
+                    show_install_instructions "$package"
+                fi
+            done
+            exit 1
+        fi
+    else
+        # User declined auto-install, show manual instructions
+        echo ""
+        for package in "${missing_packages[@]}"; do
+            show_install_instructions "$package"
+        done
         exit 1
     fi
 }

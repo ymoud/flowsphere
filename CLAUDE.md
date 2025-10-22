@@ -23,6 +23,8 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - curl
 - jq
 
+**Note:** The script includes automatic dependency installation. If curl or jq are missing, users will be prompted to auto-install them. The script detects the OS and package manager (apt, yum, dnf, brew, choco, scoop) and attempts installation automatically.
+
 ## Architecture
 
 ### Core Components

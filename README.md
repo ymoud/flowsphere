@@ -11,6 +11,7 @@ A cross-platform command-line tool written in Bash that sequentially executes HT
 - **Error Handling** - Stop execution immediately on validation failure
 - **Clean Output** - Visual feedback with ✅/❌/⊘ indicators
 - **Cross-Platform** - Works on Windows (Git Bash/WSL), macOS, and Linux
+- **Auto-Install Dependencies** - Automatically detects and installs missing dependencies (curl, jq)
 
 ## Prerequisites
 
@@ -20,7 +21,28 @@ The following tools must be installed and available in your PATH:
 - **curl** - HTTP client for making requests
 - **jq** - JSON processor for parsing and extracting data
 
-### Installing Prerequisites
+### Automatic Installation
+
+**New!** The script now includes automatic dependency installation. When you run the script for the first time, if `curl` or `jq` are missing, you'll be prompted:
+
+```
+Missing required dependencies: jq
+Would you like to attempt automatic installation? (y/n):
+```
+
+Simply press `y` and the script will:
+- Detect your operating system and package manager
+- Attempt to install missing dependencies automatically
+- Verify the installation succeeded
+
+**Supported package managers:**
+- **Linux:** apt (Ubuntu/Debian), yum (RHEL/CentOS), dnf (Fedora)
+- **macOS:** Homebrew
+- **Windows:** Chocolatey, Scoop
+
+If automatic installation fails or you prefer manual installation, detailed instructions will be provided.
+
+### Manual Installation
 
 **macOS (using Homebrew):**
 ```bash
