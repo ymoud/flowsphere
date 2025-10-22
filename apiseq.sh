@@ -56,7 +56,9 @@ detect_package_manager() {
             echo "none"
         fi
     elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
-        if command -v choco &> /dev/null; then
+        if command -v winget &> /dev/null; then
+            echo "winget"
+        elif command -v choco &> /dev/null; then
             echo "choco"
         elif command -v scoop &> /dev/null; then
             echo "scoop"
@@ -92,6 +94,15 @@ install_package() {
         brew)
             echo "Using Homebrew..."
             brew install "$package_name"
+            ;;
+        winget)
+            echo "Using winget..."
+            # winget uses different package names for jq
+            if [ "$package_name" = "jq" ]; then
+                winget install jqlang.jq --silent
+            else
+                winget install "$package_name" --silent
+            fi
             ;;
         choco)
             echo "Using Chocolatey (requires admin)..."
@@ -131,7 +142,8 @@ show_install_instructions() {
         echo "                (Install Homebrew from https://brew.sh if needed)"
     elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
         if [ "$package_name" = "jq" ]; then
-            echo "Windows:        choco install jq"
+            echo "Windows:        winget install jqlang.jq"
+            echo "    Or:         choco install jq"
             echo "                (Install Chocolatey from https://chocolatey.org if needed)"
             echo "    Or:         Download from https://stedolan.github.io/jq/download/"
         else
