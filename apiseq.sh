@@ -6,6 +6,11 @@
 
 set -euo pipefail
 
+# Disable MSYS path conversion on Windows (Git Bash)
+# This prevents paths like /posts/1 from being converted to C:/Program Files/Git/posts/1
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
+
 # Color codes for output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
