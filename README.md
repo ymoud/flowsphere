@@ -170,11 +170,13 @@ To reduce duplication, you can define common values in a `defaults` section:
 
 #### Step Fields
 
+- **id** (required) - Unique identifier for the step (used in named references)
 - **name** (required) - Human-readable description of the step
 - **method** (required) - HTTP method: GET, POST, PUT, DELETE, PATCH
 - **url** (required) - Full URL or relative path (if baseUrl is defined in defaults)
 - **headers** (optional) - HTTP headers as key-value pairs (merged with default headers)
-- **body** (optional) - Request body (will be sent as JSON)
+- **body** (optional) - Request body (default: JSON format)
+- **bodyFormat** (optional) - Body encoding format: `"json"` (default) or `"form-urlencoded"`
 - **condition** (optional) - Conditional execution rules (see Conditional Execution section)
 - **expect** (optional) - Validation rules (merged with default expect):
   - **status** - Expected HTTP status code (overrides default)
@@ -263,6 +265,67 @@ Where:
 - `field.subfield` is the JSON path to the value you want
 
 **Note:** Index-based references still work for backward compatibility, but named references are recommended for new configurations.
+
+### Form-Urlencoded Body Support
+
+By default, request bodies are sent as JSON. For APIs that require `application/x-www-form-urlencoded` format (like OAuth endpoints or traditional form submissions), you can use either auto-detection or explicit format specification.
+
+#### Auto-Detection via Content-Type Header
+
+The tool automatically encodes the body as form-urlencoded when the `Content-Type` header is set:
+
+```json
+{
+  "id": "getToken",
+  "name": "OAuth Token Request",
+  "method": "POST",
+  "url": "https://oauth.example.com/token",
+  "headers": {
+    "Content-Type": "application/x-www-form-urlencoded"
+  },
+  "body": {
+    "grant_type": "client_credentials",
+    "client_id": "my-client-id",
+    "client_secret": "my-secret",
+    "scope": "read write"
+  }
+}
+```
+
+This sends: `grant_type=client_credentials&client_id=my-client-id&client_secret=my-secret&scope=read%20write`
+
+#### Explicit bodyFormat Field
+
+You can explicitly specify the encoding format using the `bodyFormat` field:
+
+```json
+{
+  "id": "login",
+  "name": "Login with Form Data",
+  "method": "POST",
+  "url": "https://example.com/login",
+  "bodyFormat": "form-urlencoded",
+  "body": {
+    "username": "john",
+    "password": "secret123",
+    "remember": "true"
+  }
+}
+```
+
+**Supported bodyFormat values:**
+- `"json"` (default) - JSON serialization
+- `"form-urlencoded"` - URL-encoded key=value pairs
+
+**Features:**
+- ✅ Automatic URL encoding of special characters (spaces, `@`, `&`, `=`, etc.)
+- ✅ Works with variable substitution: `"token": "{{ .responses.login.token }}"`
+- ✅ Compatible with user input prompts: `"username": "{{ .input.username }}"`
+- ✅ Validates nested objects/arrays are not used (not supported in form-urlencoded)
+
+**Limitations:**
+- Body must be a flat JSON object (no nested objects or arrays)
+- All values are converted to strings and URL-encoded
 
 ### Conditional Execution
 

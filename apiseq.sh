@@ -546,8 +546,12 @@ generate_uuid() {
 # Function to process body and substitute variables
 process_body() {
     local body_json="$1"
+    local content_type="${2:-application/json}"
+    local body_format="${3:-auto}"
 
-    # Convert body JSON to string, substitute variables, then parse back
+    debug_log "DEBUG: process_body - content_type=$content_type, body_format=$body_format"
+
+    # Convert body JSON to string first
     local body_str=$(echo "$body_json" | jq -c '.')
 
     # Replace GENERATED_GUID placeholders with actual UUIDs
@@ -557,9 +561,64 @@ process_body() {
         body_str="${body_str/\"GENERATED_GUID\"/\"$new_uuid\"}"
     done
 
+    # Substitute variables in the body
     body_str=$(substitute_variables "$body_str")
 
-    echo "$body_str"
+    # Determine if we need form-urlencoded format
+    local use_form_encoding=false
+    if [ "$body_format" = "form-urlencoded" ]; then
+        use_form_encoding=true
+        debug_log "DEBUG: Using form-urlencoded (explicit bodyFormat)"
+    elif [[ "$content_type" == *"application/x-www-form-urlencoded"* ]]; then
+        use_form_encoding=true
+        debug_log "DEBUG: Using form-urlencoded (auto-detected from Content-Type)"
+    fi
+
+    # Convert to form-urlencoded if needed
+    if [ "$use_form_encoding" = true ]; then
+        debug_log "DEBUG: Converting body to form-urlencoded format"
+        local encoded=""
+        local keys=$(echo "$body_str" | jq -r 'keys[]' 2>/dev/null)
+
+        if [ -z "$keys" ]; then
+            echo "Error: Body must be a JSON object for form-urlencoded format" >&2
+            exit 1
+        fi
+
+        while IFS= read -r key; do
+            # Trim any trailing carriage returns or whitespace (Windows line ending issue)
+            key="${key%$'\r'}"
+            key="${key%% }"
+            key="${key## }"
+
+            if [ -n "$key" ]; then
+                local value
+                value=$(echo "$body_str" | jq -r ".\"$key\"")
+
+                # Check for nested objects or arrays
+                if [[ "$value" == "{"* ]] || [[ "$value" == "["* ]]; then
+                    echo "Error: form-urlencoded does not support nested objects or arrays in field '$key'" >&2
+                    exit 1
+                fi
+
+                # URL encode the value using jq's @uri filter
+                local encoded_value=$(printf '%s' "$value" | jq -sRr '@uri')
+
+                # Append to encoded string
+                if [ -n "$encoded" ]; then
+                    encoded+="&"
+                fi
+                encoded+="${key}=${encoded_value}"
+                debug_log "DEBUG: Encoded field: $key=$encoded_value"
+            fi
+        done <<< "$keys"
+
+        debug_log "DEBUG: Final form-urlencoded body: $encoded"
+        echo "$encoded"
+    else
+        # Return JSON format
+        echo "$body_str"
+    fi
 }
 
 # Function to evaluate a condition
@@ -734,7 +793,20 @@ execute_step() {
     # Add body if present
     if echo "$step_json" | jq -e '.body' > /dev/null 2>&1; then
         local body=$(echo "$step_json" | jq -c '.body')
-        body=$(process_body "$body")
+
+        # Detect Content-Type for body processing
+        local content_type="application/json"
+        if echo "$step_json" | jq -e '.headers["Content-Type"]' > /dev/null 2>&1; then
+            content_type=$(echo "$step_json" | jq -r '.headers["Content-Type"]')
+        fi
+
+        # Check for explicit bodyFormat
+        local body_format="auto"
+        if echo "$step_json" | jq -e '.bodyFormat' > /dev/null 2>&1; then
+            body_format=$(echo "$step_json" | jq -r '.bodyFormat')
+        fi
+
+        body=$(process_body "$body" "$content_type" "$body_format")
         curl_cmd+=" -d '$body'"
     fi
 
