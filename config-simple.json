@@ -1,6 +1,7 @@
 {
   "defaults": {
     "baseUrl": "https://jsonplaceholder.typicode.com",
+    "timeout": 2,
     "expect": {
       "status": 200
     }
@@ -10,6 +11,7 @@
       "name": "Check API health",
       "method": "GET",
       "url": "/posts/1",
+      "timeout": 1,
       "expect": {
         "jsonpath": ".id"
       }

@@ -23,7 +23,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - curl
 - jq
 
-**Note:** The script includes automatic dependency installation. If curl or jq are missing, users will be prompted to auto-install them. The script detects the OS and package manager (apt, yum, dnf, brew, choco, scoop) and attempts installation automatically.
+**Note:** The script includes automatic dependency installation. If curl or jq are missing, users will be prompted to auto-install them. The script detects the OS and package manager (apt, yum, dnf, brew, winget, choco, scoop) and attempts installation automatically.
 
 ## Architecture
 
@@ -34,7 +34,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - `execute_step()`: Executes individual HTTP requests with curl
 - `substitute_variables()`: Template engine that replaces `{{ .responses[N].field }}` placeholders with values from previous responses
 - `evaluate_condition()`: Conditional execution logic (skip steps based on previous response status/fields)
-- `merge_with_defaults()`: Merges step config with global defaults for baseUrl, headers, and expect values
+- `merge_with_defaults()`: Merges step config with global defaults for baseUrl, headers, timeout, and expect values
 - Response storage: Arrays `responses_json[]` and `responses_status[]` maintain state across steps
 
 **Config File Format:**
@@ -42,6 +42,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 {
   "defaults": {
     "baseUrl": "https://api.example.com",
+    "timeout": 30,                   // Request timeout in seconds
     "headers": { "Content-Type": "application/json" },
     "expect": { "status": 200 }
   },
@@ -50,6 +51,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
       "name": "Step description",
       "method": "GET|POST|PUT|DELETE|PATCH",
       "url": "/endpoint",           // Can be relative if baseUrl is set
+      "timeout": 10,                 // Optional step-level timeout override
       "headers": {},                 // Merged with defaults
       "body": {},                    // Optional request payload
       "condition": {},               // Optional conditional execution
@@ -83,6 +85,14 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - Field existence checks (`expect.exists` - true/false)
 - Multiple expect options can be combined in a single step
 - Stops execution immediately on validation failure
+
+**Timeout Control:**
+- Request timeout in seconds (uses curl's `--max-time` option)
+- Can be set globally in `defaults.timeout`
+- Can be overridden per step with step-level `timeout` property
+- Step-level timeout takes precedence over default timeout
+- Timeout failures are clearly reported with specific error messages
+- Execution stops immediately on timeout
 
 ## Postman Integration
 
@@ -119,7 +129,7 @@ node postman-tools/parse-postman-enhanced.js
 - Check error handling by introducing invalid expectations
 
 **Config file design:**
-- Use `defaults` section to reduce duplication (baseUrl, common headers, default status)
+- Use `defaults` section to reduce duplication (baseUrl, timeout, common headers, default status)
 - Relative URLs (starting with `/`) are automatically prepended with baseUrl
-- Step-level configs override defaults (headers are merged, expect values override)
+- Step-level configs override defaults (headers are merged, timeout/expect values override)
 - Conditional steps reference only completed steps (step 3 can check responses 0, 1, or 2)

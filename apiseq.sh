@@ -260,6 +260,14 @@ merge_with_defaults() {
         merged=$(echo "$merged" | jq --argjson expect "$merged_expect" '.expect = $expect')
     fi
 
+    # Merge default timeout with step timeout (step timeout overrides)
+    if echo "$DEFAULTS_JSON" | jq -e '.timeout' > /dev/null 2>&1; then
+        if ! echo "$step_json" | jq -e '.timeout' > /dev/null 2>&1; then
+            local default_timeout=$(echo "$DEFAULTS_JSON" | jq '.timeout')
+            merged=$(echo "$merged" | jq --argjson timeout "$default_timeout" '.timeout = $timeout')
+        fi
+    fi
+
     echo "$merged"
 }
 
@@ -411,6 +419,12 @@ execute_step() {
     # Build curl command
     local curl_cmd="curl -s -w '\n%{http_code}' -X $method"
 
+    # Add timeout if present
+    if echo "$step_json" | jq -e '.timeout' > /dev/null 2>&1; then
+        local timeout=$(echo "$step_json" | jq -r '.timeout')
+        curl_cmd+=" --max-time $timeout"
+    fi
+
     # Add headers if present
     if echo "$step_json" | jq -e '.headers' > /dev/null 2>&1; then
         local headers=$(echo "$step_json" | jq -r '.headers | to_entries[] | "-H \"\(.key): \(.value)\""')
@@ -436,6 +450,21 @@ execute_step() {
     # Execute curl and capture response
     local response_file="$TEMP_DIR/response_$step_index.txt"
     eval "$curl_cmd" > "$response_file" 2>&1
+    local curl_exit_code=$?
+
+    # Check for curl errors (including timeout)
+    if [ $curl_exit_code -eq 28 ]; then
+        echo -e "Step $step_num: $method $url ${RED}❌ Request timed out${NC}"
+        if echo "$step_json" | jq -e '.timeout' > /dev/null 2>&1; then
+            local timeout=$(echo "$step_json" | jq -r '.timeout')
+            echo "Timeout limit: ${timeout}s"
+        fi
+        exit 1
+    elif [ $curl_exit_code -ne 0 ]; then
+        echo -e "Step $step_num: $method $url ${RED}❌ Curl failed with exit code $curl_exit_code${NC}"
+        cat "$response_file"
+        exit 1
+    fi
 
     # Extract status code (last line) and body (everything else)
     local status_code=$(tail -n 1 "$response_file")
