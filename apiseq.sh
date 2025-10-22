@@ -566,14 +566,26 @@ execute_step() {
 
     # Add headers if present
     if echo "$step_json" | jq -e '.headers' > /dev/null 2>&1; then
-        local headers=$(echo "$step_json" | jq -r '.headers | to_entries[] | "-H \"\(.key): \(.value)\""')
-        while IFS= read -r header; do
-            if [ -n "$header" ]; then
-                # Substitute variables in headers
-                header=$(substitute_variables "$header")
-                eval "curl_cmd+=' $header'"
+        debug_log "DEBUG: Headers found in step_json"
+        local headers_json=$(echo "$step_json" | jq -c '.headers')
+        debug_log "DEBUG: step_json headers: $headers_json"
+
+        # Use to_entries to get key-value pairs together
+        local header_entries=$(echo "$headers_json" | jq -r 'to_entries[] | @json')
+        while IFS= read -r entry; do
+            if [ -n "$entry" ]; then
+                local key=$(echo "$entry" | jq -r '.key')
+                local value=$(echo "$entry" | jq -r '.value')
+                debug_log "DEBUG: Processing header: $key = $value"
+
+                # Substitute variables in header value
+                value=$(substitute_variables "$value")
+                debug_log "DEBUG: After substitution: $key = $value"
+
+                # Add header to curl command
+                curl_cmd+=" -H '$key: $value'"
             fi
-        done <<< "$headers"
+        done <<< "$header_entries"
     fi
 
     # Add body if present
@@ -585,6 +597,8 @@ execute_step() {
 
     # Add URL
     curl_cmd+=" '$url'"
+
+    debug_log "DEBUG: Final curl command: $curl_cmd"
 
     # Execute curl and capture response
     local response_file="$TEMP_DIR/response_$step_index.txt"
