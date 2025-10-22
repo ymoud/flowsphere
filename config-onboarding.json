@@ -214,7 +214,8 @@
           "code": "62.02.20.00"
         },
         "expect": {
-          "jsonpath": ".payload.isHighRisk"
+          "jsonpath": ".payload.isHighRisk",
+          "equals": true
         }
       }
     },
