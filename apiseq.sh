@@ -672,6 +672,7 @@ execute_step() {
             if [ "$should_exist" = "true" ]; then
                 if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
                     echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but expected field '$jsonpath' to exist${NC}"
+                    echo "Response body: $response_body"
                     exit 1
                 else
                     echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
@@ -688,6 +689,7 @@ execute_step() {
             # If no 'exists' check, default behavior: field should exist
             if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
                 echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but JSON path '$jsonpath' not found${NC}"
+                echo "Response body: $response_body"
                 exit 1
             else
                 echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
