@@ -426,12 +426,32 @@ substitute_variables() {
     echo "$output"
 }
 
+# Function to generate a UUID v4
+generate_uuid() {
+    # Generate UUID v4 (random)
+    if command -v uuidgen &> /dev/null; then
+        uuidgen | tr '[:upper:]' '[:lower:]'
+    else
+        # Fallback: generate pseudo-random UUID using /dev/urandom
+        cat /proc/sys/kernel/random/uuid 2>/dev/null || \
+        od -N 16 -x /dev/urandom | head -1 | awk '{OFS="-"; print $2$3,$4,$5,$6,$7$8$9}' | sed 's/^0*//' | tr '[:upper:]' '[:lower:]'
+    fi
+}
+
 # Function to process body and substitute variables
 process_body() {
     local body_json="$1"
 
     # Convert body JSON to string, substitute variables, then parse back
     local body_str=$(echo "$body_json" | jq -c '.')
+
+    # Replace GENERATED_GUID placeholders with actual UUIDs
+    while [[ "$body_str" =~ \"GENERATED_GUID\" ]]; do
+        local new_uuid=$(generate_uuid)
+        debug_log "DEBUG: Replacing GENERATED_GUID with $new_uuid"
+        body_str="${body_str/\"GENERATED_GUID\"/\"$new_uuid\"}"
+    done
+
     body_str=$(substitute_variables "$body_str")
 
     echo "$body_str"
