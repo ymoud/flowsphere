@@ -30,6 +30,9 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 # Global defaults
 DEFAULTS_JSON="{}"
 
+# Debug mode (disabled by default)
+ENABLE_DEBUG=false
+
 # Function to print usage
 usage() {
     echo "Usage: $0 <config.json>"
@@ -40,6 +43,13 @@ usage() {
     echo "  - curl"
     echo "  - jq"
     exit 1
+}
+
+# Function to output debug logs (only if debug is enabled)
+debug_log() {
+    if [ "$ENABLE_DEBUG" = "true" ]; then
+        echo "$@" >&2
+    fi
 }
 
 # Function to detect OS and package manager
@@ -277,27 +287,55 @@ substitute_variables() {
     local input="$1"
     local output="$input"
 
+    debug_log "DEBUG: substitute_variables - input=$input"
+    debug_log "DEBUG: substitute_variables - responses_json array size=${#responses_json[@]}"
+
     # Find all {{ .responses[N]... }} patterns
+    local iteration=0
     while [[ "$output" =~ \{\{[[:space:]]*\.responses\[([0-9]+)\]\.([^}]+)[[:space:]]*\}\} ]]; do
+        iteration=$((iteration + 1))
+        debug_log "DEBUG: substitute_variables - iteration $iteration"
         local index="${BASH_REMATCH[1]}"
         local jsonpath="${BASH_REMATCH[2]}"
+        # Trim whitespace from jsonpath
+        jsonpath=$(echo "$jsonpath" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         local full_match="${BASH_REMATCH[0]}"
+        debug_log "DEBUG: substitute_variables - index=$index, jsonpath=$jsonpath, full_match=$full_match"
 
         # Get the value from the stored response
         if [ "$index" -lt "${#responses_json[@]}" ]; then
+            debug_log "DEBUG: substitute_variables - extracting from responses_json[$index]"
+            debug_log "DEBUG: substitute_variables - response data: ${responses_json[$index]}"
             local value=$(echo "${responses_json[$index]}" | jq -r ".$jsonpath")
+            debug_log "DEBUG: substitute_variables - extracted value=$value"
             if [ "$value" = "null" ] || [ -z "$value" ]; then
                 echo "Error: Could not extract value from .responses[$index].$jsonpath" >&2
                 exit 1
             fi
             # Replace the placeholder with the actual value
-            output="${output//$full_match/$value}"
+            # For bash string replacement, we need to escape glob special chars: * ? [ ]
+            debug_log "DEBUG: substitute_variables - replacing '$full_match' with '$value'"
+            # Escape glob special characters by replacing them with [x] pattern
+            local escaped_full_match="$full_match"
+            escaped_full_match="${escaped_full_match//\*/\\*}"
+            escaped_full_match="${escaped_full_match//\?/\\?}"
+            escaped_full_match="${escaped_full_match//\[/\\[}"
+            escaped_full_match="${escaped_full_match//\]/\\]}"
+            debug_log "DEBUG: escaped_full_match=$escaped_full_match"
+            output="${output//$escaped_full_match/$value}"
+            debug_log "DEBUG: substitute_variables - output after replacement=$output"
         else
             echo "Error: Response index $index not found (only ${#responses_json[@]} responses stored)" >&2
             exit 1
         fi
+
+        if [ $iteration -gt 10 ]; then
+            echo "ERROR: substitute_variables - infinite loop detected, breaking" >&2
+            exit 1
+        fi
     done
 
+    debug_log "DEBUG: substitute_variables - returning output=$output"
     echo "$output"
 }
 
@@ -405,16 +443,24 @@ execute_step() {
     local step_json="$2"
     local step_num=$((step_index + 1))
 
+    debug_log "DEBUG: execute_step - start, step_num=$step_num"
+
     # Merge step with defaults
+    debug_log "DEBUG: execute_step - calling merge_with_defaults"
     step_json=$(merge_with_defaults "$step_json")
+    debug_log "DEBUG: execute_step - merge completed"
 
     # Extract step details
+    debug_log "DEBUG: execute_step - extracting step details"
     local name=$(echo "$step_json" | jq -r '.name')
     local method=$(echo "$step_json" | jq -r '.method')
     local url=$(echo "$step_json" | jq -r '.url')
+    debug_log "DEBUG: execute_step - extracted url=$url"
 
     # Substitute variables in URL
+    debug_log "DEBUG: execute_step - calling substitute_variables with url=$url"
     url=$(substitute_variables "$url")
+    debug_log "DEBUG: execute_step - after substitution url=$url"
 
     # Build curl command
     local curl_cmd="curl -s -w '\n%{http_code}' -X $method"
@@ -536,6 +582,7 @@ execute_step() {
 
     # Print success
     echo -e "Step $step_num: $method $url ${GREEN}✅ Status $status_code OK${NC}"
+    debug_log "DEBUG: execute_step returning for step $step_num"
 }
 
 # Main execution
@@ -571,6 +618,15 @@ main() {
         echo "Loaded defaults from configuration"
     fi
 
+    # Load enableDebug setting if present (defaults to false)
+    if echo "$config" | jq -e '.enableDebug' > /dev/null 2>&1; then
+        local enable_debug_value=$(echo "$config" | jq -r '.enableDebug')
+        if [ "$enable_debug_value" = "true" ]; then
+            ENABLE_DEBUG=true
+            echo "Debug mode enabled"
+        fi
+    fi
+
     # Get number of steps
     local num_steps=$(echo "$config" | jq '.steps | length')
 
@@ -588,11 +644,13 @@ main() {
 
     # Execute each step
     for ((i=0; i<num_steps; i++)); do
+        debug_log "DEBUG: Loop iteration $i of $num_steps"
         local step=$(echo "$config" | jq ".steps[$i]")
         local step_num=$((i + 1))
         local name=$(echo "$step" | jq -r '.name')
         local method=$(echo "$step" | jq -r '.method')
         local url=$(echo "$step" | jq -r '.url')
+        debug_log "DEBUG: Processing step $step_num: $name"
 
         # Check if step has a condition
         if echo "$step" | jq -e '.condition' > /dev/null 2>&1; then
@@ -614,10 +672,14 @@ main() {
             fi
         else
             # No condition, execute step normally
+            debug_log "DEBUG: About to execute step $step_num (no condition)"
             execute_step "$i" "$step"
+            debug_log "DEBUG: Completed executing step $step_num"
             steps_executed=$((steps_executed + 1))
         fi
+        debug_log "DEBUG: End of loop iteration $i"
     done
+    debug_log "DEBUG: Exited loop"
 
     echo ""
     echo -e "${GREEN}Sequence completed: $steps_executed executed, $steps_skipped skipped 🎉${NC}"
