@@ -215,7 +215,7 @@
         },
         "expect": {
           "jsonpath": ".payload.isHighRisk",
-          "equals": true
+          "equals": "true"
         }
       }
     },
