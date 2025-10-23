@@ -1011,9 +1011,10 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Default Expected Status Code</label>
-                            <input type="number" id="defaultStatus" value="${config.defaults?.status || 200}" onchange="updateConfig()">
-                            <div class="help-text">Default expected HTTP status code for all steps</div>
+                            <label>Default Validations</label>
+                            <div id="defaultValidations"></div>
+                            <button class="btn btn-secondary btn-small" onclick="addDefaultValidation()">+ Add Default Validation</button>
+                            <div class="help-text">Validations applied to all steps (steps with validations override these)</div>
                         </div>
 
                         <div class="form-group">
@@ -1039,6 +1040,7 @@
             `;
 
             document.getElementById('editorContent').innerHTML = html;
+            renderDefaultValidations();
             renderDefaultHeaders();
             renderSteps();
         }
@@ -1187,28 +1189,21 @@
                 <div class="step-section">
                     <div class="step-section-title">Response Handling</div>
 
-                    <div class="form-row cols-2">
-                        <div class="form-field">
-                            <label>Expected Status Code</label>
-                            <input type="number" value="${step.status !== undefined ? step.status : ''}" onchange="updateStep(${index}, 'status', this.value ? parseInt(this.value) : undefined)" placeholder="Default: ${config.defaults?.status || 200}">
-                            <div class="help-text">HTTP status code to expect</div>
-                        </div>
-                        <div class="form-field">
-                            <label>Launch Browser (JSONPath)</label>
-                            <input type="text" value="${step.launchBrowser || ''}" onchange="updateStep(${index}, 'launchBrowser', this.value || undefined)" placeholder=".authorizationUrl">
-                            <div class="help-text">Opens URL in browser (OAuth flows)</div>
-                        </div>
+                    <div class="form-group">
+                        <label>Launch Browser (JSONPath)</label>
+                        <input type="text" value="${step.launchBrowser || ''}" onchange="updateStep(${index}, 'launchBrowser', this.value || undefined)" placeholder=".authorizationUrl">
+                        <div class="help-text">Opens URL in browser after step executes (useful for OAuth flows)</div>
                     </div>
 
                     <div class="form-group">
-                        <label>Response Validations (JSON Path checks)</label>
+                        <label>Response Validations</label>
                         <div id="validationsList_${index}">
                             ${renderValidationsList(step.validations || [], index)}
                         </div>
                         <button class="btn btn-secondary btn-small" onclick="addValidation(${index})" style="margin-top: 10px;">
                             + Add Validation
                         </button>
-                        <div class="help-text">Validate specific fields in the response (can add multiple)</div>
+                        <div class="help-text">Validate HTTP status code and/or response fields (inherits default validations if empty)</div>
                     </div>
                 </div>
             `;
@@ -1238,9 +1233,64 @@
             config.defaults = config.defaults || {};
             config.defaults.baseUrl = document.getElementById('baseUrl')?.value || '';
             config.defaults.timeout = parseInt(document.getElementById('timeout')?.value) || 30;
-            config.defaults.status = parseInt(document.getElementById('defaultStatus')?.value) || 200;
             saveToLocalStorage();
             updatePreview();
+        }
+
+        function renderDefaultValidations() {
+            const validations = config.defaults?.validations || [];
+            const container = document.getElementById('defaultValidations');
+
+            if (!container) return;
+
+            if (validations.length === 0) {
+                container.innerHTML = '<div class="help-text" style="font-style: italic; color: #6b7280;">No default validations defined</div>';
+                return;
+            }
+
+            container.innerHTML = validations.map((validation, index) => {
+                let summary = '';
+                if (validation.status !== undefined) {
+                    summary = `<strong>Status:</strong> ${validation.status}`;
+                } else if (validation.jsonpath) {
+                    summary = `<strong>${validation.jsonpath}</strong>`;
+                    const criteria = [];
+                    if (validation.exists !== undefined) criteria.push(`exists: ${validation.exists}`);
+                    if (validation.equals !== undefined) criteria.push(`equals: "${validation.equals}"`);
+                    if (validation.notEquals !== undefined) criteria.push(`notEquals: "${validation.notEquals}"`);
+                    if (criteria.length > 0) summary += ` (${criteria.join(', ')})`;
+                }
+
+                return `
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: #f9fafb; border-radius: 4px;">
+                        <div style="flex: 1;">${summary}</div>
+                        <button class="btn btn-secondary btn-small" onclick="editDefaultValidation(${index})">Edit</button>
+                        <button class="btn btn-danger btn-small" onclick="removeDefaultValidation(${index})">×</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addDefaultValidation() {
+            showDefaultValidationModal(-1, {status: 200});
+        }
+
+        function editDefaultValidation(index) {
+            const validation = config.defaults.validations[index];
+            showDefaultValidationModal(index, validation);
+        }
+
+        function removeDefaultValidation(index) {
+            if (confirm('Remove this default validation?')) {
+                config.defaults.validations.splice(index, 1);
+                saveToLocalStorage();
+                renderDefaultValidations();
+                updatePreview();
+            }
+        }
+
+        function showDefaultValidationModal(valIndex, validation) {
+            showValidationModal(-1, valIndex, validation, true);
         }
 
         function addDefaultHeader() {
@@ -1618,21 +1668,26 @@
         // Validations Builder Functions
         function renderValidationsList(validations, stepIndex) {
             if (!validations || validations.length === 0) {
-                return '<div class="help-text" style="font-style: italic; color: #6b7280;">No validations defined</div>';
+                return '<div class="help-text" style="font-style: italic; color: #6b7280;">No validations defined (will inherit default validations)</div>';
             }
 
             return validations.map((validation, valIndex) => {
-                const criteria = [];
-                if (validation.exists !== undefined) criteria.push(`exists: ${validation.exists}`);
-                if (validation.equals !== undefined) criteria.push(`equals: "${validation.equals}"`);
-                if (validation.notEquals !== undefined) criteria.push(`notEquals: "${validation.notEquals}"`);
+                let summary = '';
+
+                if (validation.status !== undefined) {
+                    summary = `<strong>Status:</strong> ${validation.status}`;
+                } else if (validation.jsonpath) {
+                    summary = `<strong>${validation.jsonpath}</strong>`;
+                    const criteria = [];
+                    if (validation.exists !== undefined) criteria.push(`exists: ${validation.exists}`);
+                    if (validation.equals !== undefined) criteria.push(`equals: "${validation.equals}"`);
+                    if (validation.notEquals !== undefined) criteria.push(`notEquals: "${validation.notEquals}"`);
+                    if (criteria.length > 0) summary += ` (${criteria.join(', ')})`;
+                }
 
                 return `
                     <div class="builder-summary" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <div>
-                            <strong>${validation.jsonpath || '(no path)'}</strong>
-                            ${criteria.length > 0 ? ' - ' + criteria.join(', ') : ''}
-                        </div>
+                        <div>${summary}</div>
                         <div>
                             <button class="btn btn-secondary btn-small" onclick="editValidation(${stepIndex}, ${valIndex})" style="margin-left: 5px;">Edit</button>
                             <button class="btn btn-danger btn-small" onclick="removeValidation(${stepIndex}, ${valIndex})" style="margin-left: 5px;">×</button>
@@ -1643,29 +1698,49 @@
         }
 
         function addValidation(stepIndex) {
-            showValidationModal(stepIndex, -1, {jsonpath: '', exists: true});
+            showValidationModal(stepIndex, -1, {status: 200}, false);
         }
 
         function editValidation(stepIndex, valIndex) {
             const validation = config.steps[stepIndex].validations[valIndex];
-            showValidationModal(stepIndex, valIndex, validation);
+            showValidationModal(stepIndex, valIndex, validation, false);
         }
 
-        function showValidationModal(stepIndex, valIndex, validation) {
+        function showValidationModal(stepIndex, valIndex, validation, isDefault = false) {
             const isNew = valIndex === -1;
+            const validationType = validation.status !== undefined ? 'status' : 'jsonpath';
+
             const modalHtml = `
                 <div class="modal active" id="validationModal" onclick="if(event.target.id === 'validationModal') closeValidationModal()">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h2>${isNew ? 'Add' : 'Edit'} Validation</h2>
-                            <p>Define criteria to validate response fields</p>
+                            <p>Validate HTTP status code or response field</p>
                         </div>
 
                         <div class="form-group">
-                            <label>JSON Path *</label>
-                            <input type="text" id="valJsonpath" value="${validation.jsonpath || ''}" placeholder=".token">
-                            <div class="help-text">Path to the field in response (e.g., .token, .data.id, .user.email)</div>
+                            <label>Validation Type</label>
+                            <select id="validationType" onchange="toggleValidationType()" ${!isNew ? 'disabled' : ''}>
+                                <option value="status" ${validationType === 'status' ? 'selected' : ''}>HTTP Status Code</option>
+                                <option value="jsonpath" ${validationType === 'jsonpath' ? 'selected' : ''}>JSON Path (Response Field)</option>
+                            </select>
+                            ${!isNew ? '<div class="help-text">Type cannot be changed after creation</div>' : ''}
                         </div>
+
+                        <div id="statusValidation" style="${validationType === 'status' ? '' : 'display: none;'}">
+                            <div class="form-group">
+                                <label>Expected HTTP Status Code *</label>
+                                <input type="number" id="valStatus" value="${validation.status || 200}" placeholder="200">
+                                <div class="help-text">HTTP status code to expect (e.g., 200, 201, 404)</div>
+                            </div>
+                        </div>
+
+                        <div id="jsonpathValidation" style="${validationType === 'jsonpath' ? '' : 'display: none;'}">
+                            <div class="form-group">
+                                <label>JSON Path *</label>
+                                <input type="text" id="valJsonpath" value="${validation.jsonpath || ''}" placeholder=".token">
+                                <div class="help-text">Path to the field in response (e.g., .token, .data.id, .user.email)</div>
+                            </div>
 
                         <div class="form-group">
                             <label style="display: flex; align-items: center; gap: 8px;">
@@ -1701,10 +1776,11 @@
                                 <div class="help-text">The value the field should NOT equal</div>
                             </div>
                         </div>
+                        </div>
 
                         <div class="modal-footer">
                             <button class="btn btn-secondary" onclick="closeValidationModal()">Cancel</button>
-                            <button class="btn btn-primary" onclick="saveValidation(${stepIndex}, ${valIndex})">${isNew ? 'Add' : 'Save'}</button>
+                            <button class="btn btn-primary" onclick="saveValidation(${stepIndex}, ${valIndex}, ${isDefault})">${isNew ? 'Add' : 'Save'}</button>
                         </div>
                     </div>
                 </div>
@@ -1718,69 +1794,100 @@
             document.body.insertAdjacentHTML('beforeend', modalHtml);
         }
 
-        function toggleValidationCriteria() {
-            const useExists = document.getElementById('valUseExists').checked;
-            const useEquals = document.getElementById('valUseEquals').checked;
-            const useNotEquals = document.getElementById('valUseNotEquals').checked;
-
-            document.getElementById('valExistsValue').style.display = useExists ? 'block' : 'none';
-            document.getElementById('valEqualsValue').style.display = useEquals ? 'block' : 'none';
-            document.getElementById('valNotEqualsValue').style.display = useNotEquals ? 'block' : 'none';
+        function toggleValidationType() {
+            const type = document.getElementById('validationType').value;
+            document.getElementById('statusValidation').style.display = type === 'status' ? 'block' : 'none';
+            document.getElementById('jsonpathValidation').style.display = type === 'jsonpath' ? 'block' : 'none';
         }
 
-        function saveValidation(stepIndex, valIndex) {
-            const jsonpath = document.getElementById('valJsonpath').value.trim();
+        function toggleValidationCriteria() {
+            const useExists = document.getElementById('valUseExists')?.checked || false;
+            const useEquals = document.getElementById('valUseEquals')?.checked || false;
+            const useNotEquals = document.getElementById('valUseNotEquals')?.checked || false;
 
-            if (!jsonpath) {
-                alert('JSON Path is required');
-                return;
-            }
+            const existsEl = document.getElementById('valExistsValue');
+            const equalsEl = document.getElementById('valEqualsValue');
+            const notEqualsEl = document.getElementById('valNotEqualsValue');
 
-            const validation = { jsonpath };
+            if (existsEl) existsEl.style.display = useExists ? 'block' : 'none';
+            if (equalsEl) equalsEl.style.display = useEquals ? 'block' : 'none';
+            if (notEqualsEl) notEqualsEl.style.display = useNotEquals ? 'block' : 'none';
+        }
 
-            // Add criteria if checkboxes are checked
-            if (document.getElementById('valUseExists').checked) {
-                validation.exists = document.getElementById('valExists').value === 'true';
-            }
+        function saveValidation(stepIndex, valIndex, isDefault = false) {
+            const type = document.getElementById('validationType').value;
+            let validation = {};
 
-            if (document.getElementById('valUseEquals').checked) {
-                let value = document.getElementById('valEquals').value;
-                // Try to parse as number or boolean
-                if (value === 'true') value = true;
-                else if (value === 'false') value = false;
-                else if (!isNaN(value) && value !== '') value = parseFloat(value);
-                validation.equals = value;
-            }
-
-            if (document.getElementById('valUseNotEquals').checked) {
-                let value = document.getElementById('valNotEquals').value;
-                // Try to parse as number or boolean
-                if (value === 'true') value = true;
-                else if (value === 'false') value = false;
-                else if (!isNaN(value) && value !== '') value = parseFloat(value);
-                validation.notEquals = value;
-            }
-
-            // If no criteria selected, default to exists: true
-            if (validation.exists === undefined && validation.equals === undefined && validation.notEquals === undefined) {
-                validation.exists = true;
-            }
-
-            // Initialize validations array if needed
-            if (!config.steps[stepIndex].validations) {
-                config.steps[stepIndex].validations = [];
-            }
-
-            // Add or update validation
-            if (valIndex === -1) {
-                config.steps[stepIndex].validations.push(validation);
+            if (type === 'status') {
+                const status = document.getElementById('valStatus').value;
+                if (!status) {
+                    alert('Status code is required');
+                    return;
+                }
+                validation.status = parseInt(status);
             } else {
-                config.steps[stepIndex].validations[valIndex] = validation;
+                const jsonpath = document.getElementById('valJsonpath').value.trim();
+                if (!jsonpath) {
+                    alert('JSON Path is required');
+                    return;
+                }
+
+                validation.jsonpath = jsonpath;
+
+                // Add criteria if checkboxes are checked
+                if (document.getElementById('valUseExists').checked) {
+                    validation.exists = document.getElementById('valExists').value === 'true';
+                }
+
+                if (document.getElementById('valUseEquals').checked) {
+                    let value = document.getElementById('valEquals').value;
+                    // Try to parse as number or boolean
+                    if (value === 'true') value = true;
+                    else if (value === 'false') value = false;
+                    else if (!isNaN(value) && value !== '') value = parseFloat(value);
+                    validation.equals = value;
+                }
+
+                if (document.getElementById('valUseNotEquals').checked) {
+                    let value = document.getElementById('valNotEquals').value;
+                    // Try to parse as number or boolean
+                    if (value === 'true') value = true;
+                    else if (value === 'false') value = false;
+                    else if (!isNaN(value) && value !== '') value = parseFloat(value);
+                    validation.notEquals = value;
+                }
+
+                // If no criteria selected, default to exists: true
+                if (validation.exists === undefined && validation.equals === undefined && validation.notEquals === undefined) {
+                    validation.exists = true;
+                }
+            }
+
+            // Save to defaults or step
+            if (isDefault) {
+                if (!config.defaults.validations) {
+                    config.defaults.validations = [];
+                }
+                if (valIndex === -1) {
+                    config.defaults.validations.push(validation);
+                } else {
+                    config.defaults.validations[valIndex] = validation;
+                }
+                renderDefaultValidations();
+            } else {
+                if (!config.steps[stepIndex].validations) {
+                    config.steps[stepIndex].validations = [];
+                }
+                if (valIndex === -1) {
+                    config.steps[stepIndex].validations.push(validation);
+                } else {
+                    config.steps[stepIndex].validations[valIndex] = validation;
+                }
+                renderSteps();
             }
 
             closeValidationModal();
             saveToLocalStorage();
-            renderSteps();
             updatePreview();
         }
 
