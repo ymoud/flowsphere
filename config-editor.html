@@ -773,9 +773,7 @@
                         baseUrl: "",
                         timeout: 30,
                         headers: {},
-                        expect: {
-                            status: 200
-                        }
+                        status: 200
                     },
                     steps: []
                 },
@@ -787,27 +785,23 @@
                         headers: {
                             "Content-Type": "application/json"
                         },
-                        expect: {
-                            status: 200
-                        }
+                        status: 200
                     },
                     steps: [
                         {
+                            id: "getUser",
                             name: "Get user data",
                             method: "GET",
                             url: "/users/1",
-                            expect: {
-                                jsonpath: ".id",
-                                exists: true
-                            }
+                            validations: [
+                                { jsonpath: ".id", exists: true }
+                            ]
                         },
                         {
+                            id: "getUserPosts",
                             name: "Get user's posts",
                             method: "GET",
-                            url: "/users/{{ .responses[0].id }}/posts",
-                            expect: {
-                                status: 200
-                            }
+                            url: "/users/{{ .responses.getUser.id }}/posts"
                         }
                     ]
                 },
@@ -819,12 +813,11 @@
                         headers: {
                             "Content-Type": "application/json"
                         },
-                        expect: {
-                            status: 200
-                        }
+                        status: 200
                     },
                     steps: [
                         {
+                            id: "requestAuthUrl",
                             name: "Request authorization URL",
                             method: "POST",
                             url: "/oauth/authorize",
@@ -833,13 +826,13 @@
                                 redirect_uri: "http://localhost:8080/callback",
                                 scope: "read write"
                             },
-                            expect: {
-                                jsonpath: ".authorizationUrl",
-                                exists: true
-                            },
+                            validations: [
+                                { jsonpath: ".authorizationUrl", exists: true }
+                            ],
                             launchBrowser: ".authorizationUrl"
                         },
                         {
+                            id: "exchangeToken",
                             name: "Exchange code for token",
                             method: "POST",
                             url: "/oauth/token",
@@ -852,17 +845,17 @@
                                 code: "{{ .input.code }}",
                                 grant_type: "authorization_code"
                             },
-                            expect: {
-                                jsonpath: ".access_token",
-                                exists: true
-                            }
+                            validations: [
+                                { jsonpath: ".access_token", exists: true }
+                            ]
                         },
                         {
+                            id: "getProfile",
                             name: "Access protected resource",
                             method: "GET",
                             url: "/api/user/profile",
                             headers: {
-                                "Authorization": "Bearer {{ .responses[1].access_token }}"
+                                "Authorization": "Bearer {{ .responses.exchangeToken.access_token }}"
                             }
                         }
                     ]
@@ -875,12 +868,11 @@
                         headers: {
                             "Content-Type": "application/json"
                         },
-                        expect: {
-                            status: 200
-                        }
+                        status: 200
                     },
                     steps: [
                         {
+                            id: "login",
                             name: "User login",
                             method: "POST",
                             url: "/auth/login",
@@ -892,17 +884,17 @@
                                 username: "{{ .input.username }}",
                                 password: "{{ .input.password }}"
                             },
-                            expect: {
-                                jsonpath: ".token",
-                                exists: true
-                            }
+                            validations: [
+                                { jsonpath: ".token", exists: true }
+                            ]
                         },
                         {
+                            id: "getProfile",
                             name: "Get user profile",
                             method: "GET",
                             url: "/user/profile",
                             headers: {
-                                "Authorization": "Bearer {{ .responses[0].token }}"
+                                "Authorization": "Bearer {{ .responses.login.token }}"
                             }
                         }
                     ]
@@ -969,9 +961,9 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Expected Status Code</label>
-                            <input type="number" id="expectStatus" value="${config.defaults?.expect?.status || 200}" onchange="updateConfig()">
-                            <div class="help-text">Default expected HTTP status code</div>
+                            <label>Default Expected Status Code</label>
+                            <input type="number" id="defaultStatus" value="${config.defaults?.status || 200}" onchange="updateConfig()">
+                            <div class="help-text">Default expected HTTP status code for all steps</div>
                         </div>
 
                         <div class="form-group">
@@ -1125,14 +1117,20 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Validation Rules (Expected response)</label>
-                    <div id="expectBuilder_${index}"></div>
-                    <button class="btn btn-secondary btn-small" onclick="toggleExpectBuilder(${index})" style="margin-top: 10px;">
-                        ${step.expect && Object.keys(step.expect).length > 0 ? 'Edit' : 'Add'} Validation
+                    <label>Expected Status Code</label>
+                    <input type="number" value="${step.status !== undefined ? step.status : ''}" onchange="updateStep(${index}, 'status', this.value ? parseInt(this.value) : undefined)" placeholder="Leave empty to use default (${config.defaults?.status || 200})">
+                    <div class="help-text">HTTP status code to expect (defaults to ${config.defaults?.status || 200})</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Response Validations (JSON Path checks)</label>
+                    <div id="validationsList_${index}">
+                        ${renderValidationsList(step.validations || [], index)}
+                    </div>
+                    <button class="btn btn-secondary btn-small" onclick="addValidation(${index})" style="margin-top: 10px;">
+                        + Add Validation
                     </button>
-                    ${step.expect && Object.keys(step.expect).length > 0 ? `<button class="btn btn-danger btn-small" onclick="removeExpect(${index})" style="margin-top: 10px; margin-left: 5px;">Remove</button>` : ''}
-                    ${renderExpectSummary(step.expect || {})}
-                    <div class="help-text">Validate the response meets expected criteria</div>
+                    <div class="help-text">Validate specific fields in the response (can add multiple)</div>
                 </div>
 
                 <div class="form-group">
@@ -1155,8 +1153,7 @@
             config.defaults = config.defaults || {};
             config.defaults.baseUrl = document.getElementById('baseUrl')?.value || '';
             config.defaults.timeout = parseInt(document.getElementById('timeout')?.value) || 30;
-            config.defaults.expect = config.defaults.expect || {};
-            config.defaults.expect.status = parseInt(document.getElementById('expectStatus')?.value) || 200;
+            config.defaults.status = parseInt(document.getElementById('defaultStatus')?.value) || 200;
             saveToLocalStorage();
             updatePreview();
         }
@@ -1472,162 +1469,187 @@
             updatePreview();
         }
 
-        // Expect Builder Functions
-        function toggleExpectBuilder(index) {
-            const container = document.getElementById(`expectBuilder_${index}`);
-
-            if (container.innerHTML === '') {
-                renderExpectBuilder(index);
-            } else {
-                container.innerHTML = '';
-            }
-        }
-
-        function renderExpectBuilder(index) {
-            const step = config.steps[index];
-            const expect = step.expect || {};
-            const container = document.getElementById(`expectBuilder_${index}`);
-
-            const html = `
-                <div class="builder-form">
-                    <div class="form-group">
-                        <label>Expected Status Code</label>
-                        <input type="number" id="expectStatus_${index}" value="${expect.status !== undefined ? expect.status : 200}" placeholder="200">
-                        <div class="help-text">HTTP status code (default: 200)</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>JSON Path (Optional)</label>
-                        <input type="text" id="expectJsonpath_${index}" value="${expect.jsonpath || ''}" placeholder=".token">
-                        <div class="help-text">Path to field in response to validate (e.g., .token, .data.id)</div>
-                    </div>
-
-                    <div id="expectValidation_${index}">
-                        ${renderExpectValidation(index, expect)}
-                    </div>
-
-                    <button class="btn btn-primary btn-small" onclick="saveExpect(${index})">Save Validation</button>
-                    <button class="btn btn-secondary btn-small" onclick="toggleExpectBuilder(${index})">Cancel</button>
-                </div>
-                ${renderExpectSummary(expect)}
-            `;
-
-            container.innerHTML = html;
-
-            // Add change listener for jsonpath to show/hide validation options
-            document.getElementById(`expectJsonpath_${index}`).addEventListener('input', function() {
-                document.getElementById(`expectValidation_${index}`).innerHTML =
-                    renderExpectValidation(index, {jsonpath: this.value});
-            });
-        }
-
-        function renderExpectValidation(index, expect) {
-            if (!expect.jsonpath) {
-                return '<div class="help-text" style="color: #6b7280; font-style: italic;">Add a JSON path to enable field validation</div>';
+        // Validations Builder Functions
+        function renderValidationsList(validations, stepIndex) {
+            if (!validations || validations.length === 0) {
+                return '<div class="help-text" style="font-style: italic; color: #6b7280;">No validations defined</div>';
             }
 
-            const validationType = expect.exists !== undefined ? 'exists' :
-                                  expect.equals !== undefined ? 'equals' :
-                                  expect.notEquals !== undefined ? 'notEquals' : 'exists';
+            return validations.map((validation, valIndex) => {
+                const criteria = [];
+                if (validation.exists !== undefined) criteria.push(`exists: ${validation.exists}`);
+                if (validation.equals !== undefined) criteria.push(`equals: "${validation.equals}"`);
+                if (validation.notEquals !== undefined) criteria.push(`notEquals: "${validation.notEquals}"`);
 
-            return `
-                <div class="form-group">
-                    <label>Validation Type</label>
-                    <select id="expectType_${index}" onchange="updateExpectValidationType(${index}, this.value)">
-                        <option value="exists" ${validationType === 'exists' ? 'selected' : ''}>Field Exists</option>
-                        <option value="equals" ${validationType === 'equals' ? 'selected' : ''}>Equals Value</option>
-                        <option value="notEquals" ${validationType === 'notEquals' ? 'selected' : ''}>Not Equals Value</option>
-                    </select>
-                </div>
-
-                <div id="expectValueField_${index}">
-                    ${renderExpectValueField(index, validationType, expect)}
-                </div>
-            `;
-        }
-
-        function renderExpectValueField(index, type, expect) {
-            if (type === 'exists') {
                 return `
-                    <div class="form-group">
-                        <label>Should Exist</label>
-                        <select id="expectValue_${index}">
-                            <option value="true" ${expect.exists === true ? 'selected' : ''}>Yes (true)</option>
-                            <option value="false" ${expect.exists === false ? 'selected' : ''}>No (false)</option>
-                        </select>
+                    <div class="builder-summary" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                            <strong>${validation.jsonpath || '(no path)'}</strong>
+                            ${criteria.length > 0 ? ' - ' + criteria.join(', ') : ''}
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary btn-small" onclick="editValidation(${stepIndex}, ${valIndex})" style="margin-left: 5px;">Edit</button>
+                            <button class="btn btn-danger btn-small" onclick="removeValidation(${stepIndex}, ${valIndex})" style="margin-left: 5px;">×</button>
+                        </div>
                     </div>
                 `;
-            } else {
-                return `
-                    <div class="form-group">
-                        <label>Expected Value</label>
-                        <input type="text" id="expectValue_${index}" value="${expect[type] !== undefined ? expect[type] : ''}" placeholder="Expected value">
-                        <div class="help-text">The value the field should ${type === 'equals' ? 'equal' : 'not equal'}</div>
+            }).join('');
+        }
+
+        function addValidation(stepIndex) {
+            showValidationModal(stepIndex, -1, {jsonpath: '', exists: true});
+        }
+
+        function editValidation(stepIndex, valIndex) {
+            const validation = config.steps[stepIndex].validations[valIndex];
+            showValidationModal(stepIndex, valIndex, validation);
+        }
+
+        function showValidationModal(stepIndex, valIndex, validation) {
+            const isNew = valIndex === -1;
+            const modalHtml = `
+                <div class="modal active" id="validationModal" onclick="if(event.target.id === 'validationModal') closeValidationModal()">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>${isNew ? 'Add' : 'Edit'} Validation</h2>
+                            <p>Define criteria to validate response fields</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label>JSON Path *</label>
+                            <input type="text" id="valJsonpath" value="${validation.jsonpath || ''}" placeholder=".token">
+                            <div class="help-text">Path to the field in response (e.g., .token, .data.id, .user.email)</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="valUseExists" ${validation.exists !== undefined ? 'checked' : ''} onchange="toggleValidationCriteria()">
+                                Check if field exists
+                            </label>
+                            <div id="valExistsValue" style="margin-top: 10px; ${validation.exists !== undefined ? '' : 'display:none;'}">
+                                <select id="valExists">
+                                    <option value="true" ${validation.exists === true ? 'selected' : ''}>Field should exist (true)</option>
+                                    <option value="false" ${validation.exists === false ? 'selected' : ''}>Field should not exist (false)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="valUseEquals" ${validation.equals !== undefined ? 'checked' : ''} onchange="toggleValidationCriteria()">
+                                Check field equals value
+                            </label>
+                            <div id="valEqualsValue" style="margin-top: 10px; ${validation.equals !== undefined ? '' : 'display:none;'}">
+                                <input type="text" id="valEquals" value="${validation.equals !== undefined ? validation.equals : ''}" placeholder="Expected value">
+                                <div class="help-text">The value the field should equal</div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="valUseNotEquals" ${validation.notEquals !== undefined ? 'checked' : ''} onchange="toggleValidationCriteria()">
+                                Check field not equals value
+                            </label>
+                            <div id="valNotEqualsValue" style="margin-top: 10px; ${validation.notEquals !== undefined ? '' : 'display:none;'}">
+                                <input type="text" id="valNotEquals" value="${validation.notEquals !== undefined ? validation.notEquals : ''}" placeholder="Unwanted value">
+                                <div class="help-text">The value the field should NOT equal</div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="closeValidationModal()">Cancel</button>
+                            <button class="btn btn-primary" onclick="saveValidation(${stepIndex}, ${valIndex})">${isNew ? 'Add' : 'Save'}</button>
+                        </div>
                     </div>
-                `;
-            }
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('validationModal');
+            if (existingModal) existingModal.remove();
+
+            // Add new modal
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
         }
 
-        function renderExpectSummary(expect) {
-            if (!expect || Object.keys(expect).length === 0) return '';
+        function toggleValidationCriteria() {
+            const useExists = document.getElementById('valUseExists').checked;
+            const useEquals = document.getElementById('valUseEquals').checked;
+            const useNotEquals = document.getElementById('valUseNotEquals').checked;
 
-            let parts = [];
-            if (expect.status !== undefined) {
-                parts.push(`status: ${expect.status}`);
-            }
-            if (expect.jsonpath) {
-                if (expect.exists !== undefined) {
-                    parts.push(`"${expect.jsonpath}" ${expect.exists ? 'exists' : 'does not exist'}`);
-                } else if (expect.equals !== undefined) {
-                    parts.push(`"${expect.jsonpath}" equals "${expect.equals}"`);
-                } else if (expect.notEquals !== undefined) {
-                    parts.push(`"${expect.jsonpath}" not equals "${expect.notEquals}"`);
-                }
-            }
-
-            return `<div class="builder-summary">Expect: ${parts.join(', ')}</div>`;
+            document.getElementById('valExistsValue').style.display = useExists ? 'block' : 'none';
+            document.getElementById('valEqualsValue').style.display = useEquals ? 'block' : 'none';
+            document.getElementById('valNotEqualsValue').style.display = useNotEquals ? 'block' : 'none';
         }
 
-        function updateExpectValidationType(index, type) {
-            const jsonpath = document.getElementById(`expectJsonpath_${index}`).value;
-            document.getElementById(`expectValueField_${index}`).innerHTML =
-                renderExpectValueField(index, type, {jsonpath});
-        }
+        function saveValidation(stepIndex, valIndex) {
+            const jsonpath = document.getElementById('valJsonpath').value.trim();
 
-        function saveExpect(index) {
-            const status = parseInt(document.getElementById(`expectStatus_${index}`).value);
-            const jsonpath = document.getElementById(`expectJsonpath_${index}`)?.value;
-
-            const expect = { status };
-
-            if (jsonpath) {
-                expect.jsonpath = jsonpath;
-
-                const type = document.getElementById(`expectType_${index}`)?.value;
-                if (type === 'exists') {
-                    expect.exists = document.getElementById(`expectValue_${index}`).value === 'true';
-                } else if (type === 'equals' || type === 'notEquals') {
-                    let value = document.getElementById(`expectValue_${index}`).value;
-                    // Try to parse as number or boolean
-                    if (value === 'true') value = true;
-                    else if (value === 'false') value = false;
-                    else if (!isNaN(value) && value !== '') value = parseFloat(value);
-                    expect[type] = value;
-                }
+            if (!jsonpath) {
+                alert('JSON Path is required');
+                return;
             }
 
-            config.steps[index].expect = expect;
-            toggleExpectBuilder(index);
+            const validation = { jsonpath };
+
+            // Add criteria if checkboxes are checked
+            if (document.getElementById('valUseExists').checked) {
+                validation.exists = document.getElementById('valExists').value === 'true';
+            }
+
+            if (document.getElementById('valUseEquals').checked) {
+                let value = document.getElementById('valEquals').value;
+                // Try to parse as number or boolean
+                if (value === 'true') value = true;
+                else if (value === 'false') value = false;
+                else if (!isNaN(value) && value !== '') value = parseFloat(value);
+                validation.equals = value;
+            }
+
+            if (document.getElementById('valUseNotEquals').checked) {
+                let value = document.getElementById('valNotEquals').value;
+                // Try to parse as number or boolean
+                if (value === 'true') value = true;
+                else if (value === 'false') value = false;
+                else if (!isNaN(value) && value !== '') value = parseFloat(value);
+                validation.notEquals = value;
+            }
+
+            // If no criteria selected, default to exists: true
+            if (validation.exists === undefined && validation.equals === undefined && validation.notEquals === undefined) {
+                validation.exists = true;
+            }
+
+            // Initialize validations array if needed
+            if (!config.steps[stepIndex].validations) {
+                config.steps[stepIndex].validations = [];
+            }
+
+            // Add or update validation
+            if (valIndex === -1) {
+                config.steps[stepIndex].validations.push(validation);
+            } else {
+                config.steps[stepIndex].validations[valIndex] = validation;
+            }
+
+            closeValidationModal();
             saveToLocalStorage();
             renderSteps();
             updatePreview();
         }
 
-        function removeExpect(index) {
-            delete config.steps[index].expect;
-            saveToLocalStorage();
-            renderSteps();
-            updatePreview();
+        function removeValidation(stepIndex, valIndex) {
+            if (confirm('Remove this validation?')) {
+                config.steps[stepIndex].validations.splice(valIndex, 1);
+                saveToLocalStorage();
+                renderSteps();
+                updatePreview();
+            }
+        }
+
+        function closeValidationModal() {
+            const modal = document.getElementById('validationModal');
+            if (modal) modal.remove();
         }
     </script>
 </body>
