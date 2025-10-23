@@ -1216,6 +1216,10 @@
                 headers: {},
                 body: {}
             });
+
+            // Open the newly added step
+            openStepIndices.add(config.steps.length - 1);
+
             saveToLocalStorage();
             renderSteps();
             updatePreview();
