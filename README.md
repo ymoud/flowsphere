@@ -4,11 +4,30 @@ Execute sequential HTTP requests from JSON configuration files. Cross-platform B
 
 ## Quick Start
 
+### Run a Configuration
 ```bash
-./apiseq.sh config.json
+./apiseq.sh config-onboarding.json
 ```
 
 **Prerequisites:** bash, curl, jq (auto-install available)
+
+### Visual Config Editor
+Open `config-editor.html` in your browser for a visual way to create and edit configurations:
+
+```bash
+# Open in browser
+start config-editor.html        # Windows
+open config-editor.html         # macOS
+xdg-open config-editor.html     # Linux
+```
+
+**Features:**
+- Load, edit, and save JSON configs visually
+- Create new configs from templates (Empty, Simple, OAuth, User Input)
+- Form-based editing with validation
+- Live JSON preview with one-click copy to clipboard
+- Auto-save to browser localStorage (never lose your work)
+- Download configs as JSON files
 
 ## Features
 
