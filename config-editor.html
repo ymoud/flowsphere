@@ -629,7 +629,15 @@
                     <button class="btn btn-primary" onclick="loadFile()">Load Config</button>
                     <button class="btn btn-secondary" onclick="createNew()">New Config</button>
                     <button class="btn btn-success" onclick="downloadFile()" id="downloadBtn" disabled>⬇ Download</button>
-                    <span id="autoSaveIndicator" style="margin-left: auto; color: #6b7280; font-size: 12px;"></span>
+                    <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+                        <span id="currentFileName" style="color: #374151; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity: 0.6;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            <span id="fileNameText">config.json</span>
+                        </span>
+                        <span id="autoSaveIndicator" style="color: #6b7280; font-size: 12px;"></span>
+                    </div>
                 </div>
 
                 <div id="editorContent" class="empty-state" style="padding-bottom: 30px;">
@@ -727,6 +735,7 @@
                 try {
                     config = JSON.parse(savedConfig);
                     fileName = savedFileName || 'config.json';
+                    updateFileNameDisplay();
                     renderEditor();
                     updatePreview();
                     updateAutoSaveIndicator();
@@ -758,6 +767,13 @@
             }, 2000);
         }
 
+        function updateFileNameDisplay() {
+            const fileNameElement = document.getElementById('fileNameText');
+            if (fileNameElement) {
+                fileNameElement.textContent = fileName;
+            }
+        }
+
         function loadFile() {
             document.getElementById('fileInput').click();
         }
@@ -767,6 +783,7 @@
             if (!file) return;
 
             fileName = file.name;
+            updateFileNameDisplay();
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -808,6 +825,7 @@
                 fileName += '.json';
             }
 
+            updateFileNameDisplay();
             config = getTemplate(templateType);
             saveToLocalStorage();
             closeNewConfigModal();
