@@ -1,5 +1,8 @@
 {
-  "enableDebug": false,
+  "enableDebug": true,
+  "variables": {
+    "mobileNumber": "6974123456"
+  },
   "defaults": {
     "baseUrl": "https://ibankmobileqa.nbg.gr/reverseproxy/onboardingapi",
     "timeout": 10,
@@ -30,7 +33,7 @@
           "clientId": "81D9AF3A-C56C-4EA5-B9BE-01127D451394",
           "deviceId": "kiriakiTestDevice",
           "verificationTarget": "SMS",
-          "verificationTargetValue": "6974123456",
+          "verificationTargetValue": "{{ .vars.mobileNumber }}",
           "applicationJsonData": "{\"appId\":\"22f8d4ea-386c-4ec7-b437-8538bbde6027\"}",
           "enduserId": ""
         }
@@ -57,7 +60,7 @@
           "clientId": "81D9AF3A-C56C-4EA5-B9BE-01127D451394",
           "deviceId": "kiriakiTestDevice",
           "verificationTarget": "SMS",
-          "verificationTargetValue": "6974123456",
+          "verificationTargetValue": "{{ .vars.mobileNumber }}",
           "verificationCode": "123456",
           "verificationId": "{{ .responses.requestDeviceRegistration.payload.verificationId }}"
         }
@@ -209,7 +212,7 @@
             "contactMethods": [
               {
                 "type": "Mobile",
-                "value": "6974123456",
+                "value": "{{ .vars.mobileNumber }}",
                 "verification": {
                   "isVerified": true,
                   "verificationWay": "deviceRegistration"
@@ -241,7 +244,7 @@
           "channel": "mobile"
         },
         "payload": {
-          "telephone": "6974123456"
+          "telephone": "{{ .vars.mobileNumber }}"
         }
       },
       "validations": [
@@ -335,7 +338,7 @@
             "contactMethods": [
               {
                 "type": "Mobile",
-                "value": "6974123456",
+                "value": "{{ .vars.mobileNumber }}",
                 "verification": {
                   "isVerified": true,
                   "verificationWay": "DeviceRegistration"
@@ -3655,7 +3658,7 @@
         "payload": {
           "appId": "22f8d4ea-386c-4ec7-b437-8538bbde6027",
           "appType": "newNbgCustomer",
-          "verificationTargetValue": "6974123456",
+          "verificationTargetValue": "{{ .vars.mobileNumber }}",
           "verificationTarget": "sms",
           "verificationScope": "mobileVerification"
         }
@@ -3701,7 +3704,7 @@
         "payload": {
           "appId": "22f8d4ea-386c-4ec7-b437-8538bbde6027",
           "appType": "newNbgCustomer",
-          "verificationTargetValue": "6974123456",
+          "verificationTargetValue": "{{ .vars.mobileNumber }}",
           "verificationTarget": "sms",
           "verificationScope": "mobileVerification",
           "verificationCode": "123456",

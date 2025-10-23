@@ -18,6 +18,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - `config.json` - Full-featured example with authentication flow
 - `config-onboarding.json` - NBG onboarding API sequence (generated from Postman)
 - `config-test-features.json` - Demonstrates user input prompts and variable substitution
+- `config-test-variables.json` - Demonstrates global variables feature
 - `config-oauth-example.json` - OAuth flow example with browser launch and user input
 - `config-test-multiple-validations.json` - Demonstrates multiple JSON path validations feature
 
@@ -47,6 +48,10 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 ```json
 {
   "enableDebug": false,              // Optional: enable debug logging (default: false)
+  "variables": {                     // Optional: global variables accessible in all steps
+    "apiKey": "my-secret-key",
+    "userId": "12345"
+  },
   "defaults": {
     "baseUrl": "https://api.example.com",
     "timeout": 30,                   // Request timeout in seconds
@@ -76,13 +81,20 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 ### Key Features
 
 **Dynamic Value Substitution:**
-- Response syntax: `{{ .responses[N].field.subfield }}`
-  - Zero-based indexing: responses[0] = first step, responses[1] = second step
+- Global variables syntax: `{{ .vars.key }}`
+  - References values defined in the `variables` section at config level
+  - Useful for API keys, user IDs, common values used across multiple steps
+  - Used in: URLs, headers, request bodies
+  - Example: `{{ .vars.apiKey }}`
+- Response syntax: `{{ .responses[N].field.subfield }}` or `{{ .responses.stepId.field }}`
+  - Index-based: responses[0] = first step, responses[1] = second step
+  - Named references: responses.stepId references step by its `id` field
   - Used in: URLs, headers, request bodies
 - User input syntax: `{{ .input.variableName }}`
   - References values collected from `prompts` in the same step
   - Used in: URLs, headers, request bodies
 - Implementation: `substitute_variables()` uses regex matching to find and replace placeholders
+- Substitution order: Variables → User Input → Response References
 
 **Conditional Execution:**
 - Steps can be skipped based on previous response conditions

@@ -34,6 +34,9 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 # Global defaults
 DEFAULTS_JSON="{}"
 
+# Global variables
+VARIABLES_JSON="{}"
+
 # Debug mode (disabled by default)
 ENABLE_DEBUG=false
 
@@ -422,7 +425,7 @@ merge_with_defaults() {
 }
 
 # Function to substitute variables in a string
-# Supports syntax: {{ .responses[N].field.subfield }} and {{ .input.key }}
+# Supports syntax: {{ .vars.key }}, {{ .responses[N].field.subfield }}, and {{ .input.key }}
 substitute_variables() {
     local input="$1"
     local output="$input"
@@ -430,6 +433,38 @@ substitute_variables() {
     debug_log "DEBUG: substitute_variables - input=$input"
     debug_log "DEBUG: substitute_variables - responses_json array size=${#responses_json[@]}"
     debug_log "DEBUG: substitute_variables - user_input_json=$USER_INPUT_JSON"
+    debug_log "DEBUG: substitute_variables - variables_json=$VARIABLES_JSON"
+
+    # Find all {{ .vars.key }} patterns and replace with global variables
+    local vars_iteration=0
+    while [[ "$output" =~ \{\{[[:space:]]*\.vars\.([a-zA-Z0-9_]+)[[:space:]]*\}\} ]]; do
+        vars_iteration=$((vars_iteration + 1))
+        local var_key="${BASH_REMATCH[1]}"
+        local full_match="${BASH_REMATCH[0]}"
+        debug_log "DEBUG: substitute_variables - vars pattern found: key=$var_key, full_match=$full_match"
+
+        # Get the value from VARIABLES_JSON
+        local value=$(echo "$VARIABLES_JSON" | jq -r ".[\"$var_key\"]")
+        debug_log "DEBUG: substitute_variables - extracted variable value=$value"
+        if [ "$value" = "null" ] || [ -z "$value" ]; then
+            echo "Error: Could not extract global variable value for .vars.$var_key" >&2
+            exit 1
+        fi
+
+        # Escape glob special characters
+        local escaped_full_match="$full_match"
+        escaped_full_match="${escaped_full_match//\*/\\*}"
+        escaped_full_match="${escaped_full_match//\?/\\?}"
+        escaped_full_match="${escaped_full_match//\[/\\[}"
+        escaped_full_match="${escaped_full_match//\]/\\]}"
+        output="${output//$escaped_full_match/$value}"
+        debug_log "DEBUG: substitute_variables - replaced vars pattern, output=$output"
+
+        if [ $vars_iteration -gt 10 ]; then
+            echo "ERROR: substitute_variables - infinite loop detected in vars substitution" >&2
+            exit 1
+        fi
+    done
 
     # Find all {{ .input.key }} patterns and replace with user input
     local input_iteration=0
@@ -571,7 +606,7 @@ generate_uuid() {
     else
         # Fallback: generate pseudo-random UUID using /dev/urandom
         cat /proc/sys/kernel/random/uuid 2>/dev/null || \
-        od -N 16 -x /dev/urandom | head -1 | awk '{OFS="-"; print $2$3,$4,$5,$6,$7$8$9}' | sed 's/^0*//' | tr '[:upper:]' '[:lower:]'
+        od -N 16 -x /dev/urandom | head -1 | awk '{OFS="-"; print $2$3,$4,$5,$6,$7$8$9}' | tr '[:upper:]' '[:lower:]'
     fi
 }
 
@@ -1077,6 +1112,13 @@ main() {
     if echo "$config" | jq -e '.defaults' > /dev/null 2>&1; then
         DEFAULTS_JSON=$(echo "$config" | jq '.defaults')
         echo "Loaded defaults from configuration"
+    fi
+
+    # Load variables if present
+    if echo "$config" | jq -e '.variables' > /dev/null 2>&1; then
+        VARIABLES_JSON=$(echo "$config" | jq '.variables')
+        local var_count=$(echo "$VARIABLES_JSON" | jq 'length')
+        echo "Loaded $var_count global variable(s) from configuration"
     fi
 
     # Load enableDebug setting if present (defaults to false)

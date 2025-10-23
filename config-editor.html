@@ -953,6 +953,7 @@
             const templates = {
                 empty: {
                     enableDebug: false,
+                    variables: {},
                     defaults: {
                         baseUrl: "",
                         timeout: 30,
@@ -963,6 +964,7 @@
                 },
                 simple: {
                     enableDebug: false,
+                    variables: {},
                     defaults: {
                         baseUrl: "https://jsonplaceholder.typicode.com",
                         timeout: 30,
@@ -991,6 +993,7 @@
                 },
                 oauth: {
                     enableDebug: false,
+                    variables: {},
                     defaults: {
                         baseUrl: "https://oauth-provider.example.com",
                         timeout: 30,
@@ -1046,6 +1049,7 @@
                 },
                 "user-input": {
                     enableDebug: false,
+                    variables: {},
                     defaults: {
                         baseUrl: "https://api.example.com",
                         timeout: 30,
@@ -1353,6 +1357,21 @@
 
                 <div class="section">
                     <div class="section-header" onclick="toggleSection(this)">
+                        <h2>Global Variables</h2>
+                        <span class="toggle">▼</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label>Variables</label>
+                            <div id="globalVariables"></div>
+                            <button class="btn btn-secondary btn-small" onclick="addGlobalVariable()">+ Add Variable</button>
+                            <div class="help-text">Global variables accessible in all steps via {{ .vars.key }} syntax</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header" onclick="toggleSection(this)">
                         <h2>Default Settings</h2>
                         <span class="toggle">▼</span>
                     </div>
@@ -1401,9 +1420,75 @@
             const editorContent = document.getElementById('editorContent');
             editorContent.innerHTML = html;
             editorContent.className = ''; // Remove empty-state class
+            renderGlobalVariables();
             renderDefaultValidations();
             renderDefaultHeaders();
             renderSteps();
+        }
+
+        function renderGlobalVariables() {
+            const variables = config.variables || {};
+            const container = document.getElementById('globalVariables');
+
+            if (!container) {
+                console.error('globalVariables container not found');
+                return;
+            }
+
+            const html = Object.keys(variables).length === 0 ?
+                '<div class="help-text">No global variables defined</div>' :
+                Object.entries(variables).map(([key, value], index) => `
+                    <div class="key-value-row">
+                        <input type="text" value="${key.replace(/"/g, '&quot;')}" onchange="updateGlobalVariable(${index}, 'key', this.value)" placeholder="Variable name">
+                        <input type="text" value="${String(value).replace(/"/g, '&quot;')}" onchange="updateGlobalVariable(${index}, 'value', this.value)" placeholder="Variable value">
+                        <button class="btn btn-danger btn-small" onclick="removeGlobalVariable(${index})">×</button>
+                    </div>
+                `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function addGlobalVariable() {
+            if (!config.variables) {
+                config.variables = {};
+            }
+            config.variables[`newVar${Object.keys(config.variables).length + 1}`] = '';
+            renderGlobalVariables();
+            saveToLocalStorage();
+            updatePreview();
+        }
+
+        function updateGlobalVariable(index, field, value) {
+            const keys = Object.keys(config.variables);
+            const oldKey = keys[index];
+
+            if (field === 'key') {
+                if (value !== oldKey) {
+                    const oldValue = config.variables[oldKey];
+                    delete config.variables[oldKey];
+                    config.variables[value] = oldValue;
+                }
+            } else {
+                config.variables[oldKey] = value;
+            }
+
+            renderGlobalVariables();
+            saveToLocalStorage();
+            updatePreview();
+        }
+
+        function removeGlobalVariable(index) {
+            const keys = Object.keys(config.variables);
+            const key = keys[index];
+            delete config.variables[key];
+
+            if (Object.keys(config.variables).length === 0) {
+                delete config.variables;
+            }
+
+            renderGlobalVariables();
+            saveToLocalStorage();
+            updatePreview();
         }
 
         function renderDefaultHeaders() {

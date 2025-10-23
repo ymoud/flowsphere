@@ -1,0 +1,74 @@
+{
+  "enableDebug": true,
+  "variables": {
+    "apiKey": "my-secret-api-key",
+    "userId": "1",
+    "baseEndpoint": "/api/v1"
+  },
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "timeout": 30,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "validations": [
+      {
+        "status": 200
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "get-user-posts",
+      "name": "Get posts for user (using variable)",
+      "method": "GET",
+      "url": "/users/{{ .vars.userId }}/posts",
+      "validations": [
+        {
+          "jsonpath": ".[0].userId",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "id": "get-first-post",
+      "name": "Get first post from previous response",
+      "method": "GET",
+      "url": "/posts/1",
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "exists": true
+        },
+        {
+          "jsonpath": ".title",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "id": "create-comment",
+      "name": "Create comment using variables",
+      "method": "POST",
+      "url": "/posts/{{ .responses.get-first-post.id }}/comments",
+      "headers": {
+        "X-API-Key": "{{ .vars.apiKey }}"
+      },
+      "body": {
+        "postId": "{{ .responses.get-first-post.id }}",
+        "name": "Test User {{ .vars.userId }}",
+        "email": "user{{ .vars.userId }}@example.com",
+        "body": "This is a test comment using global variables"
+      },
+      "validations": [
+        {
+          "status": 201
+        },
+        {
+          "jsonpath": ".id",
+          "exists": true
+        }
+      ]
+    }
+  ]
+}
