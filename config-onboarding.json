@@ -131,7 +131,8 @@
       "method": "POST",
       "url": "/application/createApplication",
       "headers": {
-        "nbgqamobileapp": "dcd9c348-80dd-4b85-a547-01c1834b9448"
+        "nbgqamobileapp": "dcd9c348-80dd-4b85-a547-01c1834b9448",
+        "authorization": "Bearer {{ .responses.getToken.access_token }}"
       },
       "body": {
         "header": {
@@ -139,12 +140,16 @@
           "application": "81D9AF3A-C56C-4EA5-B9BE-01127D451394"
         },
         "payload": {
-          "appId": "22f8d4ea-386c-4ec7-b437-8538bbde6027",
+          "appId": "GENERATED_GUID",
           "appType": "newNbgCustomer",
           "deviceId": "kiriakiTestDevice",
           "deviceNotificationId": "",
           "DeviceOsType": "android"
         }
+      },
+      "expect": {
+        "jsonpath": ".payload.appInfo.status",
+        "equals": "Pending"
       }
     },
     {
@@ -153,7 +158,7 @@
       "method": "POST",
       "url": "/application/getApplication",
       "headers": {
-        "sandbox_id": "{{sandboxId}}"
+        "authorization": "Bearer {{ .responses.getToken.access_token }}"
       },
       "body": {
         "header": {
@@ -161,7 +166,7 @@
           "application": "81D9AF3A-C56C-4EA5-B9BE-01127D451394"
         },
         "payload": {
-          "appId": "22f8d4ea-386c-4ec7-b437-8538bbde6027",
+          "appId": "{{ .responses.createUserApplicationForm.payload.appInfo.appId }}",
           "appType": "newNbgCustomer"
         }
       }
@@ -359,7 +364,8 @@
       },
       "expect": {
         "jsonpath": ".sessionId"
-      }
+      },
+      "launchBrowser": "{{ .authorizationUrl }}"
     },
     {
       "id": "egovGetEgovUserProfile",
@@ -375,8 +381,8 @@
           "application": "81D9AF3A-C56C-4EA5-B9BE-01127D451394"
         },
         "payload": {
-          "sessionId": "55f1a200-e799-47ab-83bf-321cd236cd9e",
-          "context": "RUEremJ2aFY5UVllNDA3eHdEZmRLUT09LkRuYUUwUnNVUFJYWVdWcXQydE9SNkt0WThZbCtZNjJaZHQ5L1dGekxCWDVnVWhMM3h1eStRamxIekMxRWxGeVRsRnp6NGpkc0l4aTRlY0xkRGpSR2xkeno1VnVocEphSmNtZ1h0TWhWdGM2ZEpLdS9RUi9IeG8wNUZ5RGtyallWNG85R3BtUnNOVWU1WkE5TW1DRTNZNWJGSGlwTHcrNUVlOW4zVUxDSkw4SkxxempFbHpiN21xSFhmVFoxa1VCcG9kZUVHSHRvYVFLZTdoc211OEZUNmgxSjE2U1FTbC9OQXp6YVU3dHFSNEh5Q253cnNzaGtOS2UrQWpsWUU1V20zb0g4V0NvQlYvSVRPcy9VMjBhUjFWZThSZkxFbGtMdzBzanp6ZDdKWHNWWGNzS295NTQxOXJJTGtUQ1ExUmRhMU0vbkdBRmhZT2hsM05pTVZZUVEyKzBUTVhhQVMyamhPdkpKZmVDZlNRLytQWGJFRVd4WU9YeVNUKy9TL01YYTRaL2gvckllU3ZrY1JHZFlyb1FBNTZ4aS9xNFVZRjNOTVFHbHc2NFdZQUxPWHdEampUSUNCY3R4NGt2dEpSRFBVT21yTVVma0pCSFIwYWFHa0NFSStCSlhUTjVKMmxyL2xtSjFEcCtXU1FlWnN6KzV0L1Bid3ZTaUtQV1l2NDUzSU1YRVBkaS9kR0tUY01XaGxiYzZTZ1pURzhaRFVlTElqNDB1dzBXYTdWRzF5cWhWUmdIRzJnd3pUWDh1ZkxSQzZPbHg5cjYvdE4xTUUyOVAvTGhTNm5QYlh0emN3NVNXQjRlYUFJSHZkSkp5d01HekVwRzJWUWVuMDd4NVloK0hRQk56cDAvTExoUk91ekZqZExDcUQ5SmQ0eGVDaHFMclNWZHVNOU5oSnQ5eDV2bCsxb0ROK1lJdnc4ZWNJdDFRTDFSSUhzQ1dBaXpiSURyT25CMFBMM1NHZ3RHazdiT0cwZlp4aWIvVEYrM1ZIR2ViYSszbWttazhsS3l3TXpTYlZKMWgyOHk2dlhtdlltYXE1OHFnNWtxSDdIMGw5UGpkWnFYWTdTSW14dEVxSFZUYWVqRWZBaEJFQTB1YStBYlg0dGUybTNENnQxMTNMeS9TNnlSM2w1UVArQ3g4R0hqL3ZKVVo3NC9ldXRUL1ZEQUMyNE1hMFBYeUZ2SlJNOUJBQXIwMmNmZWhaRmtCbElCcHgvSHhHcXhITG53V3hNUnArc1JHUXhZWjRNOWNLa0pQQThxd3hON3ZhY0xPT2EyemRhYzJzYjJ5UW5vVjg4TFVQMU5HbXlZUkRLeDZ4NklXQnRqa3RCWWNxOVE9",
+          "sessionId": "{{ .input.sessionId }}",
+          "context": "{{ .input.context }}",
           "updateCustomerData": true,
           "requireUpdate": "false",
           "cannotUpdate": "false",
@@ -385,6 +391,10 @@
             "appType": "newNbgCustomer"
           }
         }
+      },
+      "prompts": {
+        "context": "Please paste the context",
+        "sessionId": "Please paste the sessionId"
       }
     },
     {
