@@ -667,6 +667,7 @@
     <script>
         let config = null;
         let fileName = 'config.json';
+        let openStepIndices = new Set(); // Track which steps are currently open
 
         // Load from localStorage on page load
         window.addEventListener('DOMContentLoaded', function() {
@@ -1019,7 +1020,9 @@
                 return;
             }
 
-            const html = steps.map((step, index) => `
+            const html = steps.map((step, index) => {
+                const isOpen = openStepIndices.has(index);
+                return `
                 <div class="step-item">
                     <div class="step-header" onclick="toggleSection(this)">
                         <div class="step-title">
@@ -1030,14 +1033,15 @@
                             <button class="btn btn-secondary btn-small" onclick="event.stopPropagation(); moveStep(${index}, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
                             <button class="btn btn-secondary btn-small" onclick="event.stopPropagation(); moveStep(${index}, 1)" ${index === steps.length - 1 ? 'disabled' : ''}>↓</button>
                             <button class="btn btn-danger btn-small" onclick="event.stopPropagation(); removeStep(${index})">×</button>
-                            <span class="toggle">▼</span>
+                            <span class="toggle">${isOpen ? '▼' : '▶'}</span>
                         </div>
                     </div>
-                    <div class="step-content collapsed">
+                    <div class="step-content${isOpen ? '' : ' collapsed'}">
                         ${renderStepForm(step, index)}
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
 
             container.innerHTML = html;
         }
@@ -1144,8 +1148,18 @@
         function toggleSection(header) {
             const content = header.nextElementSibling;
             const toggle = header.querySelector('.toggle');
+            const stepItem = header.closest('.step-item');
+            const stepIndex = Array.from(stepItem.parentNode.children).indexOf(stepItem);
+
             content.classList.toggle('collapsed');
             toggle.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
+
+            // Track open state
+            if (content.classList.contains('collapsed')) {
+                openStepIndices.delete(stepIndex);
+            } else {
+                openStepIndices.add(stepIndex);
+            }
         }
 
         function updateConfig() {
@@ -1210,6 +1224,19 @@
         function removeStep(index) {
             if (confirm('Are you sure you want to remove this step?')) {
                 config.steps.splice(index, 1);
+
+                // Update open step indices
+                const newOpenIndices = new Set();
+                openStepIndices.forEach(i => {
+                    if (i < index) {
+                        newOpenIndices.add(i);
+                    } else if (i > index) {
+                        newOpenIndices.add(i - 1);
+                    }
+                    // Skip i === index (the removed step)
+                });
+                openStepIndices = newOpenIndices;
+
                 saveToLocalStorage();
                 renderSteps();
                 updatePreview();
@@ -1223,6 +1250,19 @@
             const temp = config.steps[index];
             config.steps[index] = config.steps[newIndex];
             config.steps[newIndex] = temp;
+
+            // Swap open states
+            const indexWasOpen = openStepIndices.has(index);
+            const newIndexWasOpen = openStepIndices.has(newIndex);
+
+            if (indexWasOpen && !newIndexWasOpen) {
+                openStepIndices.delete(index);
+                openStepIndices.add(newIndex);
+            } else if (!indexWasOpen && newIndexWasOpen) {
+                openStepIndices.delete(newIndex);
+                openStepIndices.add(index);
+            }
+
             saveToLocalStorage();
             renderSteps();
             updatePreview();
