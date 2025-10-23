@@ -39,7 +39,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - `prompt_user_input()`: Collects user input interactively for steps with prompts
 - `launch_browser()`: Opens URLs in default browser (cross-platform support)
 - `evaluate_condition()`: Conditional execution logic (skip steps based on previous response status/fields)
-- `merge_with_defaults()`: Merges step config with global defaults for baseUrl, headers, timeout, and status
+- `merge_with_defaults()`: Merges step config with global defaults for baseUrl, headers, timeout, and validations
 - Response storage: Arrays `responses_json[]` and `responses_status[]` maintain state across steps
 - User input storage: `USER_INPUT_JSON` stores prompted values for current step
 
@@ -51,7 +51,9 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
     "baseUrl": "https://api.example.com",
     "timeout": 30,                   // Request timeout in seconds
     "headers": { "Content-Type": "application/json" },
-    "status": 200                    // Default expected HTTP status
+    "validations": [                 // Default validations applied to all steps
+      { "status": 200 }
+    ]
   },
   "steps": [
     {
@@ -64,8 +66,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
       "body": {},                    // Optional request payload
       "prompts": {},                 // Optional user input prompts
       "condition": {},               // Optional conditional execution
-      "status": 200,                 // Expected HTTP status code
-      "validations": [],             // Optional response validations
+      "validations": [],             // Response validations (status + jsonpath)
       "launchBrowser": ".url"        // Optional: launch browser with URL from response
     }
   ]
@@ -92,32 +93,49 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - Skipped steps maintain array indexing (stored as empty responses)
 
 **Validation:**
-- **Status code validation** (`status` property, defaults to 200)
-  - Can be set globally in `defaults.status`
-  - Can be overridden per step
-- **JSON path validations** (`validations` array):
-  - Validate multiple response fields with different criteria
-  - Each validation object can have:
-    - `jsonpath`: The JSON path to extract (required)
+- **Unified validations array** - All validations (status + jsonpath) in one array
+- **Status validation**: `{"status": 200}`
+  - Validates HTTP response status code
+  - If no status validation defined, defaults to 200
+  - Can be set globally in `defaults.validations`
+  - Example: `{"status": 201}`
+- **JSON path validations**: Validate response body fields
+  - Each validation must have `jsonpath` field
+  - Optional criteria:
     - `exists`: true/false - check if field exists
     - `equals`: expected value - check for equality
     - `notEquals`: unwanted value - check for inequality
   - Multiple validation criteria can be combined on the same path
-  - All validations must pass for the step to succeed
-  - If no validation criteria specified, defaults to checking that the field exists
-  - Example:
+  - If no criteria specified, defaults to checking that field exists
+- **Default validations**: Define in `defaults.validations` to apply to all steps
+  - Steps without validations inherit default validations
+  - Steps with validations override defaults completely
+- **Example:**
     ```json
     {
-      "id": "get-user",
-      "name": "Get user details",
-      "method": "GET",
-      "url": "/users/1",
-      "status": 200,
-      "validations": [
-        { "jsonpath": ".userId", "exists": true },
-        { "jsonpath": ".id", "equals": "1" },
-        { "jsonpath": ".title", "notEquals": "" },
-        { "jsonpath": ".email", "exists": true, "notEquals": "" }
+      "defaults": {
+        "validations": [
+          { "status": 200 }
+        ]
+      },
+      "steps": [
+        {
+          "id": "create-user",
+          "name": "Create user",
+          "method": "POST",
+          "url": "/users",
+          "validations": [
+            { "status": 201 },
+            { "jsonpath": ".id", "exists": true },
+            { "jsonpath": ".email", "notEquals": "" }
+          ]
+        },
+        {
+          "id": "get-user",
+          "name": "Get user (uses default validations)",
+          "method": "GET",
+          "url": "/users/1"
+        }
       ]
     }
     ```
@@ -212,8 +230,9 @@ node postman-tools/parse-postman-enhanced.js
 - Check error handling by introducing invalid expectations
 
 **Config file design:**
-- Use `defaults` section to reduce duplication (baseUrl, timeout, common headers, default status)
+- Use `defaults` section to reduce duplication (baseUrl, timeout, common headers, default validations)
 - Relative URLs (starting with `/`) are automatically prepended with baseUrl
-- Step-level configs override defaults (headers are merged, timeout/status values override)
+- Step-level configs override defaults (headers are merged, timeout/validations override)
+- Default validations apply to steps without validations; steps with validations override defaults completely
 - Conditional steps reference only completed steps (step 3 can check responses 0, 1, or 2)
 - All steps must have a unique `id` field for named references

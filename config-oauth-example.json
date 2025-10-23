@@ -5,7 +5,11 @@
     "headers": {
       "Content-Type": "application/json"
     },
-    "status": 200
+    "validations": [
+      {
+        "status": 200
+      }
+    ]
   },
   "steps": [
     {

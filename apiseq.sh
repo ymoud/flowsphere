@@ -402,11 +402,11 @@ merge_with_defaults() {
         merged=$(echo "$merged" | jq --argjson headers "$merged_headers" '.headers = $headers')
     fi
 
-    # Merge default status with step status (step status overrides)
-    if echo "$DEFAULTS_JSON" | jq -e '.status' > /dev/null 2>&1; then
-        if ! echo "$step_json" | jq -e '.status' > /dev/null 2>&1; then
-            local default_status=$(echo "$DEFAULTS_JSON" | jq '.status')
-            merged=$(echo "$merged" | jq --argjson status "$default_status" '.status = $status')
+    # Merge default validations with step validations (step validations override)
+    if echo "$DEFAULTS_JSON" | jq -e '.validations' > /dev/null 2>&1; then
+        if ! echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
+            local default_validations=$(echo "$DEFAULTS_JSON" | jq '.validations')
+            merged=$(echo "$merged" | jq --argjson validations "$default_validations" '.validations = $validations')
         fi
     fi
 
@@ -881,23 +881,11 @@ execute_step() {
     responses_json+=("$response_body")
     responses_status+=("$status_code")
 
-    # Validate response
-    local expect_status=200
-    if echo "$step_json" | jq -e '.status' > /dev/null 2>&1; then
-        expect_status=$(echo "$step_json" | jq -r '.status')
-    fi
-
-    # Check status code
-    if [ "$status_code" != "$expect_status" ]; then
-        echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code (expected $expect_status)${NC}"
-        echo "Response body: $response_body"
-        exit 1
-    fi
-
-    # Check for validations
+    # Process validations (unified status and jsonpath validations)
     if echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
         local validations=$(echo "$step_json" | jq -c '.validations[]')
         local validation_count=0
+        local status_validated=false
 
         while IFS= read -r validation; do
             if [ -z "$validation" ]; then
@@ -905,72 +893,106 @@ execute_step() {
             fi
 
             validation_count=$((validation_count + 1))
-            local jsonpath=$(echo "$validation" | jq -r '.jsonpath')
 
-            if [ "$jsonpath" = "null" ] || [ -z "$jsonpath" ]; then
-                echo -e "Step $step_num: $method $url ${RED}❌ Validation $validation_count missing 'jsonpath' field${NC}"
-                exit 1
-            fi
+            # Check if this is a status validation
+            if echo "$validation" | jq -e '.status' > /dev/null 2>&1; then
+                local expect_status=$(echo "$validation" | jq -r '.status')
 
-            local extracted=$(echo "$response_body" | jq -r "$jsonpath" 2>/dev/null || echo "null")
+                if [ "$status_code" != "$expect_status" ]; then
+                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code (expected $expect_status)${NC}"
+                    echo "Response body: $response_body"
+                    exit 1
+                fi
+                status_validated=true
 
-            # Check for 'exists' expectation
-            if echo "$validation" | jq -e '.exists' > /dev/null 2>&1; then
-                local should_exist=$(echo "$validation" | jq -r '.exists')
+            # Check if this is a jsonpath validation
+            elif echo "$validation" | jq -e '.jsonpath' > /dev/null 2>&1; then
+                local jsonpath=$(echo "$validation" | jq -r '.jsonpath')
 
-                if [ "$should_exist" = "true" ]; then
+                if [ "$jsonpath" = "null" ] || [ -z "$jsonpath" ]; then
+                    echo -e "Step $step_num: $method $url ${RED}❌ Validation $validation_count has invalid 'jsonpath' field${NC}"
+                    exit 1
+                fi
+
+                local extracted=$(echo "$response_body" | jq -r "$jsonpath" 2>/dev/null || echo "null")
+
+                # Check for 'exists' expectation
+                if echo "$validation" | jq -e '.exists' > /dev/null 2>&1; then
+                    local should_exist=$(echo "$validation" | jq -r '.exists')
+
+                    if [ "$should_exist" = "true" ]; then
+                        if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
+                            echo -e "Step $step_num: $method $url ${RED}❌ Expected field '$jsonpath' to exist${NC}"
+                            echo "Response body: $response_body"
+                            exit 1
+                        else
+                            echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
+                        fi
+                    else
+                        if [ "$extracted" != "null" ] && [ -n "$extracted" ]; then
+                            echo -e "Step $step_num: $method $url ${RED}❌ Expected field '$jsonpath' to NOT exist${NC}"
+                            exit 1
+                        else
+                            echo -e "  ${GREEN}✓${NC} Confirmed $jsonpath does not exist"
+                        fi
+                    fi
+                fi
+
+                # Check if equals is specified
+                if echo "$validation" | jq -e '.equals' > /dev/null 2>&1; then
+                    local expected_value=$(echo "$validation" | jq -r '.equals')
+                    if [ "$extracted" != "$expected_value" ]; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected '$expected_value')${NC}"
+                        exit 1
+                    else
+                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC}"
+                    fi
+                fi
+
+                # Check if notEquals is specified
+                if echo "$validation" | jq -e '.notEquals' > /dev/null 2>&1; then
+                    local unwanted_value=$(echo "$validation" | jq -r '.notEquals')
+                    if [ "$extracted" = "$unwanted_value" ]; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected NOT '$unwanted_value')${NC}"
+                        exit 1
+                    else
+                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (not '$unwanted_value')"
+                    fi
+                fi
+
+                # If no validation criteria specified, default to 'exists' check
+                if ! echo "$validation" | jq -e '.exists' > /dev/null 2>&1 && \
+                   ! echo "$validation" | jq -e '.equals' > /dev/null 2>&1 && \
+                   ! echo "$validation" | jq -e '.notEquals' > /dev/null 2>&1; then
                     if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
-                        echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but expected field '$jsonpath' to exist${NC}"
+                        echo -e "Step $step_num: $method $url ${RED}❌ JSON path '$jsonpath' not found${NC}"
                         echo "Response body: $response_body"
                         exit 1
                     else
                         echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
                     fi
-                else
-                    if [ "$extracted" != "null" ] && [ -n "$extracted" ]; then
-                        echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but expected field '$jsonpath' to NOT exist${NC}"
-                        exit 1
-                    else
-                        echo -e "  ${GREEN}✓${NC} Confirmed $jsonpath does not exist"
-                    fi
                 fi
-            fi
-
-            # Check if equals is specified
-            if echo "$validation" | jq -e '.equals' > /dev/null 2>&1; then
-                local expected_value=$(echo "$validation" | jq -r '.equals')
-                if [ "$extracted" != "$expected_value" ]; then
-                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected '$expected_value')${NC}"
-                    exit 1
-                else
-                    echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC}"
-                fi
-            fi
-
-            # Check if notEquals is specified
-            if echo "$validation" | jq -e '.notEquals' > /dev/null 2>&1; then
-                local unwanted_value=$(echo "$validation" | jq -r '.notEquals')
-                if [ "$extracted" = "$unwanted_value" ]; then
-                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected NOT '$unwanted_value')${NC}"
-                    exit 1
-                else
-                    echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (not '$unwanted_value')"
-                fi
-            fi
-
-            # If no validation criteria specified, default to 'exists' check
-            if ! echo "$validation" | jq -e '.exists' > /dev/null 2>&1 && \
-               ! echo "$validation" | jq -e '.equals' > /dev/null 2>&1 && \
-               ! echo "$validation" | jq -e '.notEquals' > /dev/null 2>&1; then
-                if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
-                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but JSON path '$jsonpath' not found${NC}"
-                    echo "Response body: $response_body"
-                    exit 1
-                else
-                    echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
-                fi
+            else
+                echo -e "Step $step_num: $method $url ${RED}❌ Validation $validation_count must have either 'status' or 'jsonpath' field${NC}"
+                exit 1
             fi
         done <<< "$validations"
+
+        # If no status validation was found, default to 200
+        if [ "$status_validated" = "false" ]; then
+            if [ "$status_code" != "200" ]; then
+                echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code (expected 200)${NC}"
+                echo "Response body: $response_body"
+                exit 1
+            fi
+        fi
+    else
+        # No validations defined, default to checking status 200
+        if [ "$status_code" != "200" ]; then
+            echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code (expected 200)${NC}"
+            echo "Response body: $response_body"
+            exit 1
+        fi
     fi
 
     # Check if step should launch browser

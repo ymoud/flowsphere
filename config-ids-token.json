@@ -16,8 +16,10 @@
         "deviceId": "kiriakiTestDevice"
       },
       "timeout": 10,
-      "status": 200,
       "validations": [
+        {
+          "status": 200
+        },
         {
           "jsonpath": ".access_token",
           "exists": true

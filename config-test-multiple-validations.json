@@ -6,7 +6,11 @@
     "headers": {
       "Content-Type": "application/json"
     },
-    "status": 200
+    "validations": [
+      {
+        "status": 200
+      }
+    ]
   },
   "steps": [
     {
@@ -14,8 +18,10 @@
       "name": "Get a single post with multiple validations",
       "method": "GET",
       "url": "/posts/1",
-      "status": 200,
       "validations": [
+        {
+          "status": 200
+        },
         {
           "jsonpath": ".userId",
           "exists": true
@@ -39,8 +45,10 @@
       "name": "Get user with validation",
       "method": "GET",
       "url": "/users/1",
-      "status": 200,
       "validations": [
+        {
+          "status": 200
+        },
         {
           "jsonpath": ".id",
           "equals": "1"
@@ -57,8 +65,10 @@
         "body": "This is a test post",
         "userId": 1
       },
-      "status": 201,
       "validations": [
+        {
+          "status": 201
+        },
         {
           "jsonpath": ".id",
           "exists": true
@@ -82,8 +92,10 @@
       "name": "Get comments with validation that field exists and has specific value",
       "method": "GET",
       "url": "/comments/1",
-      "status": 200,
       "validations": [
+        {
+          "status": 200
+        },
         {
           "jsonpath": ".postId",
           "exists": true,

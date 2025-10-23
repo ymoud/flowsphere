@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1800px;
             margin: 0 auto;
             background: white;
             border-radius: 8px;
@@ -181,7 +181,27 @@
             margin-bottom: 15px;
         }
 
-        .form-group label {
+        .form-row {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-row.cols-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .form-row.cols-3 {
+            grid-template-columns: 1fr 2fr 1fr;
+        }
+
+        .form-row .form-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label,
+        .form-field label {
             display: block;
             margin-bottom: 5px;
             font-size: 13px;
@@ -192,7 +212,11 @@
         .form-group input[type="text"],
         .form-group input[type="number"],
         .form-group select,
-        .form-group textarea {
+        .form-group textarea,
+        .form-field input[type="text"],
+        .form-field input[type="number"],
+        .form-field select,
+        .form-field textarea {
             width: 100%;
             padding: 8px 12px;
             border: 1px solid #d1d5db;
@@ -201,7 +225,8 @@
             font-family: inherit;
         }
 
-        .form-group textarea {
+        .form-group textarea,
+        .form-field textarea {
             font-family: 'Courier New', monospace;
             resize: vertical;
             min-height: 80px;
@@ -209,7 +234,10 @@
 
         .form-group input:focus,
         .form-group select:focus,
-        .form-group textarea:focus {
+        .form-group textarea:focus,
+        .form-field input:focus,
+        .form-field select:focus,
+        .form-field textarea:focus {
             outline: none;
             border-color: #2563eb;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
@@ -265,6 +293,27 @@
 
         .step-content.collapsed {
             display: none;
+        }
+
+        .step-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .step-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .step-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .json-editor {
@@ -1048,99 +1097,119 @@
 
         function renderStepForm(step, index) {
             return `
-                <div class="form-group">
-                    <label>Step ID</label>
-                    <input type="text" value="${step.id || ''}" onchange="updateStep(${index}, 'id', this.value || undefined)" placeholder="uniqueStepId">
-                    <div class="help-text">Unique identifier for named response references: {{ .responses.stepId.field }}</div>
-                </div>
+                <!-- Section 1: Step Details -->
+                <div class="step-section">
+                    <div class="step-section-title">Step Details</div>
 
-                <div class="form-group">
-                    <label>Step Name</label>
-                    <input type="text" value="${step.name || ''}" onchange="updateStep(${index}, 'name', this.value)" placeholder="Describe this step">
-                </div>
-
-                <div class="form-group">
-                    <label>HTTP Method</label>
-                    <select onchange="updateStep(${index}, 'method', this.value)">
-                        <option value="GET" ${step.method === 'GET' ? 'selected' : ''}>GET</option>
-                        <option value="POST" ${step.method === 'POST' ? 'selected' : ''}>POST</option>
-                        <option value="PUT" ${step.method === 'PUT' ? 'selected' : ''}>PUT</option>
-                        <option value="DELETE" ${step.method === 'DELETE' ? 'selected' : ''}>DELETE</option>
-                        <option value="PATCH" ${step.method === 'PATCH' ? 'selected' : ''}>PATCH</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>URL</label>
-                    <input type="text" value="${step.url || ''}" onchange="updateStep(${index}, 'url', this.value)" placeholder="/api/endpoint or full URL">
-                    <div class="help-text">Use {{ .responses[N].field }} to reference previous responses, {{ .input.var }} for user input</div>
-                </div>
-
-                <div class="form-group">
-                    <label>Timeout (seconds) - Optional</label>
-                    <input type="number" value="${step.timeout || ''}" onchange="updateStep(${index}, 'timeout', this.value ? parseInt(this.value) : undefined)" placeholder="Leave empty to use default">
-                </div>
-
-                <div class="form-group">
-                    <label>Headers (JSON)</label>
-                    <textarea onchange="updateStepJSON(${index}, 'headers', this.value)">${JSON.stringify(step.headers || {}, null, 2)}</textarea>
-                    <div class="help-text">Merged with default headers</div>
-                </div>
-
-                <div class="form-group">
-                    <label>Body Format</label>
-                    <select onchange="updateStep(${index}, 'bodyFormat', this.value || undefined)">
-                        <option value="">Auto-detect (from Content-Type header)</option>
-                        <option value="json" ${step.bodyFormat === 'json' ? 'selected' : ''}>JSON</option>
-                        <option value="form-urlencoded" ${step.bodyFormat === 'form-urlencoded' ? 'selected' : ''}>Form URL-encoded</option>
-                    </select>
-                    <div class="help-text">Explicit format override (usually auto-detected from Content-Type)</div>
-                </div>
-
-                <div class="form-group">
-                    <label>Request Body (JSON)</label>
-                    <textarea onchange="updateStepJSON(${index}, 'body', this.value)">${JSON.stringify(step.body || {}, null, 2)}</textarea>
-                    <div class="help-text">For form-urlencoded, use flat object. For JSON, supports nested structures.</div>
-                </div>
-
-                <div class="form-group">
-                    <label>User Input Prompts (JSON)</label>
-                    <textarea onchange="updateStepJSON(${index}, 'prompts', this.value)">${JSON.stringify(step.prompts || {}, null, 2)}</textarea>
-                    <div class="help-text">Example: {"username": "Enter username:", "password": "Enter password:"}</div>
-                </div>
-
-                <div class="form-group">
-                    <label>Condition (Skip step based on previous response)</label>
-                    <div id="conditionBuilder_${index}"></div>
-                    <button class="btn btn-secondary btn-small" onclick="toggleConditionBuilder(${index})" style="margin-top: 10px;">
-                        ${step.condition && Object.keys(step.condition).length > 0 ? 'Edit' : 'Add'} Condition
-                    </button>
-                    ${step.condition && Object.keys(step.condition).length > 0 ? `<button class="btn btn-danger btn-small" onclick="removeCondition(${index})" style="margin-top: 10px; margin-left: 5px;">Remove</button>` : ''}
-                    ${renderConditionSummary(step.condition || {})}
-                    <div class="help-text">Skip this step if a condition on a previous response is met</div>
-                </div>
-
-                <div class="form-group">
-                    <label>Expected Status Code</label>
-                    <input type="number" value="${step.status !== undefined ? step.status : ''}" onchange="updateStep(${index}, 'status', this.value ? parseInt(this.value) : undefined)" placeholder="Leave empty to use default (${config.defaults?.status || 200})">
-                    <div class="help-text">HTTP status code to expect (defaults to ${config.defaults?.status || 200})</div>
-                </div>
-
-                <div class="form-group">
-                    <label>Response Validations (JSON Path checks)</label>
-                    <div id="validationsList_${index}">
-                        ${renderValidationsList(step.validations || [], index)}
+                    <div class="form-row cols-2">
+                        <div class="form-field">
+                            <label>Step ID</label>
+                            <input type="text" value="${step.id || ''}" onchange="updateStep(${index}, 'id', this.value || undefined)" placeholder="uniqueStepId">
+                            <div class="help-text">Unique identifier for named response references: {{ .responses.stepId.field }}</div>
+                        </div>
+                        <div class="form-field">
+                            <label>Step Name</label>
+                            <input type="text" value="${step.name || ''}" onchange="updateStep(${index}, 'name', this.value)" placeholder="Describe this step">
+                        </div>
                     </div>
-                    <button class="btn btn-secondary btn-small" onclick="addValidation(${index})" style="margin-top: 10px;">
-                        + Add Validation
-                    </button>
-                    <div class="help-text">Validate specific fields in the response (can add multiple)</div>
+
+                    ${index > 0 ? `
+                    <div class="form-group">
+                        <label>Condition (Skip step based on previous response)</label>
+                        <div id="conditionSummary_${index}">
+                            ${renderConditionSummary(step.condition || {}, index)}
+                        </div>
+                        <button class="btn btn-secondary btn-small" onclick="editCondition(${index})" style="margin-top: 10px;">
+                            ${step.condition && Object.keys(step.condition).length > 0 ? 'Edit' : 'Add'} Condition
+                        </button>
+                        ${step.condition && Object.keys(step.condition).length > 0 ? `<button class="btn btn-danger btn-small" onclick="removeCondition(${index})" style="margin-top: 10px; margin-left: 5px;">Remove</button>` : ''}
+                        <div class="help-text">Skip this step if a condition on a previous response is met</div>
+                    </div>
+                    ` : ''}
+
+                    <div class="form-group">
+                        <label>User Input Prompts</label>
+                        <div id="promptsList_${index}">
+                            ${renderPromptsList(step.prompts || {}, index)}
+                        </div>
+                        <button class="btn btn-secondary btn-small" onclick="addPrompt(${index})" style="margin-top: 10px;">
+                            + Add Prompt
+                        </button>
+                        <div class="help-text">Collect user input before executing this step</div>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Launch Browser (JSONPath) - Optional</label>
-                    <input type="text" value="${step.launchBrowser || ''}" onchange="updateStep(${index}, 'launchBrowser', this.value || undefined)" placeholder=".authorizationUrl">
-                    <div class="help-text">Opens URL from response in browser (useful for OAuth flows)</div>
+                <!-- Section 2: Request Details -->
+                <div class="step-section">
+                    <div class="step-section-title">Request Details</div>
+
+                    <div class="form-row cols-3">
+                        <div class="form-field">
+                            <label>HTTP Method</label>
+                            <select onchange="updateStep(${index}, 'method', this.value)">
+                                <option value="GET" ${step.method === 'GET' ? 'selected' : ''}>GET</option>
+                                <option value="POST" ${step.method === 'POST' ? 'selected' : ''}>POST</option>
+                                <option value="PUT" ${step.method === 'PUT' ? 'selected' : ''}>PUT</option>
+                                <option value="DELETE" ${step.method === 'DELETE' ? 'selected' : ''}>DELETE</option>
+                                <option value="PATCH" ${step.method === 'PATCH' ? 'selected' : ''}>PATCH</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label>URL</label>
+                            <input type="text" value="${step.url || ''}" onchange="updateStep(${index}, 'url', this.value)" placeholder="/api/endpoint or full URL">
+                            <div class="help-text">Use {{ .responses.stepId.field }} or {{ .input.var }}</div>
+                        </div>
+                        <div class="form-field">
+                            <label>Timeout (seconds)</label>
+                            <input type="number" value="${step.timeout || ''}" onchange="updateStep(${index}, 'timeout', this.value ? parseInt(this.value) : undefined)" placeholder="Default: ${config.defaults?.timeout || 30}">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Headers</label>
+                        <div id="headersList_${index}">
+                            ${renderHeadersList(step.headers || {}, index)}
+                        </div>
+                        <button class="btn btn-secondary btn-small" onclick="addHeader(${index})" style="margin-top: 10px;">
+                            + Add Header
+                        </button>
+                        <div class="help-text">Merged with default headers. Format inferred from Content-Type.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Request Body (JSON)</label>
+                        <textarea onchange="updateStepJSON(${index}, 'body', this.value)">${JSON.stringify(step.body || {}, null, 2)}</textarea>
+                        <div class="help-text">Format auto-detected from Content-Type header. Use flat object for form-urlencoded, nested for JSON.</div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Response Handling -->
+                <div class="step-section">
+                    <div class="step-section-title">Response Handling</div>
+
+                    <div class="form-row cols-2">
+                        <div class="form-field">
+                            <label>Expected Status Code</label>
+                            <input type="number" value="${step.status !== undefined ? step.status : ''}" onchange="updateStep(${index}, 'status', this.value ? parseInt(this.value) : undefined)" placeholder="Default: ${config.defaults?.status || 200}">
+                            <div class="help-text">HTTP status code to expect</div>
+                        </div>
+                        <div class="form-field">
+                            <label>Launch Browser (JSONPath)</label>
+                            <input type="text" value="${step.launchBrowser || ''}" onchange="updateStep(${index}, 'launchBrowser', this.value || undefined)" placeholder=".authorizationUrl">
+                            <div class="help-text">Opens URL in browser (OAuth flows)</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Response Validations (JSON Path checks)</label>
+                        <div id="validationsList_${index}">
+                            ${renderValidationsList(step.validations || [], index)}
+                        </div>
+                        <button class="btn btn-secondary btn-small" onclick="addValidation(${index})" style="margin-top: 10px;">
+                            + Add Validation
+                        </button>
+                        <div class="help-text">Validate specific fields in the response (can add multiple)</div>
+                    </div>
                 </div>
             `;
         }
@@ -1351,108 +1420,14 @@
         }
 
         // Condition Builder Functions
-        function toggleConditionBuilder(index) {
-            const container = document.getElementById(`conditionBuilder_${index}`);
-            const step = config.steps[index];
-
-            if (container.innerHTML === '') {
-                renderConditionBuilder(index);
-            } else {
-                container.innerHTML = '';
+        function renderConditionSummary(condition, stepIndex) {
+            if (!condition || Object.keys(condition).length === 0) {
+                return '<div class="help-text" style="font-style: italic; color: #6b7280;">No condition defined</div>';
             }
-        }
 
-        function renderConditionBuilder(index) {
-            const step = config.steps[index];
-            const condition = step.condition || {};
-            const container = document.getElementById(`conditionBuilder_${index}`);
+            const stepName = config.steps[condition.step]?.name || 'Unnamed';
+            let summary = `Skip if step ${condition.step} (${stepName}) `;
 
-            const conditionType = condition.statusCode ? 'statusCode' :
-                                 condition.equals !== undefined ? 'equals' :
-                                 condition.notEquals !== undefined ? 'notEquals' :
-                                 condition.exists !== undefined ? 'exists' : 'statusCode';
-
-            const stepOptions = config.steps.slice(0, index).map((s, i) =>
-                `<option value="${i}" ${condition.step === i ? 'selected' : ''}>${i}. ${s.name || 'Unnamed'}</option>`
-            ).join('');
-
-            const html = `
-                <div class="builder-form">
-                    <div class="form-group">
-                        <label>Reference Step</label>
-                        <select id="conditionStep_${index}" onchange="updateConditionField(${index}, 'step', parseInt(this.value))">
-                            ${stepOptions || '<option value="">No previous steps</option>'}
-                        </select>
-                        <div class="help-text">Check the response from this previous step</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Condition Type</label>
-                        <select id="conditionType_${index}" onchange="changeConditionType(${index}, this.value)">
-                            <option value="statusCode" ${conditionType === 'statusCode' ? 'selected' : ''}>Status Code</option>
-                            <option value="equals" ${conditionType === 'equals' ? 'selected' : ''}>Field Equals Value</option>
-                            <option value="notEquals" ${conditionType === 'notEquals' ? 'selected' : ''}>Field Not Equals Value</option>
-                            <option value="exists" ${conditionType === 'exists' ? 'selected' : ''}>Field Exists</option>
-                        </select>
-                    </div>
-
-                    <div id="conditionFields_${index}">
-                        ${renderConditionFields(index, conditionType, condition)}
-                    </div>
-
-                    <button class="btn btn-primary btn-small" onclick="saveCondition(${index})">Save Condition</button>
-                    <button class="btn btn-secondary btn-small" onclick="toggleConditionBuilder(${index})">Cancel</button>
-                </div>
-                ${renderConditionSummary(condition)}
-            `;
-
-            container.innerHTML = html;
-        }
-
-        function renderConditionFields(index, type, condition) {
-            if (type === 'statusCode') {
-                return `
-                    <div class="form-group">
-                        <label>Expected Status Code</label>
-                        <input type="number" id="conditionValue_${index}" value="${condition.statusCode || 200}" placeholder="200">
-                        <div class="help-text">Skip this step if the previous response has this status code</div>
-                    </div>
-                `;
-            } else if (type === 'equals' || type === 'notEquals') {
-                return `
-                    <div class="form-group">
-                        <label>JSON Path</label>
-                        <input type="text" id="conditionField_${index}" value="${condition.field || ''}" placeholder=".success">
-                        <div class="help-text">Path to the field in the response (e.g., .success, .data.isActive)</div>
-                    </div>
-                    <div class="form-group">
-                        <label>Expected Value</label>
-                        <input type="text" id="conditionValue_${index}" value="${condition[type] !== undefined ? condition[type] : ''}" placeholder="true">
-                        <div class="help-text">The value to ${type === 'equals' ? 'match' : 'not match'}</div>
-                    </div>
-                `;
-            } else if (type === 'exists') {
-                return `
-                    <div class="form-group">
-                        <label>JSON Path</label>
-                        <input type="text" id="conditionField_${index}" value="${condition.field || ''}" placeholder=".token">
-                        <div class="help-text">Path to the field in the response</div>
-                    </div>
-                    <div class="form-group">
-                        <label>Should Exist</label>
-                        <select id="conditionValue_${index}">
-                            <option value="true" ${condition.exists === true ? 'selected' : ''}>Yes (true)</option>
-                            <option value="false" ${condition.exists === false ? 'selected' : ''}>No (false)</option>
-                        </select>
-                    </div>
-                `;
-            }
-        }
-
-        function renderConditionSummary(condition) {
-            if (!condition || Object.keys(condition).length === 0) return '';
-
-            let summary = `Skip if step ${condition.step || 0} `;
             if (condition.statusCode) {
                 summary += `has status code ${condition.statusCode}`;
             } else if (condition.field) {
@@ -1468,51 +1443,176 @@
             return `<div class="builder-summary">${summary}</div>`;
         }
 
-        function changeConditionType(index, type) {
-            const condition = config.steps[index].condition || {step: 0};
-            document.getElementById(`conditionFields_${index}`).innerHTML = renderConditionFields(index, type, condition);
+        function editCondition(stepIndex) {
+            const condition = config.steps[stepIndex].condition || {};
+            showConditionModal(stepIndex, condition);
         }
 
-        function updateConditionField(index, field, value) {
-            if (!config.steps[index].condition) {
-                config.steps[index].condition = {};
+        function showConditionModal(stepIndex, condition) {
+            const conditionType = condition.statusCode !== undefined ? 'statusCode' :
+                                 condition.equals !== undefined ? 'equals' :
+                                 condition.notEquals !== undefined ? 'notEquals' :
+                                 condition.exists !== undefined ? 'exists' : 'statusCode';
+
+            const stepOptions = config.steps.slice(0, stepIndex).map((s, i) =>
+                `<option value="${i}" ${condition.step === i ? 'selected' : ''}>${i}. ${s.name || 'Unnamed'}</option>`
+            ).join('');
+
+            const modalHtml = `
+                <div class="modal active" id="conditionModal" onclick="if(event.target.id === 'conditionModal') closeConditionModal()">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>${Object.keys(condition).length > 0 ? 'Edit' : 'Add'} Condition</h2>
+                            <p>Define when this step should be skipped based on a previous response</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Reference Step *</label>
+                            <select id="conditionStep">
+                                ${stepOptions || '<option value="">No previous steps</option>'}
+                            </select>
+                            <div class="help-text">Check the response from this previous step</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Condition Type *</label>
+                            <select id="conditionType" onchange="updateConditionTypeFields()">
+                                <option value="statusCode" ${conditionType === 'statusCode' ? 'selected' : ''}>Status Code</option>
+                                <option value="equals" ${conditionType === 'equals' ? 'selected' : ''}>Field Equals Value</option>
+                                <option value="notEquals" ${conditionType === 'notEquals' ? 'selected' : ''}>Field Not Equals Value</option>
+                                <option value="exists" ${conditionType === 'exists' ? 'selected' : ''}>Field Exists</option>
+                            </select>
+                        </div>
+
+                        <div id="conditionTypeFields">
+                            ${renderConditionTypeFields(conditionType, condition)}
+                        </div>
+
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="closeConditionModal()">Cancel</button>
+                            <button class="btn btn-primary" onclick="saveCondition(${stepIndex})">Save</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('conditionModal');
+            if (existingModal) existingModal.remove();
+
+            // Add new modal
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        function renderConditionTypeFields(type, condition) {
+            if (type === 'statusCode') {
+                return `
+                    <div class="form-group">
+                        <label>Expected Status Code *</label>
+                        <input type="number" id="conditionStatusCode" value="${condition.statusCode || 200}" placeholder="200">
+                        <div class="help-text">Skip this step if the previous response has this status code</div>
+                    </div>
+                `;
+            } else if (type === 'equals' || type === 'notEquals') {
+                return `
+                    <div class="form-group">
+                        <label>JSON Path *</label>
+                        <input type="text" id="conditionField" value="${condition.field || ''}" placeholder=".success">
+                        <div class="help-text">Path to the field in the response (e.g., .success, .data.isActive)</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Expected Value *</label>
+                        <input type="text" id="conditionValue" value="${condition[type] !== undefined ? condition[type] : ''}" placeholder="true">
+                        <div class="help-text">The value to ${type === 'equals' ? 'match' : 'not match'}</div>
+                    </div>
+                `;
+            } else if (type === 'exists') {
+                return `
+                    <div class="form-group">
+                        <label>JSON Path *</label>
+                        <input type="text" id="conditionField" value="${condition.field || ''}" placeholder=".token">
+                        <div class="help-text">Path to the field in the response</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Should Exist *</label>
+                        <select id="conditionExists">
+                            <option value="true" ${condition.exists === true ? 'selected' : ''}>Yes (true)</option>
+                            <option value="false" ${condition.exists === false ? 'selected' : ''}>No (false)</option>
+                        </select>
+                    </div>
+                `;
             }
-            config.steps[index].condition[field] = value;
         }
 
-        function saveCondition(index) {
-            const type = document.getElementById(`conditionType_${index}`).value;
-            const step = parseInt(document.getElementById(`conditionStep_${index}`)?.value || 0);
+        function updateConditionTypeFields() {
+            const type = document.getElementById('conditionType').value;
+            document.getElementById('conditionTypeFields').innerHTML = renderConditionTypeFields(type, {});
+        }
+
+        function saveCondition(stepIndex) {
+            const type = document.getElementById('conditionType').value;
+            const step = parseInt(document.getElementById('conditionStep')?.value || 0);
 
             const condition = { step };
 
             if (type === 'statusCode') {
-                condition.statusCode = parseInt(document.getElementById(`conditionValue_${index}`).value);
+                const statusCode = document.getElementById('conditionStatusCode').value;
+                if (!statusCode) {
+                    alert('Status code is required');
+                    return;
+                }
+                condition.statusCode = parseInt(statusCode);
             } else if (type === 'equals' || type === 'notEquals') {
-                condition.field = document.getElementById(`conditionField_${index}`).value;
-                let value = document.getElementById(`conditionValue_${index}`).value;
+                const field = document.getElementById('conditionField').value.trim();
+                const value = document.getElementById('conditionValue').value;
+
+                if (!field) {
+                    alert('JSON path is required');
+                    return;
+                }
+                if (value === '') {
+                    alert('Value is required');
+                    return;
+                }
+
+                condition.field = field;
                 // Try to parse as number or boolean
-                if (value === 'true') value = true;
-                else if (value === 'false') value = false;
-                else if (!isNaN(value) && value !== '') value = parseFloat(value);
-                condition[type] = value;
+                let parsedValue = value;
+                if (value === 'true') parsedValue = true;
+                else if (value === 'false') parsedValue = false;
+                else if (!isNaN(value) && value !== '') parsedValue = parseFloat(value);
+                condition[type] = parsedValue;
             } else if (type === 'exists') {
-                condition.field = document.getElementById(`conditionField_${index}`).value;
-                condition.exists = document.getElementById(`conditionValue_${index}`).value === 'true';
+                const field = document.getElementById('conditionField').value.trim();
+
+                if (!field) {
+                    alert('JSON path is required');
+                    return;
+                }
+
+                condition.field = field;
+                condition.exists = document.getElementById('conditionExists').value === 'true';
             }
 
-            config.steps[index].condition = condition;
-            toggleConditionBuilder(index);
+            config.steps[stepIndex].condition = condition;
+            closeConditionModal();
             saveToLocalStorage();
             renderSteps();
             updatePreview();
         }
 
-        function removeCondition(index) {
-            delete config.steps[index].condition;
-            saveToLocalStorage();
-            renderSteps();
-            updatePreview();
+        function removeCondition(stepIndex) {
+            if (confirm('Remove this condition?')) {
+                delete config.steps[stepIndex].condition;
+                saveToLocalStorage();
+                renderSteps();
+                updatePreview();
+            }
+        }
+
+        function closeConditionModal() {
+            const modal = document.getElementById('conditionModal');
+            if (modal) modal.remove();
         }
 
         // Validations Builder Functions
@@ -1695,6 +1795,258 @@
 
         function closeValidationModal() {
             const modal = document.getElementById('validationModal');
+            if (modal) modal.remove();
+        }
+
+        // Prompts Builder Functions
+        function renderPromptsList(prompts, stepIndex) {
+            const promptKeys = Object.keys(prompts || {});
+
+            if (promptKeys.length === 0) {
+                return '<div class="help-text" style="font-style: italic; color: #6b7280;">No prompts defined</div>';
+            }
+
+            return promptKeys.map((key, promptIndex) => {
+                return `
+                    <div class="builder-summary" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                            <strong>${key}</strong>: "${prompts[key]}"
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary btn-small" onclick="editPrompt(${stepIndex}, '${key}')" style="margin-left: 5px;">Edit</button>
+                            <button class="btn btn-danger btn-small" onclick="removePrompt(${stepIndex}, '${key}')" style="margin-left: 5px;">×</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addPrompt(stepIndex) {
+            showPromptModal(stepIndex, null);
+        }
+
+        function editPrompt(stepIndex, key) {
+            const prompt = config.steps[stepIndex].prompts[key];
+            showPromptModal(stepIndex, key, prompt);
+        }
+
+        function showPromptModal(stepIndex, existingKey, existingMessage = '') {
+            const isNew = existingKey === null;
+            const modalHtml = `
+                <div class="modal active" id="promptModal" onclick="if(event.target.id === 'promptModal') closePromptModal()">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>${isNew ? 'Add' : 'Edit'} User Input Prompt</h2>
+                            <p>Define a variable that will prompt the user for input</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Variable Name *</label>
+                            <input type="text" id="promptKey" value="${existingKey || ''}" placeholder="username" ${!isNew ? 'readonly' : ''}>
+                            <div class="help-text">Used as {{ .input.variableName }} in the request</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Prompt Message *</label>
+                            <input type="text" id="promptMessage" value="${existingMessage}" placeholder="Enter your username:">
+                            <div class="help-text">The message shown to the user</div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="closePromptModal()">Cancel</button>
+                            <button class="btn btn-primary" onclick="savePrompt(${stepIndex}, ${isNew ? 'null' : `'${existingKey}'`})">${isNew ? 'Add' : 'Save'}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('promptModal');
+            if (existingModal) existingModal.remove();
+
+            // Add new modal
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        function savePrompt(stepIndex, existingKey) {
+            const key = document.getElementById('promptKey').value.trim();
+            const message = document.getElementById('promptMessage').value.trim();
+
+            if (!key) {
+                alert('Variable name is required');
+                return;
+            }
+
+            if (!message) {
+                alert('Prompt message is required');
+                return;
+            }
+
+            // Validate variable name (alphanumeric and underscore only)
+            if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key)) {
+                alert('Variable name must start with a letter or underscore and contain only letters, numbers, and underscores');
+                return;
+            }
+
+            // Initialize prompts object if needed
+            if (!config.steps[stepIndex].prompts) {
+                config.steps[stepIndex].prompts = {};
+            }
+
+            // If editing and key changed, remove old key
+            if (existingKey !== null && existingKey !== key) {
+                delete config.steps[stepIndex].prompts[existingKey];
+            }
+
+            // Add/update prompt
+            config.steps[stepIndex].prompts[key] = message;
+
+            closePromptModal();
+            saveToLocalStorage();
+            renderSteps();
+            updatePreview();
+        }
+
+        function removePrompt(stepIndex, key) {
+            if (confirm(`Remove prompt "${key}"?`)) {
+                delete config.steps[stepIndex].prompts[key];
+
+                // Remove prompts object if empty
+                if (Object.keys(config.steps[stepIndex].prompts).length === 0) {
+                    delete config.steps[stepIndex].prompts;
+                }
+
+                saveToLocalStorage();
+                renderSteps();
+                updatePreview();
+            }
+        }
+
+        function closePromptModal() {
+            const modal = document.getElementById('promptModal');
+            if (modal) modal.remove();
+        }
+
+        // Headers Builder Functions
+        function renderHeadersList(headers, stepIndex) {
+            const headerKeys = Object.keys(headers || {});
+
+            if (headerKeys.length === 0) {
+                return '<div class="help-text" style="font-style: italic; color: #6b7280;">No headers defined</div>';
+            }
+
+            return headerKeys.map((key) => {
+                return `
+                    <div class="builder-summary" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                            <strong>${key}</strong>: "${headers[key]}"
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary btn-small" onclick="editHeader(${stepIndex}, '${key.replace(/'/g, "\\'")}'); event.stopPropagation();" style="margin-left: 5px;">Edit</button>
+                            <button class="btn btn-danger btn-small" onclick="removeHeader(${stepIndex}, '${key.replace(/'/g, "\\'")}'); event.stopPropagation();" style="margin-left: 5px;">×</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addHeader(stepIndex) {
+            showHeaderModal(stepIndex, null);
+        }
+
+        function editHeader(stepIndex, key) {
+            const value = config.steps[stepIndex].headers[key];
+            showHeaderModal(stepIndex, key, value);
+        }
+
+        function showHeaderModal(stepIndex, existingKey, existingValue = '') {
+            const isNew = existingKey === null;
+            const modalHtml = `
+                <div class="modal active" id="headerModal" onclick="if(event.target.id === 'headerModal') closeHeaderModal()">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>${isNew ? 'Add' : 'Edit'} Header</h2>
+                            <p>Define a custom HTTP header for this request</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Header Name *</label>
+                            <input type="text" id="headerKey" value="${existingKey || ''}" placeholder="Authorization" ${!isNew ? 'readonly' : ''}>
+                            <div class="help-text">Common headers: Authorization, Content-Type, Accept, etc.</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Header Value *</label>
+                            <input type="text" id="headerValue" value="${existingValue.replace(/"/g, '&quot;')}" placeholder="Bearer {{ .responses.login.token }}">
+                            <div class="help-text">Can use {{ .responses.stepId.field }} or {{ .input.var }}</div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="closeHeaderModal()">Cancel</button>
+                            <button class="btn btn-primary" onclick="saveHeader(${stepIndex}, ${isNew ? 'null' : `'${existingKey.replace(/'/g, "\\'")}'`})">${isNew ? 'Add' : 'Save'}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if any
+            const existingModal = document.getElementById('headerModal');
+            if (existingModal) existingModal.remove();
+
+            // Add new modal
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        }
+
+        function saveHeader(stepIndex, existingKey) {
+            const key = document.getElementById('headerKey').value.trim();
+            const value = document.getElementById('headerValue').value.trim();
+
+            if (!key) {
+                alert('Header name is required');
+                return;
+            }
+
+            if (!value) {
+                alert('Header value is required');
+                return;
+            }
+
+            // Initialize headers object if needed
+            if (!config.steps[stepIndex].headers) {
+                config.steps[stepIndex].headers = {};
+            }
+
+            // If editing and key changed, remove old key
+            if (existingKey !== null && existingKey !== key) {
+                delete config.steps[stepIndex].headers[existingKey];
+            }
+
+            // Add/update header
+            config.steps[stepIndex].headers[key] = value;
+
+            closeHeaderModal();
+            saveToLocalStorage();
+            renderSteps();
+            updatePreview();
+        }
+
+        function removeHeader(stepIndex, key) {
+            if (confirm(`Remove header "${key}"?`)) {
+                delete config.steps[stepIndex].headers[key];
+
+                // Remove headers object if empty
+                if (Object.keys(config.steps[stepIndex].headers).length === 0) {
+                    delete config.steps[stepIndex].headers;
+                }
+
+                saveToLocalStorage();
+                renderSteps();
+                updatePreview();
+            }
+        }
+
+        function closeHeaderModal() {
+            const modal = document.getElementById('headerModal');
             if (modal) modal.remove();
         }
     </script>

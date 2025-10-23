@@ -4,7 +4,11 @@
     "headers": {
       "Content-Type": "application/json"
     },
-    "status": 200
+    "validations": [
+      {
+        "status": 200
+      }
+    ]
   },
   "steps": [
     {
@@ -93,7 +97,11 @@
         "response": 0,
         "statusCode": 401
       },
-      "status": 201
+      "validations": [
+        {
+          "status": 201
+        }
+      ]
     },
     {
       "id": "fetch-updated-profile",

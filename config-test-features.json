@@ -3,7 +3,11 @@
   "defaults": {
     "baseUrl": "https://jsonplaceholder.typicode.com",
     "timeout": 10,
-    "status": 200
+    "validations": [
+      {
+        "status": 200
+      }
+    ]
   },
   "steps": [
     {
