@@ -4,12 +4,11 @@
     "headers": {
       "Content-Type": "application/json"
     },
-    "expect": {
-      "status": 200
-    }
+    "status": 200
   },
   "steps": [
     {
+      "id": "authenticate",
       "name": "Authenticate",
       "method": "POST",
       "url": "/login",
@@ -17,22 +16,30 @@
         "username": "demo",
         "password": "demo123"
       },
-      "expect": {
-        "jsonpath": ".token"
-      }
+      "validations": [
+        {
+          "jsonpath": ".token",
+          "exists": true
+        }
+      ]
     },
     {
+      "id": "get-user-profile",
       "name": "Get user profile",
       "method": "GET",
       "url": "/profile",
       "headers": {
         "Authorization": "Bearer {{ .responses[0].token }}"
       },
-      "expect": {
-        "jsonpath": ".id"
-      }
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "exists": true
+        }
+      ]
     },
     {
+      "id": "update-premium-user-settings",
       "name": "Update premium user settings",
       "method": "PUT",
       "url": "/users/{{ .responses[1].id }}/settings",
@@ -48,12 +55,15 @@
         "field": ".isPremium",
         "equals": "true"
       },
-      "expect": {
-        "jsonpath": ".success",
-        "equals": "true"
-      }
+      "validations": [
+        {
+          "jsonpath": ".success",
+          "equals": "true"
+        }
+      ]
     },
     {
+      "id": "send-welcome-email-only-for-new-users",
       "name": "Send welcome email (only for new users)",
       "method": "POST",
       "url": "/emails/welcome",
@@ -71,6 +81,7 @@
       }
     },
     {
+      "id": "handle-authentication-failure",
       "name": "Handle authentication failure",
       "method": "POST",
       "url": "/audit/login-failed",
@@ -82,11 +93,10 @@
         "response": 0,
         "statusCode": 401
       },
-      "expect": {
-        "status": 201
-      }
+      "status": 201
     },
     {
+      "id": "fetch-updated-profile",
       "name": "Fetch updated profile",
       "method": "GET",
       "url": "/profile",
@@ -99,6 +109,7 @@
       }
     },
     {
+      "id": "verify-admin-access",
       "name": "Verify admin access",
       "method": "GET",
       "url": "/admin/dashboard",
@@ -112,6 +123,7 @@
       }
     },
     {
+      "id": "enable-notifications-if-disabled",
       "name": "Enable notifications if disabled",
       "method": "POST",
       "url": "/users/{{ .responses[1].id }}/notifications/enable",
@@ -125,6 +137,7 @@
       }
     },
     {
+      "id": "logout",
       "name": "Logout",
       "method": "POST",
       "url": "/logout",

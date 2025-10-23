@@ -3,12 +3,11 @@
   "defaults": {
     "baseUrl": "https://jsonplaceholder.typicode.com",
     "timeout": 10,
-    "expect": {
-      "status": 200
-    }
+    "status": 200
   },
   "steps": [
     {
+      "id": "create-a-post-with-user-input",
       "name": "Create a post with user input",
       "method": "POST",
       "url": "/posts",
@@ -21,17 +20,24 @@
         "body": "Written by {{ .input.author }}",
         "userId": 1
       },
-      "expect": {
-        "jsonpath": ".id"
-      }
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "exists": true
+        }
+      ]
     },
     {
+      "id": "fetch-the-created-post",
       "name": "Fetch the created post",
       "method": "GET",
       "url": "/posts/{{ .responses[0].id }}",
-      "expect": {
-        "jsonpath": ".id"
-      }
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "exists": true
+        }
+      ]
     }
   ]
 }

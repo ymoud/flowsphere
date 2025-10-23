@@ -1,25 +1,28 @@
 {
-    "steps": [
+  "steps": [
+    {
+      "id": "getToken",
+      "name": "Get token",
+      "method": "POST",
+      "url": "https://ibankmobileqa.nbg.gr/identity/connect/token",
+      "headers": {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      "body": {
+        "client_id": "81D9AF3A-C56C-4EA5-B9BE-01127D451394",
+        "grant_type": "device_registration",
+        "scope": "onboarding-device-registration-api-v1",
+        "deviceRegistrationId": "17ce40f2-229c-4126-8803-574353a2f9f3",
+        "deviceId": "kiriakiTestDevice"
+      },
+      "timeout": 10,
+      "status": 200,
+      "validations": [
         {
-            "id": "getToken",
-            "name": "Get token",
-            "method": "POST",
-            "url": "https://ibankmobileqa.nbg.gr/identity/connect/token",
-            "headers": {
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            "body": {
-                "client_id": "81D9AF3A-C56C-4EA5-B9BE-01127D451394",
-                "grant_type": "device_registration",
-                "scope": "onboarding-device-registration-api-v1",
-                "deviceRegistrationId": "17ce40f2-229c-4126-8803-574353a2f9f3",
-                "deviceId": "kiriakiTestDevice"
-            },
-            "expect": {
-                "status": 200,
-                "jsonpath": ".access_token"
-            },
-            "timeout": 10
+          "jsonpath": ".access_token",
+          "exists": true
         }
-    ]
+      ]
+    }
+  ]
 }

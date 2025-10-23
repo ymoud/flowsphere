@@ -1,0 +1,104 @@
+{
+  "enableDebug": false,
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "timeout": 30,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "status": 200
+  },
+  "steps": [
+    {
+      "id": "get-post",
+      "name": "Get a single post with multiple validations",
+      "method": "GET",
+      "url": "/posts/1",
+      "status": 200,
+      "validations": [
+        {
+          "jsonpath": ".userId",
+          "exists": true
+        },
+        {
+          "jsonpath": ".id",
+          "equals": "1"
+        },
+        {
+          "jsonpath": ".title",
+          "notEquals": ""
+        },
+        {
+          "jsonpath": ".body",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "id": "get-user",
+      "name": "Get user with validation",
+      "method": "GET",
+      "url": "/users/1",
+      "status": 200,
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "equals": "1"
+        }
+      ]
+    },
+    {
+      "id": "create-post",
+      "name": "Create a new post with multiple validations",
+      "method": "POST",
+      "url": "/posts",
+      "body": {
+        "title": "Test Post",
+        "body": "This is a test post",
+        "userId": 1
+      },
+      "status": 201,
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "exists": true
+        },
+        {
+          "jsonpath": ".title",
+          "equals": "Test Post"
+        },
+        {
+          "jsonpath": ".body",
+          "equals": "This is a test post"
+        },
+        {
+          "jsonpath": ".userId",
+          "equals": "1"
+        }
+      ]
+    },
+    {
+      "id": "get-comments",
+      "name": "Get comments with validation that field exists and has specific value",
+      "method": "GET",
+      "url": "/comments/1",
+      "status": 200,
+      "validations": [
+        {
+          "jsonpath": ".postId",
+          "exists": true,
+          "equals": "1"
+        },
+        {
+          "jsonpath": ".email",
+          "exists": true,
+          "notEquals": ""
+        },
+        {
+          "jsonpath": ".body",
+          "exists": true
+        }
+      ]
+    }
+  ]
+}

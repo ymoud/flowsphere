@@ -5,12 +5,11 @@
     "headers": {
       "Content-Type": "application/json"
     },
-    "expect": {
-      "status": 200
-    }
+    "status": 200
   },
   "steps": [
     {
+      "id": "request-oauth-authorization-url",
       "name": "Request OAuth authorization URL",
       "method": "POST",
       "url": "/oauth/authorize",
@@ -19,12 +18,16 @@
         "redirect_uri": "https://yourapp.com/callback",
         "scope": "read write"
       },
-      "expect": {
-        "jsonpath": ".authorizationUrl"
-      },
-      "launchBrowser": ".authorizationUrl"
+      "launchBrowser": ".authorizationUrl",
+      "validations": [
+        {
+          "jsonpath": ".authorizationUrl",
+          "exists": true
+        }
+      ]
     },
     {
+      "id": "exchange-code-for-token-after-user-approves",
       "name": "Exchange code for token (after user approves)",
       "method": "POST",
       "url": "/oauth/token",
@@ -37,11 +40,15 @@
         "code": "{{ .input.authCode }}",
         "grant_type": "authorization_code"
       },
-      "expect": {
-        "jsonpath": ".access_token"
-      }
+      "validations": [
+        {
+          "jsonpath": ".access_token",
+          "exists": true
+        }
+      ]
     },
     {
+      "id": "make-authenticated-api-call",
       "name": "Make authenticated API call",
       "method": "GET",
       "url": "/user/profile",

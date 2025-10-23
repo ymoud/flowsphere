@@ -6,9 +6,7 @@
     "headers": {
       "Content-Type": "application/json"
     },
-    "expect": {
-      "status": 200
-    }
+    "status": 200
   },
   "steps": [
     {
@@ -23,11 +21,13 @@
         "username": "{{ .input.username }}",
         "password": "{{ .input.password }}"
       },
-      "expect": {
-        "jsonpath": ".token",
-        "exists": true
-      },
-      "id": "userLogin"
+      "id": "userLogin",
+      "validations": [
+        {
+          "jsonpath": ".token",
+          "exists": true
+        }
+      ]
     },
     {
       "name": "Get user profile",

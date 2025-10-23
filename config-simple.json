@@ -2,29 +2,36 @@
   "defaults": {
     "baseUrl": "https://jsonplaceholder.typicode.com",
     "timeout": 2,
-    "expect": {
-      "status": 200
-    }
+    "status": 200
   },
   "steps": [
     {
+      "id": "check-health",
       "name": "Check API health",
       "method": "GET",
       "url": "/posts/1",
       "timeout": 1,
-      "expect": {
-        "jsonpath": ".id"
-      }
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "exists": true
+        }
+      ]
     },
     {
+      "id": "fetch-user",
       "name": "Fetch user details",
       "method": "GET",
       "url": "/users/{{ .responses[0].userId }}",
-      "expect": {
-        "jsonpath": ".id"
-      }
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "exists": true
+        }
+      ]
     },
     {
+      "id": "get-todos",
       "name": "Get user's todos (only if user exists)",
       "method": "GET",
       "url": "/users/{{ .responses[1].id }}/todos",
@@ -35,6 +42,7 @@
       }
     },
     {
+      "id": "get-albums",
       "name": "Get user's albums",
       "method": "GET",
       "url": "/users/{{ .responses[1].id }}/albums",

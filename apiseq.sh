@@ -402,12 +402,12 @@ merge_with_defaults() {
         merged=$(echo "$merged" | jq --argjson headers "$merged_headers" '.headers = $headers')
     fi
 
-    # Merge default expect with step expect (step expect overrides)
-    if echo "$DEFAULTS_JSON" | jq -e '.expect' > /dev/null 2>&1; then
-        local default_expect=$(echo "$DEFAULTS_JSON" | jq '.expect')
-        local step_expect=$(echo "$step_json" | jq '.expect // {}')
-        local merged_expect=$(echo "$default_expect $step_expect" | jq -s '.[0] * .[1]')
-        merged=$(echo "$merged" | jq --argjson expect "$merged_expect" '.expect = $expect')
+    # Merge default status with step status (step status overrides)
+    if echo "$DEFAULTS_JSON" | jq -e '.status' > /dev/null 2>&1; then
+        if ! echo "$step_json" | jq -e '.status' > /dev/null 2>&1; then
+            local default_status=$(echo "$DEFAULTS_JSON" | jq '.status')
+            merged=$(echo "$merged" | jq --argjson status "$default_status" '.status = $status')
+        fi
     fi
 
     # Merge default timeout with step timeout (step timeout overrides)
@@ -883,8 +883,8 @@ execute_step() {
 
     # Validate response
     local expect_status=200
-    if echo "$step_json" | jq -e '.expect.status' > /dev/null 2>&1; then
-        expect_status=$(echo "$step_json" | jq -r '.expect.status')
+    if echo "$step_json" | jq -e '.status' > /dev/null 2>&1; then
+        expect_status=$(echo "$step_json" | jq -r '.status')
     fi
 
     # Check status code
@@ -894,63 +894,83 @@ execute_step() {
         exit 1
     fi
 
-    # Check JSON path if specified
-    if echo "$step_json" | jq -e '.expect.jsonpath' > /dev/null 2>&1; then
-        local jsonpath=$(echo "$step_json" | jq -r '.expect.jsonpath')
-        local extracted=$(echo "$response_body" | jq -r "$jsonpath" 2>/dev/null || echo "null")
+    # Check for validations
+    if echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
+        local validations=$(echo "$step_json" | jq -c '.validations[]')
+        local validation_count=0
 
-        # Check for 'exists' expectation
-        if echo "$step_json" | jq -e '.expect.exists' > /dev/null 2>&1; then
-            local should_exist=$(echo "$step_json" | jq -r '.expect.exists')
+        while IFS= read -r validation; do
+            if [ -z "$validation" ]; then
+                continue
+            fi
 
-            if [ "$should_exist" = "true" ]; then
+            validation_count=$((validation_count + 1))
+            local jsonpath=$(echo "$validation" | jq -r '.jsonpath')
+
+            if [ "$jsonpath" = "null" ] || [ -z "$jsonpath" ]; then
+                echo -e "Step $step_num: $method $url ${RED}❌ Validation $validation_count missing 'jsonpath' field${NC}"
+                exit 1
+            fi
+
+            local extracted=$(echo "$response_body" | jq -r "$jsonpath" 2>/dev/null || echo "null")
+
+            # Check for 'exists' expectation
+            if echo "$validation" | jq -e '.exists' > /dev/null 2>&1; then
+                local should_exist=$(echo "$validation" | jq -r '.exists')
+
+                if [ "$should_exist" = "true" ]; then
+                    if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but expected field '$jsonpath' to exist${NC}"
+                        echo "Response body: $response_body"
+                        exit 1
+                    else
+                        echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
+                    fi
+                else
+                    if [ "$extracted" != "null" ] && [ -n "$extracted" ]; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but expected field '$jsonpath' to NOT exist${NC}"
+                        exit 1
+                    else
+                        echo -e "  ${GREEN}✓${NC} Confirmed $jsonpath does not exist"
+                    fi
+                fi
+            fi
+
+            # Check if equals is specified
+            if echo "$validation" | jq -e '.equals' > /dev/null 2>&1; then
+                local expected_value=$(echo "$validation" | jq -r '.equals')
+                if [ "$extracted" != "$expected_value" ]; then
+                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected '$expected_value')${NC}"
+                    exit 1
+                else
+                    echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC}"
+                fi
+            fi
+
+            # Check if notEquals is specified
+            if echo "$validation" | jq -e '.notEquals' > /dev/null 2>&1; then
+                local unwanted_value=$(echo "$validation" | jq -r '.notEquals')
+                if [ "$extracted" = "$unwanted_value" ]; then
+                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected NOT '$unwanted_value')${NC}"
+                    exit 1
+                else
+                    echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (not '$unwanted_value')"
+                fi
+            fi
+
+            # If no validation criteria specified, default to 'exists' check
+            if ! echo "$validation" | jq -e '.exists' > /dev/null 2>&1 && \
+               ! echo "$validation" | jq -e '.equals' > /dev/null 2>&1 && \
+               ! echo "$validation" | jq -e '.notEquals' > /dev/null 2>&1; then
                 if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
-                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but expected field '$jsonpath' to exist${NC}"
+                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but JSON path '$jsonpath' not found${NC}"
                     echo "Response body: $response_body"
                     exit 1
                 else
                     echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
                 fi
-            else
-                if [ "$extracted" != "null" ] && [ -n "$extracted" ]; then
-                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but expected field '$jsonpath' to NOT exist${NC}"
-                    exit 1
-                else
-                    echo -e "  ${GREEN}✓${NC} Confirmed $jsonpath does not exist"
-                fi
             fi
-        else
-            # If no 'exists' check, default behavior: field should exist
-            if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
-                echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but JSON path '$jsonpath' not found${NC}"
-                echo "Response body: $response_body"
-                exit 1
-            else
-                echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
-            fi
-        fi
-
-        # Check if equals is specified
-        if echo "$step_json" | jq -e '.expect.equals' > /dev/null 2>&1; then
-            local expected_value=$(echo "$step_json" | jq -r '.expect.equals')
-            if [ "$extracted" != "$expected_value" ]; then
-                echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected '$expected_value')${NC}"
-                exit 1
-            else
-                echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC}"
-            fi
-        fi
-
-        # Check if notEquals is specified
-        if echo "$step_json" | jq -e '.expect.notEquals' > /dev/null 2>&1; then
-            local unwanted_value=$(echo "$step_json" | jq -r '.expect.notEquals')
-            if [ "$extracted" = "$unwanted_value" ]; then
-                echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code OK, but '$jsonpath' = '$extracted' (expected NOT '$unwanted_value')${NC}"
-                exit 1
-            else
-                echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (not '$unwanted_value')"
-            fi
-        fi
+        done <<< "$validations"
     fi
 
     # Check if step should launch browser
