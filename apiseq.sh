@@ -296,28 +296,30 @@ check_prerequisites() {
 # Ensures all steps have valid, unique IDs
 validate_step_ids() {
     local config="$1"
-    local num_steps=$(echo "$config" | jq '.steps | length')
 
-    if [ "$num_steps" -eq 0 ]; then
+    # Extract all step names and IDs in a SINGLE jq call (optimization: 1 call instead of N calls)
+    local all_steps_data=$(echo "$config" | jq -r '.steps | to_entries | .[] | [(.key + 1), (.value.name // "Unknown"), (.value.id // "null")] | @tsv')
+
+    if [ -z "$all_steps_data" ]; then
         return 0  # No steps to validate
     fi
 
     # Track seen IDs for duplicate detection
     declare -A seen_ids
 
-    for ((i=0; i<num_steps; i++)); do
-        local step=$(echo "$config" | jq ".steps[$i]")
-        local step_num=$((i + 1))
-        local name=$(echo "$step" | jq -r '.name // "Unknown"')
+    # Process each step line
+    while IFS=$'\t' read -r step_num name id; do
+        # Trim any trailing whitespace/carriage returns (Windows compatibility)
+        id="${id%$'\r'}"
+        id="${id%% }"
+        id="${id## }"
 
-        # Check if 'id' field exists
-        if ! echo "$step" | jq -e '.id' > /dev/null 2>&1; then
+        # Check if id is null
+        if [ "$id" = "null" ] || [ -z "$id" ]; then
             echo "Error: Step $step_num ('$name') is missing required 'id' field" >&2
             echo "All steps must have an 'id' field for named references" >&2
             exit 1
         fi
-
-        local id=$(echo "$step" | jq -r '.id')
 
         # Validate ID format: must start with letter, then alphanumeric/underscore/hyphen
         if ! [[ "$id" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
@@ -338,7 +340,7 @@ validate_step_ids() {
 
         # Mark ID as seen
         seen_ids["$id"]=$step_num
-    done
+    done <<< "$all_steps_data"
 
     debug_log "DEBUG: All step IDs validated successfully"
 }
@@ -994,12 +996,15 @@ main() {
     # Execute each step
     for ((i=0; i<num_steps; i++)); do
         debug_log "DEBUG: Loop iteration $i of $num_steps"
-        local step=$(echo "$config" | jq ".steps[$i]")
         local step_num=$((i + 1))
-        local name=$(echo "$step" | jq -r '.name')
-        local id=$(echo "$step" | jq -r '.id')
-        local method=$(echo "$step" | jq -r '.method')
-        local url=$(echo "$step" | jq -r '.url')
+        # Extract step object once (optimization: 2 calls instead of 5)
+        local step=$(echo "$config" | jq -c ".steps[$i]")
+        # Extract metadata in single jq call
+        local step_meta=$(echo "$step" | jq -r '[.name, .id, .method, .url] | @tsv')
+        local name=$(echo "$step_meta" | cut -f1)
+        local id=$(echo "$step_meta" | cut -f2)
+        local method=$(echo "$step_meta" | cut -f3)
+        local url=$(echo "$step_meta" | cut -f4)
         debug_log "DEBUG: Processing step $step_num: $name (id=$id)"
 
         # Map step ID to index for named references
