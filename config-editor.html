@@ -245,7 +245,7 @@
         .form-field textarea {
             font-family: 'Courier New', monospace;
             resize: vertical;
-            min-height: 80px;
+            min-height: 240px;
         }
 
         .form-group input:focus,
@@ -644,7 +644,8 @@
                     <input type="file" id="fileInput" accept=".json">
                     <button class="btn btn-primary" onclick="loadFile()">Load Config</button>
                     <button class="btn btn-secondary" onclick="createNew()">New Config</button>
-                    <button class="btn btn-success" onclick="downloadFile()" id="downloadBtn" disabled>⬇ Download</button>
+                    <button class="btn btn-success" onclick="downloadFile()" id="downloadBtn" style="display: none;">⬇ Download</button>
+                    <button class="btn btn-danger" onclick="closeFile()" id="closeBtn" style="display: none;">✕ Close</button>
                     <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
                         <span id="currentFileName" style="color: #374151; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
                             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="opacity: 0.6;">
@@ -660,7 +661,8 @@
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
-                    <p>Load an existing config file or create a new one to get started</p>
+                    <p>No configuration loaded</p>
+                    <p style="font-size: 14px; color: #9ca3af;">Use "Load Config" to open a file or "New Config" to create one</p>
                 </div>
             </div>
 
@@ -789,6 +791,9 @@
                     console.error('Error loading saved config:', err);
                     localStorage.removeItem('apiseq_config');
                 }
+            } else {
+                // No saved config, update display to show "No file open"
+                updateFileNameDisplay();
             }
         });
 
@@ -802,6 +807,9 @@
 
         function updateAutoSaveIndicator() {
             const indicator = document.getElementById('autoSaveIndicator');
+            if (!indicator) return;
+
+            indicator.style.display = 'inline'; // Show indicator
             const now = new Date();
             const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             indicator.textContent = `✓ Auto-saved at ${timeStr}`;
@@ -816,7 +824,13 @@
         function updateFileNameDisplay() {
             const fileNameElement = document.getElementById('fileNameText');
             if (fileNameElement) {
-                fileNameElement.textContent = fileName;
+                if (config) {
+                    fileNameElement.textContent = fileName;
+                    fileNameElement.style.color = '#374151';
+                } else {
+                    fileNameElement.textContent = 'No file open';
+                    fileNameElement.style.color = '#9ca3af';
+                }
             }
         }
 
@@ -829,11 +843,11 @@
             if (!file) return;
 
             fileName = file.name;
-            updateFileNameDisplay();
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     config = JSON.parse(e.target.result);
+                    updateFileNameDisplay();
                     saveToLocalStorage();
                     renderEditor();
                     updatePreview();
@@ -1275,6 +1289,47 @@
             URL.revokeObjectURL(url);
         }
 
+        function closeFile() {
+            if (!config) return;
+
+            if (confirm('Close the current file? Any unsaved changes will be lost.')) {
+                // Clear config
+                config = null;
+                fileName = 'config.json';
+
+                // Clear localStorage
+                localStorage.removeItem('apiseq_config');
+                localStorage.removeItem('apiseq_fileName');
+
+                // Clear UI - restore empty state
+                document.getElementById('editorContent').innerHTML = `
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p>No configuration loaded</p>
+                    <p style="font-size: 14px; color: #9ca3af;">Use "Load Config" to open a file or "New Config" to create one</p>
+                `;
+                document.getElementById('editorContent').className = 'empty-state';
+
+                // Clear JSON preview
+                document.getElementById('jsonPreview').textContent = '// JSON preview will appear here';
+
+                // Clear and hide auto-save indicator
+                const autoSaveIndicator = document.getElementById('autoSaveIndicator');
+                if (autoSaveIndicator) {
+                    autoSaveIndicator.textContent = '';
+                    autoSaveIndicator.style.display = 'none';
+                }
+
+                // Hide buttons
+                document.getElementById('downloadBtn').style.display = 'none';
+                document.getElementById('closeBtn').style.display = 'none';
+
+                // Reset file name display
+                updateFileNameDisplay();
+            }
+        }
+
         function renderEditor() {
             if (!config) return;
 
@@ -1343,7 +1398,9 @@
                 </div>
             `;
 
-            document.getElementById('editorContent').innerHTML = html;
+            const editorContent = document.getElementById('editorContent');
+            editorContent.innerHTML = html;
+            editorContent.className = ''; // Remove empty-state class
             renderDefaultValidations();
             renderDefaultHeaders();
             renderSteps();
@@ -1740,8 +1797,9 @@
 
             document.getElementById('jsonPreview').textContent = JSON.stringify(cleanConfig, null, 2);
 
-            // Enable download button if config exists
-            document.getElementById('downloadBtn').disabled = false;
+            // Show download and close buttons if config exists
+            document.getElementById('downloadBtn').style.display = 'inline-block';
+            document.getElementById('closeBtn').style.display = 'inline-block';
         }
 
         function positionTooltip() {
