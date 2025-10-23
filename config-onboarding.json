@@ -4,7 +4,8 @@
     "baseUrl": "https://ibankmobileqa.nbg.gr/reverseproxy/onboardingapi",
     "timeout": 10,
     "headers": {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "nbgqamobileapp": "dcd9c348-80dd-4b85-a547-01c1834b9448"
     },
     "validations": [
       {
@@ -18,9 +19,6 @@
       "name": "Request Device Registration",
       "method": "POST",
       "url": "/DEVICE/REQUESTREGISTRATION",
-      "headers": {
-        "nbgqamobileapp": "dcd9c348-80dd-4b85-a547-01c1834b9448"
-      },
       "body": {
         "header": {
           "ID": "GENERATED_GUID",
@@ -61,7 +59,7 @@
           "verificationTarget": "SMS",
           "verificationTargetValue": "6974123456",
           "verificationCode": "123456",
-          "verificationId": "{{ .responses.requestDeviceRegistration.payload.verificationId}}"
+          "verificationId": "{{ .responses.requestDeviceRegistration.payload.verificationId }}"
         }
       },
       "validations": [
@@ -137,8 +135,8 @@
       }
     },
     {
-      "id": "createUserApplicationForm",
-      "name": "Create user application form",
+      "id": "createApplication",
+      "name": "Create Application",
       "method": "POST",
       "url": "/application/createApplication",
       "headers": {
@@ -170,8 +168,8 @@
       ]
     },
     {
-      "id": "getApplicationByAppId",
-      "name": "Get application by app id",
+      "id": "getApplication",
+      "name": "Get Application",
       "method": "POST",
       "url": "/application/getApplication",
       "headers": {
@@ -183,14 +181,20 @@
           "application": "81D9AF3A-C56C-4EA5-B9BE-01127D451394"
         },
         "payload": {
-          "appId": "{{ .responses.createUserApplicationForm.payload.appInfo.appId }}",
+          "appId": "{{ .responses.createApplication.payload.appInfo.appId }}",
           "appType": "newNbgCustomer"
         }
-      }
+      },
+      "validations": [
+        {
+          "jsonpath": ".payload.appInfo.appId",
+          "exists": true
+        }
+      ]
     },
     {
-      "id": "saveUserApplicationForm",
-      "name": "Save user application form",
+      "id": "saveApplicationData",
+      "name": "Save Application Data",
       "method": "POST",
       "url": "/application/saveApplicationData",
       "body": {
@@ -199,7 +203,7 @@
           "application": "81D9AF3A-C56C-4EA5-B9BE-01127D451394"
         },
         "payload": {
-          "appId": "22f8d4ea-386c-4ec7-b437-8538bbde6027",
+          "appId": "{{ .responses.createApplication.payload.appInfo.appId }}",
           "appType": "newNbgCustomer",
           "appData": {
             "contactMethods": [
@@ -214,16 +218,22 @@
             ]
           }
         }
-      }
+      },
+      "headers": {
+        "Authorization": "Bearer {{ .responses.getToken.access_token }}"
+      },
+      "validations": [
+        {
+          "jsonpath": ".payload.appData.contactMethods",
+          "exists": true
+        }
+      ]
     },
     {
       "id": "checkSmsOtpAvailability",
       "name": "checkSmsOtpAvailability",
       "method": "POST",
       "url": "/validation/checkSmsOtpAvailability",
-      "headers": {
-        "sandbox_id": "{{sandbox_id}}"
-      },
       "body": {
         "header": {
           "ID": "GENERATED_GUID",
@@ -239,7 +249,10 @@
           "jsonpath": ".payload.success",
           "exists": true
         }
-      ]
+      ],
+      "headers": {
+        "Authorization": "Bearer {{ .responses.getToken.access_token }}"
+      }
     },
     {
       "id": "checkHighRiskIndustry",
@@ -260,7 +273,10 @@
           "jsonpath": ".payload.isHighRisk",
           "equals": "false"
         }
-      ]
+      ],
+      "headers": {
+        "Authorization": "Bearer {{ .responses.getToken.access_token }}"
+      }
     },
     {
       "id": "getCountries",
@@ -273,16 +289,22 @@
           "application": "81D9AF3A-C56C-4EA5-B9BE-01127D451394"
         },
         "payload": {
-          "appId": "22f8d4ea-386c-4ec7-b437-8538bbde6027",
+          "appId": "{{ .responses.createApplication.payload.appInfo.appId }}",
           "appType": "newNbgCustomer",
-          "lang": "{{ .responses[8].payload.appData.lang }}",
+          "lang": "el",
           "serviceName": "getCountries"
         }
-      }
+      },
+      "validations": [
+        {
+          "jsonpath": ".payload.countries",
+          "exists": true
+        }
+      ]
     },
     {
-      "id": "saveUserApplication",
-      "name": "Save user application",
+      "id": "saveIdentificationDetails",
+      "name": "Save Identification Details",
       "method": "POST",
       "url": "/application/saveApplicationData",
       "body": {
@@ -291,7 +313,7 @@
           "application": "81D9AF3A-C56C-4EA5-B9BE-01127D451394"
         },
         "payload": {
-          "appId": "22f8d4ea-386c-4ec7-b437-8538bbde6027",
+          "appId": "{{ .responses.createApplication.payload.appInfo.appId }}",
           "appType": "newNbgCustomer",
           "language": "el",
           "appData": {
@@ -304,10 +326,10 @@
             "ibankUserId": null,
             "accountNo": null,
             "personalDetails": {
-              "firstName": "ΓΞΦΞ",
-              "lastName": "ΞΦΞ",
-              "fathersName": "ΔΞΦΞ",
-              "dateOfBirth": "1996-10-27T00:00:00+03:00",
+              "firstName": "Ιωάννης",
+              "lastName": "Μουδήλος",
+              "fathersName": "Σπυρίδων",
+              "dateOfBirth": "1992-10-17T00:00:00+03:00",
               "countryOfBirth": 1
             },
             "contactMethods": [
@@ -322,7 +344,7 @@
             ],
             "addresses": null,
             "idDoc": {
-              "idDocType": "{{ .responses[8].payload.appData.idDoc.idDocType }}",
+              "idDocType": "none",
               "idDocNumber": null,
               "idDocIssueDate": null,
               "idDocExpirationDate": null,
@@ -345,7 +367,16 @@
             "egovWalletIdDocData": null
           }
         }
-      }
+      },
+      "headers": {
+        "Authorization": "Bearer {{ .responses.getToken.access_token }}"
+      },
+      "validations": [
+        {
+          "jsonpath": ".payload.appData.personalDetails",
+          "exists": true
+        }
+      ]
     },
     {
       "id": "userIsSuspect",
