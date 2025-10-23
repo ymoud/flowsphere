@@ -1876,7 +1876,7 @@
             ).join('');
 
             const modalHtml = `
-                <div class="modal active" id="conditionModal" onclick="if(event.target.id === 'conditionModal') closeConditionModal()">
+                <div class="modal active" id="conditionModal">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h2>${Object.keys(condition).length > 0 ? 'Edit' : 'Add'} Condition</h2>
@@ -2078,7 +2078,7 @@
             const validationType = validation.status !== undefined ? 'status' : 'jsonpath';
 
             const modalHtml = `
-                <div class="modal active" id="validationModal" onclick="if(event.target.id === 'validationModal') closeValidationModal()">
+                <div class="modal active" id="validationModal">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h2>${isNew ? 'Add' : 'Edit'} Validation</h2>
@@ -2307,7 +2307,7 @@
         function showPromptModal(stepIndex, existingKey, existingMessage = '') {
             const isNew = existingKey === null;
             const modalHtml = `
-                <div class="modal active" id="promptModal" onclick="if(event.target.id === 'promptModal') closePromptModal()">
+                <div class="modal active" id="promptModal">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h2>${isNew ? 'Add' : 'Edit'} User Input Prompt</h2>
@@ -2436,7 +2436,7 @@
         function showHeaderModal(stepIndex, existingKey, existingValue = '') {
             const isNew = existingKey === null;
             const modalHtml = `
-                <div class="modal active" id="headerModal" onclick="if(event.target.id === 'headerModal') closeHeaderModal()">
+                <div class="modal active" id="headerModal">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h2>${isNew ? 'Add' : 'Edit'} Header</h2>
