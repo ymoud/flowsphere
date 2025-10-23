@@ -138,6 +138,22 @@
             display: none;
         }
 
+        .file-drop-zone {
+            padding: 20px;
+            border: 2px dashed #d1d5db;
+            border-radius: 6px;
+            text-align: center;
+            cursor: pointer;
+            background: white;
+            transition: all 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .file-drop-zone:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
         .section {
             margin-bottom: 30px;
             border: 1px solid #e5e7eb;
@@ -681,7 +697,7 @@
 
             <div class="form-group">
                 <label>Template</label>
-                <div class="template-option selected" onclick="selectTemplate('empty')">
+                <div class="template-option selected" onclick="selectTemplate('empty', this)">
                     <div class="template-title">
                         <input type="radio" name="template" value="empty" checked>
                         Empty Configuration
@@ -689,7 +705,7 @@
                     <div class="template-description">Start from scratch with basic defaults</div>
                 </div>
 
-                <div class="template-option" onclick="selectTemplate('simple')">
+                <div class="template-option" onclick="selectTemplate('simple', this)">
                     <div class="template-title">
                         <input type="radio" name="template" value="simple">
                         Simple Example
@@ -697,7 +713,7 @@
                     <div class="template-description">Basic API call example using JSONPlaceholder</div>
                 </div>
 
-                <div class="template-option" onclick="selectTemplate('oauth')">
+                <div class="template-option" onclick="selectTemplate('oauth', this)">
                     <div class="template-title">
                         <input type="radio" name="template" value="oauth">
                         OAuth Flow Example
@@ -705,12 +721,42 @@
                     <div class="template-description">Complete OAuth authentication workflow with browser launch</div>
                 </div>
 
-                <div class="template-option" onclick="selectTemplate('user-input')">
+                <div class="template-option" onclick="selectTemplate('user-input', this)">
                     <div class="template-title">
                         <input type="radio" name="template" value="user-input">
                         User Input Example
                     </div>
                     <div class="template-description">Demonstrates interactive prompts and variable substitution</div>
+                </div>
+
+                <div class="template-option" onclick="selectTemplate('postman', this)">
+                    <div class="template-title">
+                        <input type="radio" name="template" value="postman">
+                        Import from Postman Collection
+                    </div>
+                    <div class="template-description">Convert a Postman collection to config format (best effort)</div>
+                </div>
+            </div>
+
+            <div id="postmanImportSection" style="display: none; margin-top: 15px; padding: 15px; background: #f9fafb; border-radius: 6px; border: 2px solid #e5e7eb;">
+                <div class="form-group">
+                    <label style="font-weight: 600; color: #111827;">Postman Collection File</label>
+                    <input type="file" id="postmanCollectionFile" accept=".json">
+                    <div class="file-drop-zone" onclick="document.getElementById('postmanCollectionFile').click()">
+                        <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">
+                            <span id="postmanFileName" style="font-weight: 500; color: #111827;">Click to select Postman collection file</span>
+                        </div>
+                        <div style="font-size: 12px; color: #9ca3af;">or drag and drop .json file here</div>
+                    </div>
+                    <div class="help-text" style="font-size: 12px; line-height: 1.5;">
+                        <strong>Collection requirements:</strong><br>
+                        • Valid Postman Collection v2.1 format (.json file)<br>
+                        • Use numeric prefixes (1., 2., 3., etc.) to order requests<br>
+                        • Include example responses for better dependency detection<br>
+                        • Environment variables will be resolved if possible<br>
+                        <br>
+                        <strong>Note:</strong> This is a best-effort conversion. Complex collections may need manual adjustments.
+                    </div>
                 </div>
             </div>
 
@@ -798,6 +844,28 @@
             reader.readAsText(file);
         });
 
+        // Update Postman file name display when file is selected
+        document.getElementById('postmanCollectionFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const fileNameSpan = document.getElementById('postmanFileName');
+            if (file && fileNameSpan) {
+                fileNameSpan.textContent = file.name;
+                fileNameSpan.style.color = '#059669'; // Green to indicate file selected
+
+                // Auto-update the config file name based on collection name
+                const newFileNameInput = document.getElementById('newFileName');
+                if (newFileNameInput) {
+                    // Remove .postman_collection.json or .json extension and add config- prefix
+                    let baseName = file.name
+                        .replace(/\.postman_collection\.json$/i, '')
+                        .replace(/\.json$/i, '')
+                        .replace(/\s+/g, '-')
+                        .toLowerCase();
+                    newFileNameInput.value = `config-${baseName}.json`;
+                }
+            }
+        });
+
         function createNew() {
             document.getElementById('newFileName').value = 'config.json';
             document.getElementById('newConfigModal').classList.add('active');
@@ -805,19 +873,53 @@
 
         function closeNewConfigModal() {
             document.getElementById('newConfigModal').classList.remove('active');
+            // Reset file input
+            document.getElementById('postmanCollectionFile').value = '';
+            // Reset file name display
+            const fileNameSpan = document.getElementById('postmanFileName');
+            if (fileNameSpan) {
+                fileNameSpan.textContent = 'Click to select Postman collection file';
+                fileNameSpan.style.color = '#111827';
+            }
+            // Hide postman section
+            document.getElementById('postmanImportSection').style.display = 'none';
         }
 
-        function selectTemplate(templateType) {
+        function selectTemplate(templateType, element) {
             // Update radio buttons and visual selection
             document.querySelectorAll('.template-option').forEach(option => {
                 option.classList.remove('selected');
             });
-            event.currentTarget.classList.add('selected');
-            event.currentTarget.querySelector('input[type="radio"]').checked = true;
+
+            // Add selected class to clicked element
+            if (element) {
+                element.classList.add('selected');
+                const radio = element.querySelector('input[type="radio"]');
+                if (radio) radio.checked = true;
+            }
+
+            // Show/hide Postman import section
+            const postmanSection = document.getElementById('postmanImportSection');
+
+            if (templateType === 'postman') {
+                if (postmanSection) {
+                    postmanSection.style.display = 'block';
+                }
+            } else {
+                if (postmanSection) {
+                    postmanSection.style.display = 'none';
+                }
+            }
         }
 
         function confirmNewConfig() {
             const templateType = document.querySelector('input[name="template"]:checked').value;
+
+            if (templateType === 'postman') {
+                handlePostmanImport();
+                return;
+            }
+
             fileName = document.getElementById('newFileName').value || 'config.json';
 
             // Ensure .json extension
@@ -970,6 +1072,190 @@
             };
 
             return templates[templateType] || templates.empty;
+        }
+
+        // Postman Collection Import Functions
+        function handlePostmanImport() {
+            const fileInput = document.getElementById('postmanCollectionFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a Postman collection file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const collection = JSON.parse(e.target.result);
+
+                    // Set filename from collection name or use a default
+                    const collectionName = collection.info?.name || 'config';
+                    const suggestedName = collectionName.toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-+|-+$/g, '') + '.json';
+
+                    fileName = document.getElementById('newFileName').value || suggestedName;
+                    if (!fileName.endsWith('.json')) {
+                        fileName += '.json';
+                    }
+
+                    // Parse the collection
+                    config = parsePostmanCollection(collection);
+
+                    updateFileNameDisplay();
+                    saveToLocalStorage();
+                    closeNewConfigModal();
+                    renderEditor();
+                    updatePreview();
+                } catch (err) {
+                    alert('Error parsing Postman collection: ' + err.message);
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function parsePostmanCollection(collection) {
+            // Helper: Get numeric prefix from name
+            function getNumericPrefix(name) {
+                const match = name.match(/^(\d+)\.\s*/);
+                return match ? parseInt(match[1]) : 999999;
+            }
+
+            // Helper: Remove numeric prefix
+            function removeNumericPrefix(name) {
+                return name.replace(/^\d+\.\s*/, '');
+            }
+
+            // Helper: Generate camelCase ID from name
+            function generateId(name) {
+                const cleaned = removeNumericPrefix(name);
+                const words = cleaned
+                    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+                    .split(/\s+/)
+                    .filter(w => w.length > 0);
+
+                if (words.length === 0) return 'step';
+
+                return words[0].toLowerCase() +
+                       words.slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
+            }
+
+            // Recursively collect requests
+            function collectRequests(items, folderPath = '', orderPath = []) {
+                const requests = [];
+
+                items.forEach(item => {
+                    if (item.item) {
+                        const folderName = item.name;
+                        const folderPrefix = getNumericPrefix(folderName);
+                        const cleanFolderName = removeNumericPrefix(folderName);
+                        const newOrderPath = [...orderPath, folderPrefix];
+
+                        const subRequests = collectRequests(
+                            item.item,
+                            folderPath ? `${folderPath} > ${cleanFolderName}` : cleanFolderName,
+                            newOrderPath
+                        );
+                        requests.push(...subRequests);
+                    } else if (item.request) {
+                        const requestName = item.name;
+                        const requestPrefix = getNumericPrefix(requestName);
+                        const cleanRequestName = removeNumericPrefix(requestName);
+
+                        requests.push({
+                            orderPath,
+                            requestOrder: requestPrefix,
+                            folderPath,
+                            name: cleanRequestName,
+                            request: item.request,
+                            response: item.response || []
+                        });
+                    }
+                });
+
+                return requests;
+            }
+
+            // Collect and sort requests
+            const allRequests = collectRequests(collection.item);
+            allRequests.sort((a, b) => {
+                const maxLen = Math.max(a.orderPath.length, b.orderPath.length);
+                for (let i = 0; i < maxLen; i++) {
+                    const aVal = a.orderPath[i] || 0;
+                    const bVal = b.orderPath[i] || 0;
+                    if (aVal !== bVal) return aVal - bVal;
+                }
+                return a.requestOrder - b.requestOrder;
+            });
+
+            // Generate unique IDs
+            const stepIds = [];
+            const usedIds = new Set();
+
+            allRequests.forEach((req, index) => {
+                let id = generateId(req.name);
+                let counter = 1;
+
+                while (usedIds.has(id)) {
+                    id = generateId(req.name) + counter;
+                    counter++;
+                }
+
+                usedIds.add(id);
+                stepIds[index] = id;
+            });
+
+            // Convert requests to steps
+            const steps = allRequests.map((req, index) => {
+                const step = {
+                    id: stepIds[index],
+                    name: req.name,
+                    method: req.request.method || 'GET',
+                    url: req.request.url?.raw || req.request.url || ''
+                };
+
+                // Add headers
+                const headers = req.request.header || [];
+                if (headers.length > 0) {
+                    step.headers = {};
+                    headers.forEach(h => {
+                        if (!h.disabled) {
+                            step.headers[h.key] = h.value;
+                        }
+                    });
+                }
+
+                // Add body
+                if (req.request.body) {
+                    if (req.request.body.mode === 'raw') {
+                        try {
+                            step.body = JSON.parse(req.request.body.raw);
+                        } catch (e) {
+                            step.body = req.request.body.raw;
+                        }
+                    }
+                }
+
+                return step;
+            });
+
+            // Build config
+            return {
+                enableDebug: false,
+                defaults: {
+                    baseUrl: '',
+                    timeout: 30,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    validations: [
+                        { status: 200 }
+                    ]
+                },
+                steps: steps
+            };
         }
 
         function downloadFile() {
