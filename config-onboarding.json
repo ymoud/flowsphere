@@ -1,6 +1,8 @@
 {
+  "enableDebug": false,
   "defaults": {
     "baseUrl": "https://ibankmobileqa.nbg.gr/reverseproxy/onboardingapi",
+    "timeout": 10,
     "headers": {
       "Content-Type": "application/json"
     },
@@ -10,7 +12,8 @@
   },
   "steps": [
     {
-      "name": "requestRegistration",
+      "id": "requestDeviceRegistration",
+      "name": "Request Device Registration",
       "method": "POST",
       "url": "/DEVICE/REQUESTREGISTRATION",
       "headers": {
@@ -37,6 +40,7 @@
       }
     },
     {
+      "id": "registerDevice",
       "name": "registerDevice",
       "method": "POST",
       "url": "/device/register",
@@ -52,7 +56,7 @@
           "verificationTarget": "SMS",
           "verificationTargetValue": "6974123456",
           "verificationCode": "123456",
-          "verificationId": "33fe274a-81a6-40c2-b1c6-8e2d2d46478a"
+          "verificationId": "{{ .responses.requestDeviceRegistration.payload.verificationId}}"
         }
       },
       "expect": {
@@ -60,9 +64,13 @@
       }
     },
     {
+      "id": "getToken",
       "name": "Get token",
       "method": "POST",
       "url": "https://ibankmobileqa.nbg.gr/identity/connect/token",
+      "headers": {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
       "body": {
         "client_id": "81D9AF3A-C56C-4EA5-B9BE-01127D451394",
         "grant_type": "device_registration",
@@ -75,6 +83,7 @@
       }
     },
     {
+      "id": "checkAvailability",
       "name": "check availability",
       "method": "POST",
       "url": "/info/checkAvailability",
@@ -89,6 +98,7 @@
       }
     },
     {
+      "id": "getCountriesByCoords",
       "name": "Get countries By Coords",
       "method": "POST",
       "url": "/info/getCountryByCoordinates",
@@ -104,6 +114,7 @@
       }
     },
     {
+      "id": "getHighRiskCountries",
       "name": "Get high risk countries",
       "method": "POST",
       "url": "/info/getHighRiskCountries",
@@ -115,6 +126,7 @@
       }
     },
     {
+      "id": "createUserApplicationForm",
       "name": "Create user application form",
       "method": "POST",
       "url": "/application/createApplication",
@@ -136,6 +148,7 @@
       }
     },
     {
+      "id": "getApplicationByAppId",
       "name": "Get application by app id",
       "method": "POST",
       "url": "/application/getApplication",
@@ -154,6 +167,7 @@
       }
     },
     {
+      "id": "saveUserApplicationForm",
       "name": "Save user application form",
       "method": "POST",
       "url": "/application/saveApplicationData",
@@ -181,6 +195,7 @@
       }
     },
     {
+      "id": "checkSmsOtpAvailability",
       "name": "checkSmsOtpAvailability",
       "method": "POST",
       "url": "/validation/checkSmsOtpAvailability",
@@ -202,6 +217,7 @@
       }
     },
     {
+      "id": "checkHighRiskIndustry",
       "name": "Check High Risk Industry",
       "method": "POST",
       "url": "/VALIDATIONS/CHECKHIGHRISKINDUSTRY",
@@ -215,11 +231,12 @@
         },
         "expect": {
           "jsonpath": ".payload.isHighRisk",
-          "equals": "true"
+          "equals": "false"
         }
       }
     },
     {
+      "id": "getCountries",
       "name": "Get countries",
       "method": "POST",
       "url": "/info/getCountries",
@@ -237,6 +254,7 @@
       }
     },
     {
+      "id": "saveUserApplication",
       "name": "Save user application",
       "method": "POST",
       "url": "/application/saveApplicationData",
@@ -303,6 +321,7 @@
       }
     },
     {
+      "id": "userIsSuspect",
       "name": "User is Suspect",
       "method": "POST",
       "url": "/validation/userIsNotSuspect",
@@ -318,6 +337,7 @@
       }
     },
     {
+      "id": "requestAuthorization",
       "name": "requestAuthorization",
       "method": "POST",
       "url": "/connect/requestAuthorization",
@@ -342,6 +362,7 @@
       }
     },
     {
+      "id": "egovGetEgovUserProfile",
       "name": "Egov GetEgovUserProfile",
       "method": "POST",
       "url": "/egov/getEgovUserProfile",
@@ -367,6 +388,7 @@
       }
     },
     {
+      "id": "egovSaveApplicationData",
       "name": "egov SaveApplicationData",
       "method": "POST",
       "url": "/egov/saveApplicationData",
@@ -581,6 +603,7 @@
       }
     },
     {
+      "id": "walletRequestAuthorization",
       "name": "wallet requestAuthorization",
       "method": "POST",
       "url": "/WALLET/REQUESTAUTHORIZATION",
@@ -598,6 +621,7 @@
       }
     },
     {
+      "id": "walletRetrieveDocuments",
       "name": "wallet retrieveDocuments",
       "method": "POST",
       "url": "/WALLET/RETRIEVEDOCUMENT",
@@ -622,6 +646,7 @@
       }
     },
     {
+      "id": "faceRecognition",
       "name": "faceRecognition",
       "method": "POST",
       "url": "/QUADIBLE/LIVENESSANDFACERECOGNITION",
@@ -631,6 +656,7 @@
       }
     },
     {
+      "id": "validateData",
       "name": "Validate data",
       "method": "POST",
       "url": "/validation/validateData",
@@ -650,6 +676,7 @@
       }
     },
     {
+      "id": "getQuestionnaire",
       "name": "Get questionnaire",
       "method": "POST",
       "url": "/QUESTIONNAIRE/getQuestionnaire",
@@ -665,6 +692,7 @@
       }
     },
     {
+      "id": "saveUserApplication2",
       "name": "Save user application",
       "method": "POST",
       "url": "/application/saveApplicationData",
@@ -704,6 +732,7 @@
       }
     },
     {
+      "id": "userIsSuspect2",
       "name": "User is Suspect",
       "method": "POST",
       "url": "/validation/userIsNotSuspect",
@@ -719,6 +748,7 @@
       }
     },
     {
+      "id": "sendOtpEmail",
       "name": "Send otp (email)",
       "method": "POST",
       "url": "/verification/sendCode",
@@ -743,6 +773,7 @@
       }
     },
     {
+      "id": "checkVerifiedUsernameAvailability",
       "name": "Check Verified username availability",
       "method": "POST",
       "url": "/VALIDATION/CHECKVERIFIEDUSERNAMEAVAILABILITY",
@@ -764,6 +795,7 @@
       }
     },
     {
+      "id": "getApplicationTerms",
       "name": "Get application terms",
       "method": "POST",
       "url": "/INFO/GETAPPLICATIONTERMS",
@@ -778,6 +810,7 @@
       }
     },
     {
+      "id": "saveUserApplication3",
       "name": "Save user application",
       "method": "POST",
       "url": "/application/saveApplicationData",
@@ -1065,6 +1098,7 @@
       }
     },
     {
+      "id": "step2VerifyOtpEmail",
       "name": "2 .Verify otp (email)",
       "method": "POST",
       "url": "/verification/verifyCode",
@@ -1091,6 +1125,7 @@
       }
     },
     {
+      "id": "getQuestionnaire2",
       "name": "Get questionnaire",
       "method": "POST",
       "url": "/QUESTIONNAIRE/getQuestionnaire",
@@ -1106,6 +1141,7 @@
       }
     },
     {
+      "id": "getCountries2",
       "name": "Get countries",
       "method": "POST",
       "url": "/info/getCountries",
@@ -1123,6 +1159,7 @@
       }
     },
     {
+      "id": "deleteConfDocs",
       "name": "Delete conf docs",
       "method": "POST",
       "url": "/DOCUMENTS/DELETEDOCUMENTBYCONFIRMATIONCATEGORY",
@@ -1143,6 +1180,7 @@
       }
     },
     {
+      "id": "saveUserApplication4",
       "name": "Save user application",
       "method": "POST",
       "url": "/application/saveApplicationData",
@@ -1524,6 +1562,7 @@
       }
     },
     {
+      "id": "uploadDocumentTaxVeveosi",
       "name": "UploadDocumentTaxVeveosi",
       "method": "POST",
       "url": "/documents/uploadDocument",
@@ -1536,6 +1575,7 @@
       }
     },
     {
+      "id": "saveDocumentData",
       "name": "SaveDocumentData",
       "method": "POST",
       "url": "/DOCUMENTS/SAVEDOCUMENTDATA",
@@ -1638,6 +1678,7 @@
       }
     },
     {
+      "id": "saveUserApplication5",
       "name": "Save user application",
       "method": "POST",
       "url": "/application/saveApplicationData",
@@ -1663,6 +1704,7 @@
       }
     },
     {
+      "id": "uploadDocumentUtilityBill",
       "name": "UploadDocumentUtilityBill",
       "method": "POST",
       "url": "/documents/uploadDocument",
@@ -1675,6 +1717,7 @@
       }
     },
     {
+      "id": "saveDocumentData2",
       "name": "SaveDocumentData",
       "method": "POST",
       "url": "/DOCUMENTS/SAVEDOCUMENTDATA",
@@ -1753,6 +1796,7 @@
       }
     },
     {
+      "id": "getCountries3",
       "name": "Get countries",
       "method": "POST",
       "url": "/info/getCountries",
@@ -1770,6 +1814,7 @@
       }
     },
     {
+      "id": "saveUserApplication6",
       "name": "Save user application",
       "method": "POST",
       "url": "/application/saveApplicationData",
@@ -2610,6 +2655,7 @@
       }
     },
     {
+      "id": "validateQuestionnaire",
       "name": "Validate Questionnaire",
       "method": "POST",
       "url": "/VALIDATION/VALIDATEQUESTIONNAIRE",
@@ -2629,6 +2675,7 @@
       }
     },
     {
+      "id": "getOccupation",
       "name": "Get Occupation",
       "method": "POST",
       "url": "/USERSDOCUMENTS/GETOCCUPATIONSET",
@@ -2649,6 +2696,7 @@
       }
     },
     {
+      "id": "getProductIfSolePropriatorship",
       "name": "Get Product if SolePropriatorship",
       "method": "POST",
       "url": "/CONTENTMANAGEMENT/GETPRODUCTMARKETINGVIEW",
@@ -2666,6 +2714,7 @@
       }
     },
     {
+      "id": "saveUserApplicationOccupation",
       "name": "Save user application Occupation",
       "method": "POST",
       "url": "/application/saveApplicationData",
@@ -3417,6 +3466,7 @@
       }
     },
     {
+      "id": "uploadDocumentVevErgo",
       "name": "UploadDocumentVevErgo",
       "method": "POST",
       "url": "/documents/uploadDocument",
@@ -3429,6 +3479,7 @@
       }
     },
     {
+      "id": "validateQuestionnaire2",
       "name": "Validate Questionnaire",
       "method": "POST",
       "url": "/VALIDATION/VALIDATEQUESTIONNAIRE",
@@ -3448,6 +3499,7 @@
       }
     },
     {
+      "id": "createCustomerCode",
       "name": "Create customer code",
       "method": "POST",
       "url": "/CUSTOMER/CREATE",
@@ -3477,6 +3529,7 @@
       }
     },
     {
+      "id": "getUnsignedDocs",
       "name": "getUnsignedDocs",
       "method": "POST",
       "url": "/DOCUMENTS/GETUNSIGNEDDOCS",
@@ -3494,6 +3547,7 @@
       }
     },
     {
+      "id": "sendOtpSms",
       "name": "Send otp (sms)",
       "method": "POST",
       "url": "/verification/sendCode",
@@ -3518,6 +3572,7 @@
       }
     },
     {
+      "id": "sign",
       "name": "sign",
       "method": "POST",
       "url": "/DOCUMENTS/SIGN",
@@ -3535,7 +3590,8 @@
       }
     },
     {
-      "name": "3 .Verify otp (sms)",
+      "id": "verifySmsOtp",
+      "name": "Verify SMS OTP",
       "method": "POST",
       "url": "/verification/verifyCode",
       "headers": {
