@@ -582,17 +582,20 @@ replace_dynamic_placeholders() {
     local output="$input"
 
     # Replace all GENERATED_GUID placeholders with actual UUIDs
-    while [[ "$output" =~ GENERATED_GUID ]]; do
+    # Each occurrence gets a unique UUID
+    while grep -q "GENERATED_GUID" <<< "$output"; do
         local new_uuid=$(generate_uuid)
         debug_log "DEBUG: Replacing GENERATED_GUID with $new_uuid"
-        output="${output/GENERATED_GUID/$new_uuid}"
+        # Use sed for more reliable replacement with special characters
+        output=$(echo "$output" | sed "s/GENERATED_GUID/$new_uuid/")
     done
 
     # Replace all TIMESTAMP placeholders with current Unix timestamp
-    while [[ "$output" =~ TIMESTAMP ]]; do
-        local timestamp=$(date +%s)
+    # Each occurrence gets the same timestamp (called once per function invocation)
+    local timestamp=$(date +%s)
+    while grep -q "TIMESTAMP" <<< "$output"; do
         debug_log "DEBUG: Replacing TIMESTAMP with $timestamp"
-        output="${output/TIMESTAMP/$timestamp}"
+        output=$(echo "$output" | sed "s/TIMESTAMP/$timestamp/")
     done
 
     echo "$output"
