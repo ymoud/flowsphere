@@ -32,6 +32,24 @@ function removeNumericPrefix(name) {
     return name.replace(/^\d+\.\s*/, '');
 }
 
+// Helper function to generate camelCase ID from name
+function generateId(name) {
+    // Remove numeric prefix first
+    let cleaned = removeNumericPrefix(name);
+
+    // Remove special characters and split into words
+    const words = cleaned
+        .replace(/[^a-zA-Z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 0);
+
+    // Convert to camelCase
+    if (words.length === 0) return 'step';
+
+    return words[0].toLowerCase() +
+           words.slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
+}
+
 // Helper function to replace environment variables
 function replaceEnvVars(str) {
     if (typeof str !== 'string') return str;
@@ -109,6 +127,24 @@ allRequests.sort((a, b) => {
 
 console.log(`Found ${allRequests.length} requests`);
 
+// Generate unique IDs for all steps
+const stepIds = [];
+const usedIds = new Set();
+
+allRequests.forEach((req, index) => {
+    let id = generateId(req.name);
+    let counter = 1;
+
+    // Ensure uniqueness
+    while (usedIds.has(id)) {
+        id = generateId(req.name) + counter;
+        counter++;
+    }
+
+    usedIds.add(id);
+    stepIds[index] = id;
+});
+
 // First pass: extract expected response fields
 const responseFields = [];
 
@@ -178,10 +214,11 @@ if (firstUrl) {
 // Build defaults object
 const defaults = {
     baseUrl,
+    timeout: 10,
     headers: {},
-    expect: {
-        status: 200
-    }
+    validations: [
+        { status: 200 }
+    ]
 };
 
 // Add headers that appear in >30% of requests with consistent values
@@ -195,7 +232,7 @@ Object.entries(headerUsage).forEach(([headerKey, usages]) => {
     }
 });
 
-console.log(`Extracted defaults: baseUrl, ${Object.keys(defaults.headers).length} headers, expect.status`);
+console.log(`Extracted defaults: baseUrl, ${Object.keys(defaults.headers).length} headers, default validations`);
 
 // Convert requests to config steps with defaults extraction
 const steps = [];
@@ -205,6 +242,7 @@ allRequests.forEach((req, index) => {
     const request = req.request;
 
     const step = {
+        id: stepIds[index],
         name: req.name
     };
 
@@ -248,12 +286,14 @@ allRequests.forEach((req, index) => {
                         );
 
                         if (tokenField) {
-                            value = `Bearer {{ .responses[${i}].${tokenField} }}`;
+                            value = `Bearer {{ .responses.${stepIds[i]}.${tokenField} }}`;
                             dependencies.push({
                                 stepIndex: index,
+                                stepId: stepIds[index],
                                 stepName: req.name,
                                 usesField: tokenField,
                                 fromStep: i,
+                                fromStepId: stepIds[i],
                                 fromStepName: allRequests[i].name
                             });
                             break;
@@ -294,12 +334,14 @@ allRequests.forEach((req, index) => {
 
                                 if (matchingField) {
                                     if (value === '' || value === 'null' || value.length < 5) {
-                                        obj[key] = `{{ .responses[${i}].${matchingField} }}`;
+                                        obj[key] = `{{ .responses.${stepIds[i]}.${matchingField}}}`;
                                         dependencies.push({
                                             stepIndex: index,
+                                            stepId: stepIds[index],
                                             stepName: req.name,
                                             usesField: matchingField,
                                             fromStep: i,
+                                            fromStepId: stepIds[i],
                                             fromStepName: allRequests[i].name,
                                             inBody: true
                                         });
@@ -335,17 +377,17 @@ allRequests.forEach((req, index) => {
         }
     }
 
-    // Expectations - only include if different from defaults
-    const stepExpect = {};
-    let hasNonDefaultExpect = false;
+    // Validations - only include if different from defaults
+    const stepValidations = [];
+    let hasNonDefaultValidations = false;
 
     if (req.response && req.response.length > 0) {
         const exampleResponse = req.response[0];
 
         // Check status code - only add if different from default (200)
-        if (exampleResponse.code && exampleResponse.code !== defaults.expect.status) {
-            stepExpect.status = exampleResponse.code;
-            hasNonDefaultExpect = true;
+        if (exampleResponse.code && exampleResponse.code !== 200) {
+            stepValidations.push({ status: exampleResponse.code });
+            hasNonDefaultValidations = true;
         }
 
         // Try to find a meaningful field to validate
@@ -361,13 +403,19 @@ allRequests.forEach((req, index) => {
 
                 for (const field of priorityFields) {
                     if (responseBody[field] !== undefined) {
-                        stepExpect.jsonpath = `.${field}`;
-                        hasNonDefaultExpect = true;
+                        stepValidations.push({
+                            jsonpath: `.${field}`,
+                            exists: true
+                        });
+                        hasNonDefaultValidations = true;
                         break;
                     }
                     if (responseBody.payload && responseBody.payload[field] !== undefined) {
-                        stepExpect.jsonpath = `.payload.${field}`;
-                        hasNonDefaultExpect = true;
+                        stepValidations.push({
+                            jsonpath: `.payload.${field}`,
+                            exists: true
+                        });
+                        hasNonDefaultValidations = true;
                         break;
                     }
                 }
@@ -377,8 +425,8 @@ allRequests.forEach((req, index) => {
         }
     }
 
-    if (hasNonDefaultExpect) {
-        step.expect = stepExpect;
+    if (hasNonDefaultValidations) {
+        step.validations = stepValidations;
     }
 
     steps.push(step);
@@ -390,12 +438,16 @@ const fullConfig = { steps: allRequests.map((req, i) => {
     const step = JSON.parse(JSON.stringify(steps[i]));
     if (!step.headers) step.headers = {};
     Object.assign(step.headers, defaults.headers);
-    if (!step.expect) step.expect = {};
-    Object.assign(step.expect, defaults.expect);
+    if (!step.validations) step.validations = [];
+    step.validations = [...defaults.validations, ...step.validations];
     return step;
 })};
 
-const minifiedConfig = { defaults, steps };
+const minifiedConfig = {
+    enableDebug: false,
+    defaults,
+    steps
+};
 
 const fullSize = JSON.stringify(fullConfig).length;
 const minifiedSize = JSON.stringify(minifiedConfig).length;
@@ -411,7 +463,7 @@ console.log(`\nSize reduction: ${reduction}% (${fullSize} → ${minifiedSize} by
 if (dependencies.length > 0) {
     console.log(`\nSample dependencies (showing first 10):`);
     dependencies.slice(0, 10).forEach((dep, i) => {
-        console.log(`  ${i + 1}. Step ${dep.stepIndex + 1} (${dep.stepName}) uses '${dep.usesField}' from Step ${dep.fromStep + 1}`);
+        console.log(`  ${i + 1}. Step '${dep.stepId}' uses '${dep.usesField}' from step '${dep.fromStepId}'`);
     });
     if (dependencies.length > 10) {
         console.log(`  ... and ${dependencies.length - 10} more`);
@@ -425,12 +477,15 @@ fs.writeFileSync(outputPath, JSON.stringify(minifiedConfig, null, 2));
 console.log(`\nConfig file written to: ${outputPath}`);
 console.log(`\nDefaults extracted:`);
 console.log(`  - baseUrl: ${defaults.baseUrl}`);
+console.log(`  - timeout: ${defaults.timeout}`);
 console.log(`  - headers: ${JSON.stringify(defaults.headers, null, 4)}`);
-console.log(`  - expect.status: ${defaults.expect.status}`);
+console.log(`  - validations: ${JSON.stringify(defaults.validations, null, 4)}`);
 
 console.log(`\nFirst 5 steps (minified):`);
 steps.slice(0, 5).forEach((step, i) => {
     const hasHeaders = step.headers && Object.keys(step.headers).length > 0;
+    const hasValidations = step.validations && step.validations.length > 0;
     const headerInfo = hasHeaders ? ` +${Object.keys(step.headers).length} custom headers` : '';
-    console.log(`  ${i + 1}. ${step.method} ${step.name}${headerInfo}`);
+    const validationInfo = hasValidations ? ` +${step.validations.length} custom validations` : '';
+    console.log(`  ${i + 1}. [${step.id}] ${step.method} ${step.name}${headerInfo}${validationInfo}`);
 });

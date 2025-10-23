@@ -1,84 +1,83 @@
 # Postman to Config Parser
 
-This folder contains tools to convert Postman collections into configuration files for the HTTP sequence runner.
+This folder contains a tool to convert Postman collections into optimized configuration files for the HTTP sequence runner.
 
 ## Files
 
-- **parse-postman-minified.js** - ⭐ Recommended: Generates minified configs with defaults section
-- **parse-postman-enhanced.js** - Legacy: Generates full configs without minification
+- **parse-postman.js** - Unified parser that generates optimized configs with defaults section
 
 ## Usage
 
-### Recommended: Minified Parser
-
 ```bash
-node postman-tools/parse-postman-minified.js
+node postman-tools/parse-postman.js
 ```
 
-This generates a compact configuration with a `defaults` section to reduce duplication.
-
-### Legacy: Enhanced Parser
-
-```bash
-node postman-tools/parse-postman-enhanced.js
-```
-
-This generates a traditional full configuration without defaults.
+This generates a compact configuration with a `defaults` section to reduce duplication and file size.
 
 ## What the Parser Does
 
 1. Reads the Postman collection from `Postman/Onboarding Chatbot 2025.postman_collection.json`
 2. Reads environment variables from `Postman/OnboardingApi.postman_environment.json`
 3. Extracts all requests in order (based on numeric prefixes: `1.`, `2.`, etc.)
-4. Substitutes environment variables (`{{variable}}`)
-5. Detects dependencies between requests
-6. Auto-wires dependencies using `{{ .responses[N].field }}` syntax
-7. Extracts common patterns into defaults section (minified parser only)
-8. Generates `config-onboarding.json` in the root directory
+4. Auto-generates unique `id` fields for each step (camelCase from step name)
+5. Substitutes environment variables (`{{variable}}`)
+6. Detects dependencies between requests
+7. Auto-wires dependencies using named references `{{ .responses.stepId.field }}`
+8. Extracts common patterns into defaults section (baseUrl, headers, validations)
+9. Generates optimized `config-onboarding.json` in the root directory
 
 ## Features
 
 - **Order Handling**: Automatically sorts requests by folder and request numeric prefixes
+- **ID Generation**: Auto-generates unique camelCase IDs from step names
 - **Environment Resolution**: Replaces `{{variable}}` with actual values from environment file
 - **Dependency Detection**: Analyzes request bodies and headers to detect when a request uses data from a previous response
-- **Auto-wiring**: Automatically converts dependencies to the format `{{ .responses[N].field }}`
+- **Named References**: Automatically converts dependencies to the format `{{ .responses.stepId.field }}`
 - **Postman Dynamic Variables**: Handles `{{$guid}}`, `{{$timestamp}}`, etc.
-- **Defaults Extraction** (minified only): Extracts common baseUrl, headers, and expect values to reduce file size
+- **Defaults Extraction**: Extracts common baseUrl, headers, timeout, and validations to reduce file size
+- **Size Optimization**: Typically achieves 30-40% size reduction compared to full configs
 
 ## Output Structure
 
-The minified parser generates a config with defaults:
+The parser generates an optimized config with defaults:
 
 ```json
 {
+  "enableDebug": false,
   "defaults": {
     "baseUrl": "https://api.example.com",
+    "timeout": 10,
     "headers": {
       "Content-Type": "application/json"
     },
-    "expect": {
-      "status": 200
-    }
+    "validations": [
+      { "status": 200 }
+    ]
   },
   "steps": [
     {
+      "id": "requestName",
       "name": "Request name",
       "method": "POST",
       "url": "/endpoint",
       "headers": {
         "X-Custom-Header": "value"
       },
-      "body": { ... },
-      "expect": {
-        "jsonpath": ".fieldName"
-      }
+      "body": {
+        "userId": "{{ .responses.getToken.access_token }}"
+      },
+      "validations": [
+        { "jsonpath": ".fieldName", "exists": true }
+      ]
     }
   ]
 }
 ```
 
 Benefits:
-- URLs are relative to baseUrl (shorter)
+- Each step has a unique `id` for named references
+- URLs are relative to baseUrl (shorter, cleaner)
 - Common headers only specified once (in defaults)
-- Default status 200 omitted from steps (cleaner)
-- ~0.2% size reduction on large configs
+- Default timeout and validations omitted from steps (cleaner)
+- Named references make dependencies easier to understand
+- Typically 30-40% size reduction on large configs
