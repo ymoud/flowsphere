@@ -1148,17 +1148,19 @@
         function toggleSection(header) {
             const content = header.nextElementSibling;
             const toggle = header.querySelector('.toggle');
-            const stepItem = header.closest('.step-item');
-            const stepIndex = Array.from(stepItem.parentNode.children).indexOf(stepItem);
 
             content.classList.toggle('collapsed');
             toggle.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
 
-            // Track open state
-            if (content.classList.contains('collapsed')) {
-                openStepIndices.delete(stepIndex);
-            } else {
-                openStepIndices.add(stepIndex);
+            // Track open state only for step items (not for main sections)
+            const stepItem = header.closest('.step-item');
+            if (stepItem) {
+                const stepIndex = Array.from(stepItem.parentNode.children).indexOf(stepItem);
+                if (content.classList.contains('collapsed')) {
+                    openStepIndices.delete(stepIndex);
+                } else {
+                    openStepIndices.add(stepIndex);
+                }
             }
         }
 
