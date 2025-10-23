@@ -1049,12 +1049,17 @@
             const headers = config.defaults?.headers || {};
             const container = document.getElementById('defaultHeaders');
 
+            if (!container) {
+                console.error('defaultHeaders container not found');
+                return;
+            }
+
             const html = Object.keys(headers).length === 0 ?
                 '<div class="help-text">No default headers</div>' :
                 Object.entries(headers).map(([key, value], index) => `
                     <div class="key-value-row">
-                        <input type="text" value="${key}" onchange="updateDefaultHeader(${index}, 'key', this.value)" placeholder="Header name">
-                        <input type="text" value="${value}" onchange="updateDefaultHeader(${index}, 'value', this.value)" placeholder="Header value">
+                        <input type="text" value="${key.replace(/"/g, '&quot;')}" onchange="updateDefaultHeader(${index}, 'key', this.value)" placeholder="Header name">
+                        <input type="text" value="${String(value).replace(/"/g, '&quot;')}" onchange="updateDefaultHeader(${index}, 'value', this.value)" placeholder="Header value">
                         <button class="btn btn-danger btn-small" onclick="removeDefaultHeader(${index})">×</button>
                     </div>
                 `).join('');
