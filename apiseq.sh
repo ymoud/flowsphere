@@ -575,6 +575,29 @@ generate_uuid() {
     fi
 }
 
+# Function to replace dynamic placeholders (GENERATED_GUID, TIMESTAMP)
+# This must be called BEFORE substitute_variables to ensure dynamic values are generated first
+replace_dynamic_placeholders() {
+    local input="$1"
+    local output="$input"
+
+    # Replace all GENERATED_GUID placeholders with actual UUIDs
+    while [[ "$output" =~ GENERATED_GUID ]]; do
+        local new_uuid=$(generate_uuid)
+        debug_log "DEBUG: Replacing GENERATED_GUID with $new_uuid"
+        output="${output/GENERATED_GUID/$new_uuid}"
+    done
+
+    # Replace all TIMESTAMP placeholders with current Unix timestamp
+    while [[ "$output" =~ TIMESTAMP ]]; do
+        local timestamp=$(date +%s)
+        debug_log "DEBUG: Replacing TIMESTAMP with $timestamp"
+        output="${output/TIMESTAMP/$timestamp}"
+    done
+
+    echo "$output"
+}
+
 # Function to process body and substitute variables
 process_body() {
     local body_json="$1"
@@ -586,14 +609,10 @@ process_body() {
     # Convert body JSON to string first
     local body_str=$(echo "$body_json" | jq -c '.')
 
-    # Replace GENERATED_GUID placeholders with actual UUIDs
-    while [[ "$body_str" =~ \"GENERATED_GUID\" ]]; do
-        local new_uuid=$(generate_uuid)
-        debug_log "DEBUG: Replacing GENERATED_GUID with $new_uuid"
-        body_str="${body_str/\"GENERATED_GUID\"/\"$new_uuid\"}"
-    done
+    # Replace dynamic placeholders (GENERATED_GUID, TIMESTAMP) first
+    body_str=$(replace_dynamic_placeholders "$body_str")
 
-    # Substitute variables in the body
+    # Then substitute variables in the body
     body_str=$(substitute_variables "$body_str")
 
     # Determine if we need form-urlencoded format
@@ -784,7 +803,12 @@ execute_step() {
     local url=$(echo "$step_json" | jq -r '.url')
     debug_log "DEBUG: execute_step - extracted url=$url"
 
-    # Substitute variables in URL
+    # Replace dynamic placeholders in URL first (GENERATED_GUID, TIMESTAMP)
+    debug_log "DEBUG: execute_step - replacing dynamic placeholders in url"
+    url=$(replace_dynamic_placeholders "$url")
+    debug_log "DEBUG: execute_step - after dynamic replacement url=$url"
+
+    # Then substitute variables in URL
     debug_log "DEBUG: execute_step - calling substitute_variables with url=$url"
     url=$(substitute_variables "$url")
     debug_log "DEBUG: execute_step - after substitution url=$url"
@@ -812,7 +836,11 @@ execute_step() {
                 local value=$(echo "$entry" | jq -r '.value')
                 debug_log "DEBUG: Processing header: $key = $value"
 
-                # Substitute variables in header value
+                # Replace dynamic placeholders in header value first (GENERATED_GUID, TIMESTAMP)
+                value=$(replace_dynamic_placeholders "$value")
+                debug_log "DEBUG: After dynamic replacement: $key = $value"
+
+                # Then substitute variables in header value
                 value=$(substitute_variables "$value")
                 debug_log "DEBUG: After substitution: $key = $value"
 
