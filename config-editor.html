@@ -538,6 +538,32 @@
                 padding: 20px;
             }
         }
+
+        .builder-form {
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            padding: 15px;
+            background: #f9fafb;
+            margin-top: 10px;
+        }
+
+        .builder-form .form-group {
+            margin-bottom: 10px;
+        }
+
+        .builder-form .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .builder-summary {
+            padding: 10px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #374151;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -1088,15 +1114,25 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Condition (JSON)</label>
-                    <textarea onchange="updateStepJSON(${index}, 'condition', this.value)">${JSON.stringify(step.condition || {}, null, 2)}</textarea>
-                    <div class="help-text">Example: {"step": 0, "statusCode": 200} or {"step": 1, "field": ".success", "equals": true}</div>
+                    <label>Condition (Skip step based on previous response)</label>
+                    <div id="conditionBuilder_${index}"></div>
+                    <button class="btn btn-secondary btn-small" onclick="toggleConditionBuilder(${index})" style="margin-top: 10px;">
+                        ${step.condition && Object.keys(step.condition).length > 0 ? 'Edit' : 'Add'} Condition
+                    </button>
+                    ${step.condition && Object.keys(step.condition).length > 0 ? `<button class="btn btn-danger btn-small" onclick="removeCondition(${index})" style="margin-top: 10px; margin-left: 5px;">Remove</button>` : ''}
+                    ${renderConditionSummary(step.condition || {})}
+                    <div class="help-text">Skip this step if a condition on a previous response is met</div>
                 </div>
 
                 <div class="form-group">
-                    <label>Validation Rules (JSON)</label>
-                    <textarea onchange="updateStepJSON(${index}, 'expect', this.value)">${JSON.stringify(step.expect || {}, null, 2)}</textarea>
-                    <div class="help-text">Example: {"status": 200, "jsonpath": ".token", "exists": true}</div>
+                    <label>Validation Rules (Expected response)</label>
+                    <div id="expectBuilder_${index}"></div>
+                    <button class="btn btn-secondary btn-small" onclick="toggleExpectBuilder(${index})" style="margin-top: 10px;">
+                        ${step.expect && Object.keys(step.expect).length > 0 ? 'Edit' : 'Add'} Validation
+                    </button>
+                    ${step.expect && Object.keys(step.expect).length > 0 ? `<button class="btn btn-danger btn-small" onclick="removeExpect(${index})" style="margin-top: 10px; margin-left: 5px;">Remove</button>` : ''}
+                    ${renderExpectSummary(step.expect || {})}
+                    <div class="help-text">Validate the response meets expected criteria</div>
                 </div>
 
                 <div class="form-group">
@@ -1269,6 +1305,329 @@
                 console.error('Failed to copy JSON:', err);
                 alert('Failed to copy JSON to clipboard');
             });
+        }
+
+        // Condition Builder Functions
+        function toggleConditionBuilder(index) {
+            const container = document.getElementById(`conditionBuilder_${index}`);
+            const step = config.steps[index];
+
+            if (container.innerHTML === '') {
+                renderConditionBuilder(index);
+            } else {
+                container.innerHTML = '';
+            }
+        }
+
+        function renderConditionBuilder(index) {
+            const step = config.steps[index];
+            const condition = step.condition || {};
+            const container = document.getElementById(`conditionBuilder_${index}`);
+
+            const conditionType = condition.statusCode ? 'statusCode' :
+                                 condition.equals !== undefined ? 'equals' :
+                                 condition.notEquals !== undefined ? 'notEquals' :
+                                 condition.exists !== undefined ? 'exists' : 'statusCode';
+
+            const stepOptions = config.steps.slice(0, index).map((s, i) =>
+                `<option value="${i}" ${condition.step === i ? 'selected' : ''}>${i}. ${s.name || 'Unnamed'}</option>`
+            ).join('');
+
+            const html = `
+                <div class="builder-form">
+                    <div class="form-group">
+                        <label>Reference Step</label>
+                        <select id="conditionStep_${index}" onchange="updateConditionField(${index}, 'step', parseInt(this.value))">
+                            ${stepOptions || '<option value="">No previous steps</option>'}
+                        </select>
+                        <div class="help-text">Check the response from this previous step</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Condition Type</label>
+                        <select id="conditionType_${index}" onchange="changeConditionType(${index}, this.value)">
+                            <option value="statusCode" ${conditionType === 'statusCode' ? 'selected' : ''}>Status Code</option>
+                            <option value="equals" ${conditionType === 'equals' ? 'selected' : ''}>Field Equals Value</option>
+                            <option value="notEquals" ${conditionType === 'notEquals' ? 'selected' : ''}>Field Not Equals Value</option>
+                            <option value="exists" ${conditionType === 'exists' ? 'selected' : ''}>Field Exists</option>
+                        </select>
+                    </div>
+
+                    <div id="conditionFields_${index}">
+                        ${renderConditionFields(index, conditionType, condition)}
+                    </div>
+
+                    <button class="btn btn-primary btn-small" onclick="saveCondition(${index})">Save Condition</button>
+                    <button class="btn btn-secondary btn-small" onclick="toggleConditionBuilder(${index})">Cancel</button>
+                </div>
+                ${renderConditionSummary(condition)}
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function renderConditionFields(index, type, condition) {
+            if (type === 'statusCode') {
+                return `
+                    <div class="form-group">
+                        <label>Expected Status Code</label>
+                        <input type="number" id="conditionValue_${index}" value="${condition.statusCode || 200}" placeholder="200">
+                        <div class="help-text">Skip this step if the previous response has this status code</div>
+                    </div>
+                `;
+            } else if (type === 'equals' || type === 'notEquals') {
+                return `
+                    <div class="form-group">
+                        <label>JSON Path</label>
+                        <input type="text" id="conditionField_${index}" value="${condition.field || ''}" placeholder=".success">
+                        <div class="help-text">Path to the field in the response (e.g., .success, .data.isActive)</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Expected Value</label>
+                        <input type="text" id="conditionValue_${index}" value="${condition[type] !== undefined ? condition[type] : ''}" placeholder="true">
+                        <div class="help-text">The value to ${type === 'equals' ? 'match' : 'not match'}</div>
+                    </div>
+                `;
+            } else if (type === 'exists') {
+                return `
+                    <div class="form-group">
+                        <label>JSON Path</label>
+                        <input type="text" id="conditionField_${index}" value="${condition.field || ''}" placeholder=".token">
+                        <div class="help-text">Path to the field in the response</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Should Exist</label>
+                        <select id="conditionValue_${index}">
+                            <option value="true" ${condition.exists === true ? 'selected' : ''}>Yes (true)</option>
+                            <option value="false" ${condition.exists === false ? 'selected' : ''}>No (false)</option>
+                        </select>
+                    </div>
+                `;
+            }
+        }
+
+        function renderConditionSummary(condition) {
+            if (!condition || Object.keys(condition).length === 0) return '';
+
+            let summary = `Skip if step ${condition.step || 0} `;
+            if (condition.statusCode) {
+                summary += `has status code ${condition.statusCode}`;
+            } else if (condition.field) {
+                if (condition.equals !== undefined) {
+                    summary += `field "${condition.field}" equals "${condition.equals}"`;
+                } else if (condition.notEquals !== undefined) {
+                    summary += `field "${condition.field}" not equals "${condition.notEquals}"`;
+                } else if (condition.exists !== undefined) {
+                    summary += `field "${condition.field}" ${condition.exists ? 'exists' : 'does not exist'}`;
+                }
+            }
+
+            return `<div class="builder-summary">${summary}</div>`;
+        }
+
+        function changeConditionType(index, type) {
+            const condition = config.steps[index].condition || {step: 0};
+            document.getElementById(`conditionFields_${index}`).innerHTML = renderConditionFields(index, type, condition);
+        }
+
+        function updateConditionField(index, field, value) {
+            if (!config.steps[index].condition) {
+                config.steps[index].condition = {};
+            }
+            config.steps[index].condition[field] = value;
+        }
+
+        function saveCondition(index) {
+            const type = document.getElementById(`conditionType_${index}`).value;
+            const step = parseInt(document.getElementById(`conditionStep_${index}`)?.value || 0);
+
+            const condition = { step };
+
+            if (type === 'statusCode') {
+                condition.statusCode = parseInt(document.getElementById(`conditionValue_${index}`).value);
+            } else if (type === 'equals' || type === 'notEquals') {
+                condition.field = document.getElementById(`conditionField_${index}`).value;
+                let value = document.getElementById(`conditionValue_${index}`).value;
+                // Try to parse as number or boolean
+                if (value === 'true') value = true;
+                else if (value === 'false') value = false;
+                else if (!isNaN(value) && value !== '') value = parseFloat(value);
+                condition[type] = value;
+            } else if (type === 'exists') {
+                condition.field = document.getElementById(`conditionField_${index}`).value;
+                condition.exists = document.getElementById(`conditionValue_${index}`).value === 'true';
+            }
+
+            config.steps[index].condition = condition;
+            toggleConditionBuilder(index);
+            saveToLocalStorage();
+            renderSteps();
+            updatePreview();
+        }
+
+        function removeCondition(index) {
+            delete config.steps[index].condition;
+            saveToLocalStorage();
+            renderSteps();
+            updatePreview();
+        }
+
+        // Expect Builder Functions
+        function toggleExpectBuilder(index) {
+            const container = document.getElementById(`expectBuilder_${index}`);
+
+            if (container.innerHTML === '') {
+                renderExpectBuilder(index);
+            } else {
+                container.innerHTML = '';
+            }
+        }
+
+        function renderExpectBuilder(index) {
+            const step = config.steps[index];
+            const expect = step.expect || {};
+            const container = document.getElementById(`expectBuilder_${index}`);
+
+            const html = `
+                <div class="builder-form">
+                    <div class="form-group">
+                        <label>Expected Status Code</label>
+                        <input type="number" id="expectStatus_${index}" value="${expect.status !== undefined ? expect.status : 200}" placeholder="200">
+                        <div class="help-text">HTTP status code (default: 200)</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>JSON Path (Optional)</label>
+                        <input type="text" id="expectJsonpath_${index}" value="${expect.jsonpath || ''}" placeholder=".token">
+                        <div class="help-text">Path to field in response to validate (e.g., .token, .data.id)</div>
+                    </div>
+
+                    <div id="expectValidation_${index}">
+                        ${renderExpectValidation(index, expect)}
+                    </div>
+
+                    <button class="btn btn-primary btn-small" onclick="saveExpect(${index})">Save Validation</button>
+                    <button class="btn btn-secondary btn-small" onclick="toggleExpectBuilder(${index})">Cancel</button>
+                </div>
+                ${renderExpectSummary(expect)}
+            `;
+
+            container.innerHTML = html;
+
+            // Add change listener for jsonpath to show/hide validation options
+            document.getElementById(`expectJsonpath_${index}`).addEventListener('input', function() {
+                document.getElementById(`expectValidation_${index}`).innerHTML =
+                    renderExpectValidation(index, {jsonpath: this.value});
+            });
+        }
+
+        function renderExpectValidation(index, expect) {
+            if (!expect.jsonpath) {
+                return '<div class="help-text" style="color: #6b7280; font-style: italic;">Add a JSON path to enable field validation</div>';
+            }
+
+            const validationType = expect.exists !== undefined ? 'exists' :
+                                  expect.equals !== undefined ? 'equals' :
+                                  expect.notEquals !== undefined ? 'notEquals' : 'exists';
+
+            return `
+                <div class="form-group">
+                    <label>Validation Type</label>
+                    <select id="expectType_${index}" onchange="updateExpectValidationType(${index}, this.value)">
+                        <option value="exists" ${validationType === 'exists' ? 'selected' : ''}>Field Exists</option>
+                        <option value="equals" ${validationType === 'equals' ? 'selected' : ''}>Equals Value</option>
+                        <option value="notEquals" ${validationType === 'notEquals' ? 'selected' : ''}>Not Equals Value</option>
+                    </select>
+                </div>
+
+                <div id="expectValueField_${index}">
+                    ${renderExpectValueField(index, validationType, expect)}
+                </div>
+            `;
+        }
+
+        function renderExpectValueField(index, type, expect) {
+            if (type === 'exists') {
+                return `
+                    <div class="form-group">
+                        <label>Should Exist</label>
+                        <select id="expectValue_${index}">
+                            <option value="true" ${expect.exists === true ? 'selected' : ''}>Yes (true)</option>
+                            <option value="false" ${expect.exists === false ? 'selected' : ''}>No (false)</option>
+                        </select>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="form-group">
+                        <label>Expected Value</label>
+                        <input type="text" id="expectValue_${index}" value="${expect[type] !== undefined ? expect[type] : ''}" placeholder="Expected value">
+                        <div class="help-text">The value the field should ${type === 'equals' ? 'equal' : 'not equal'}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderExpectSummary(expect) {
+            if (!expect || Object.keys(expect).length === 0) return '';
+
+            let parts = [];
+            if (expect.status !== undefined) {
+                parts.push(`status: ${expect.status}`);
+            }
+            if (expect.jsonpath) {
+                if (expect.exists !== undefined) {
+                    parts.push(`"${expect.jsonpath}" ${expect.exists ? 'exists' : 'does not exist'}`);
+                } else if (expect.equals !== undefined) {
+                    parts.push(`"${expect.jsonpath}" equals "${expect.equals}"`);
+                } else if (expect.notEquals !== undefined) {
+                    parts.push(`"${expect.jsonpath}" not equals "${expect.notEquals}"`);
+                }
+            }
+
+            return `<div class="builder-summary">Expect: ${parts.join(', ')}</div>`;
+        }
+
+        function updateExpectValidationType(index, type) {
+            const jsonpath = document.getElementById(`expectJsonpath_${index}`).value;
+            document.getElementById(`expectValueField_${index}`).innerHTML =
+                renderExpectValueField(index, type, {jsonpath});
+        }
+
+        function saveExpect(index) {
+            const status = parseInt(document.getElementById(`expectStatus_${index}`).value);
+            const jsonpath = document.getElementById(`expectJsonpath_${index}`)?.value;
+
+            const expect = { status };
+
+            if (jsonpath) {
+                expect.jsonpath = jsonpath;
+
+                const type = document.getElementById(`expectType_${index}`)?.value;
+                if (type === 'exists') {
+                    expect.exists = document.getElementById(`expectValue_${index}`).value === 'true';
+                } else if (type === 'equals' || type === 'notEquals') {
+                    let value = document.getElementById(`expectValue_${index}`).value;
+                    // Try to parse as number or boolean
+                    if (value === 'true') value = true;
+                    else if (value === 'false') value = false;
+                    else if (!isNaN(value) && value !== '') value = parseFloat(value);
+                    expect[type] = value;
+                }
+            }
+
+            config.steps[index].expect = expect;
+            toggleExpectBuilder(index);
+            saveToLocalStorage();
+            renderSteps();
+            updatePreview();
+        }
+
+        function removeExpect(index) {
+            delete config.steps[index].expect;
+            saveToLocalStorage();
+            renderSteps();
+            updatePreview();
         }
     </script>
 </body>
