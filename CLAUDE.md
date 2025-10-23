@@ -217,6 +217,12 @@ node postman-tools/parse-postman-enhanced.js
 
 ## Development Guidelines
 
+**IMPORTANT - Git Workflow:**
+- **NEVER commit changes without explicit user approval**
+- **NEVER commit if the user has not tested the changes**
+- Always wait for the user to test and verify changes before committing
+- Only create commits when the user explicitly asks (e.g., "commit it", "commit this", "commit the changes")
+
 **When modifying the script:**
 - Maintain POSIX compliance for cross-platform compatibility (Windows/macOS/Linux)
 - Always quote variables to handle spaces and special characters
