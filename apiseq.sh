@@ -70,18 +70,48 @@ prompt_user_input() {
     USER_INPUT_JSON="{}"
 
     # Iterate through each prompt
-    local keys=$(echo "$prompts_json" | jq -r 'keys[]')
-    while IFS= read -r key; do
+    # Use grep to filter out empty lines from jq output
+    local keys=$(echo "$prompts_json" | jq -r 'keys[]' | grep -v '^[[:space:]]*$')
+    while IFS= read -r key <&3; do
+        # Skip empty keys (safety check)
+        if [ -z "$key" ]; then
+            continue
+        fi
+
         local prompt_message=$(echo "$prompts_json" | jq -r ".[\"$key\"]")
         echo -n "$prompt_message "
+
+        # Read from stdin (fd 0) - waits indefinitely for user input
         read -r user_value
 
         # Add to USER_INPUT_JSON
         USER_INPUT_JSON=$(echo "$USER_INPUT_JSON" | jq --arg k "$key" --arg v "$user_value" '. + {($k): $v}')
         debug_log "DEBUG: User input collected - $key=$user_value"
-    done <<< "$keys"
+    done 3<<< "$keys"
 
     echo ""
+}
+
+# Function to get human-readable description for curl exit codes
+get_curl_error_description() {
+    local exit_code="$1"
+    case "$exit_code" in
+        1) echo "Unsupported protocol" ;;
+        2) echo "Failed to initialize" ;;
+        3) echo "URL malformed" ;;
+        5) echo "Couldn't resolve proxy" ;;
+        6) echo "Couldn't resolve host" ;;
+        7) echo "Failed to connect to host" ;;
+        28) echo "Operation timeout" ;;
+        35) echo "SSL connect error" ;;
+        47) echo "Too many redirects" ;;
+        51) echo "Server's SSL certificate invalid" ;;
+        52) echo "Empty reply from server" ;;
+        55) echo "Failed sending network data" ;;
+        56) echo "Failed receiving network data" ;;
+        60) echo "SSL certificate problem" ;;
+        *) echo "Unknown error" ;;
+    esac
 }
 
 # Function to launch browser with URL
@@ -762,10 +792,10 @@ execute_step() {
     # Build curl command
     local curl_cmd="curl -s -w '\n%{http_code}' -X $method"
 
-    # Add timeout if present
+    # Add timeout if present (use both max-time and connect-timeout for reliability)
     if echo "$step_json" | jq -e '.timeout' > /dev/null 2>&1; then
         local timeout=$(echo "$step_json" | jq -r '.timeout')
-        curl_cmd+=" --max-time $timeout"
+        curl_cmd+=" --max-time $timeout --connect-timeout $timeout"
     fi
 
     # Add headers if present
@@ -819,8 +849,13 @@ execute_step() {
 
     # Execute curl and capture response
     local response_file="$TEMP_DIR/response_$step_index.txt"
+
+    # Temporarily disable errexit to allow curl to fail gracefully and return exit code
+    # Without this, set -e would cause the script to exit on curl errors
+    set +e
     eval "$curl_cmd" > "$response_file" 2>&1
     local curl_exit_code=$?
+    set -e
 
     # Check for curl errors (including timeout)
     if [ $curl_exit_code -eq 28 ]; then
@@ -831,8 +866,10 @@ execute_step() {
         fi
         exit 1
     elif [ $curl_exit_code -ne 0 ]; then
-        echo -e "Step $step_num: $method $url ${RED}❌ Curl failed with exit code $curl_exit_code${NC}"
-        cat "$response_file"
+        local error_desc=$(get_curl_error_description "$curl_exit_code")
+        echo -e "Step $step_num: $method $url ${RED}❌ Curl failed with exit code $curl_exit_code ($error_desc)${NC}"
+        # Show curl output in debug mode only (usually not helpful for connection errors)
+        debug_log "Curl output: $(cat "$response_file")"
         exit 1
     fi
 
