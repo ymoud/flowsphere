@@ -981,10 +981,62 @@ execute_step() {
                     fi
                 fi
 
+                # Check if greaterThan is specified
+                if echo "$validation" | jq -e '.greaterThan' > /dev/null 2>&1; then
+                    local threshold=$(echo "$validation" | jq -r '.greaterThan')
+                    # Use awk for floating point comparison
+                    if ! awk -v val="$extracted" -v thresh="$threshold" 'BEGIN { exit !(val > thresh) }'; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected > $threshold)${NC}"
+                        exit 1
+                    else
+                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (> $threshold)"
+                    fi
+                fi
+
+                # Check if lessThan is specified
+                if echo "$validation" | jq -e '.lessThan' > /dev/null 2>&1; then
+                    local threshold=$(echo "$validation" | jq -r '.lessThan')
+                    # Use awk for floating point comparison
+                    if ! awk -v val="$extracted" -v thresh="$threshold" 'BEGIN { exit !(val < thresh) }'; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected < $threshold)${NC}"
+                        exit 1
+                    else
+                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (< $threshold)"
+                    fi
+                fi
+
+                # Check if greaterThanOrEqual is specified
+                if echo "$validation" | jq -e '.greaterThanOrEqual' > /dev/null 2>&1; then
+                    local threshold=$(echo "$validation" | jq -r '.greaterThanOrEqual')
+                    # Use awk for floating point comparison
+                    if ! awk -v val="$extracted" -v thresh="$threshold" 'BEGIN { exit !(val >= thresh) }'; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected >= $threshold)${NC}"
+                        exit 1
+                    else
+                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (>= $threshold)"
+                    fi
+                fi
+
+                # Check if lessThanOrEqual is specified
+                if echo "$validation" | jq -e '.lessThanOrEqual' > /dev/null 2>&1; then
+                    local threshold=$(echo "$validation" | jq -r '.lessThanOrEqual')
+                    # Use awk for floating point comparison
+                    if ! awk -v val="$extracted" -v thresh="$threshold" 'BEGIN { exit !(val <= thresh) }'; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected <= $threshold)${NC}"
+                        exit 1
+                    else
+                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (<= $threshold)"
+                    fi
+                fi
+
                 # If no validation criteria specified, default to 'exists' check
                 if ! echo "$validation" | jq -e '.exists' > /dev/null 2>&1 && \
                    ! echo "$validation" | jq -e '.equals' > /dev/null 2>&1 && \
-                   ! echo "$validation" | jq -e '.notEquals' > /dev/null 2>&1; then
+                   ! echo "$validation" | jq -e '.notEquals' > /dev/null 2>&1 && \
+                   ! echo "$validation" | jq -e '.greaterThan' > /dev/null 2>&1 && \
+                   ! echo "$validation" | jq -e '.lessThan' > /dev/null 2>&1 && \
+                   ! echo "$validation" | jq -e '.greaterThanOrEqual' > /dev/null 2>&1 && \
+                   ! echo "$validation" | jq -e '.lessThanOrEqual' > /dev/null 2>&1; then
                     if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
                         echo -e "Step $step_num: $method $url ${RED}❌ JSON path '$jsonpath' not found${NC}"
                         echo "Response body: $response_body"

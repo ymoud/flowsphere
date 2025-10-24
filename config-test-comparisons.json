@@ -1,0 +1,24 @@
+{
+  "enableDebug": false,
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "timeout": 30,
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "steps": [
+    {
+      "id": "get-user",
+      "name": "Get user and test comparison validations",
+      "method": "GET",
+      "url": "/users/1",
+      "validations": [
+        { "status": 200 },
+        { "jsonpath": ".id", "greaterThan": 0, "lessThan": 100 },
+        { "jsonpath": ".id", "greaterThanOrEqual": 1, "lessThanOrEqual": 10 },
+        { "jsonpath": ".name", "exists": true }
+      ]
+    }
+  ]
+}

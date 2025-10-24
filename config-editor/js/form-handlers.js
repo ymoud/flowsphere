@@ -19,6 +19,10 @@ function renderDefaultValidations() {
             if (validation.exists !== undefined) criteria.push(`exists: ${validation.exists}`);
             if (validation.equals !== undefined) criteria.push(`equals: "${validation.equals}"`);
             if (validation.notEquals !== undefined) criteria.push(`notEquals: "${validation.notEquals}"`);
+            if (validation.greaterThan !== undefined) criteria.push(`> ${validation.greaterThan}`);
+            if (validation.lessThan !== undefined) criteria.push(`< ${validation.lessThan}`);
+            if (validation.greaterThanOrEqual !== undefined) criteria.push(`>= ${validation.greaterThanOrEqual}`);
+            if (validation.lessThanOrEqual !== undefined) criteria.push(`<= ${validation.lessThanOrEqual}`);
             if (criteria.length > 0) summary += ` (${criteria.join(', ')})`;
         }
 

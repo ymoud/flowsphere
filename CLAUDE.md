@@ -117,8 +117,13 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
     - `exists`: true/false - check if field exists
     - `equals`: expected value - check for equality
     - `notEquals`: unwanted value - check for inequality
+    - `greaterThan`: number - check if value is greater than threshold
+    - `lessThan`: number - check if value is less than threshold
+    - `greaterThanOrEqual`: number - check if value is >= threshold
+    - `lessThanOrEqual`: number - check if value is <= threshold
   - Multiple validation criteria can be combined on the same path
   - If no criteria specified, defaults to checking that field exists
+  - Numeric comparisons support integers and floats
 - **Default validations**: Define in `defaults.validations` to apply to all steps
   - Steps without validations inherit default validations
   - Steps with validations override defaults completely
@@ -138,8 +143,9 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
           "url": "/users",
           "validations": [
             { "status": 201 },
-            { "jsonpath": ".id", "exists": true },
-            { "jsonpath": ".email", "notEquals": "" }
+            { "jsonpath": ".id", "exists": true, "greaterThan": 0 },
+            { "jsonpath": ".email", "notEquals": "" },
+            { "jsonpath": ".age", "greaterThanOrEqual": 18, "lessThanOrEqual": 120 }
           ]
         },
         {

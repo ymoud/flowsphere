@@ -222,6 +222,10 @@ function renderValidationsList(validations, stepIndex) {
             if (validation.exists !== undefined) criteria.push(`exists: ${validation.exists}`);
             if (validation.equals !== undefined) criteria.push(`equals: "${validation.equals}"`);
             if (validation.notEquals !== undefined) criteria.push(`notEquals: "${validation.notEquals}"`);
+            if (validation.greaterThan !== undefined) criteria.push(`> ${validation.greaterThan}`);
+            if (validation.lessThan !== undefined) criteria.push(`< ${validation.lessThan}`);
+            if (validation.greaterThanOrEqual !== undefined) criteria.push(`>= ${validation.greaterThanOrEqual}`);
+            if (validation.lessThanOrEqual !== undefined) criteria.push(`<= ${validation.lessThanOrEqual}`);
             if (criteria.length > 0) summary += ` (${criteria.join(', ')})`;
         }
 
@@ -316,6 +320,50 @@ function showValidationModal(stepIndex, valIndex, validation, isDefault = false)
                         <div class="help-text">The value the field should NOT equal</div>
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="valUseGreaterThan" ${validation.greaterThan !== undefined ? 'checked' : ''} onchange="toggleValidationCriteria()">
+                        Check field greater than value
+                    </label>
+                    <div id="valGreaterThanValue" style="margin-top: 10px; ${validation.greaterThan !== undefined ? '' : 'display:none;'}">
+                        <input type="number" id="valGreaterThan" value="${validation.greaterThan !== undefined ? validation.greaterThan : ''}" placeholder="Minimum value (exclusive)">
+                        <div class="help-text">Field value must be greater than this number</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="valUseLessThan" ${validation.lessThan !== undefined ? 'checked' : ''} onchange="toggleValidationCriteria()">
+                        Check field less than value
+                    </label>
+                    <div id="valLessThanValue" style="margin-top: 10px; ${validation.lessThan !== undefined ? '' : 'display:none;'}">
+                        <input type="number" id="valLessThan" value="${validation.lessThan !== undefined ? validation.lessThan : ''}" placeholder="Maximum value (exclusive)">
+                        <div class="help-text">Field value must be less than this number</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="valUseGreaterThanOrEqual" ${validation.greaterThanOrEqual !== undefined ? 'checked' : ''} onchange="toggleValidationCriteria()">
+                        Check field greater than or equal to value
+                    </label>
+                    <div id="valGreaterThanOrEqualValue" style="margin-top: 10px; ${validation.greaterThanOrEqual !== undefined ? '' : 'display:none;'}">
+                        <input type="number" id="valGreaterThanOrEqual" value="${validation.greaterThanOrEqual !== undefined ? validation.greaterThanOrEqual : ''}" placeholder="Minimum value (inclusive)">
+                        <div class="help-text">Field value must be greater than or equal to this number</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="valUseLessThanOrEqual" ${validation.lessThanOrEqual !== undefined ? 'checked' : ''} onchange="toggleValidationCriteria()">
+                        Check field less than or equal to value
+                    </label>
+                    <div id="valLessThanOrEqualValue" style="margin-top: 10px; ${validation.lessThanOrEqual !== undefined ? '' : 'display:none;'}">
+                        <input type="number" id="valLessThanOrEqual" value="${validation.lessThanOrEqual !== undefined ? validation.lessThanOrEqual : ''}" placeholder="Maximum value (inclusive)">
+                        <div class="help-text">Field value must be less than or equal to this number</div>
+                    </div>
+                </div>
                 </div>
 
                 <div class="modal-footer">
@@ -337,9 +385,16 @@ function showValidationModal(stepIndex, valIndex, validation, isDefault = false)
     setTimeout(() => {
         const modal = document.getElementById('validationModal');
         if (modal) {
-            const inputs = modal.querySelectorAll('input[type="text"]');
-            inputs.forEach(input => {
-                attachAutocompleteToInput(input, stepIndex);
+            // Attach jq autocomplete to jsonpath input
+            const jsonpathInput = modal.querySelector('#valJsonpath');
+            if (jsonpathInput) {
+                attachAutocompleteToInput(jsonpathInput, stepIndex, 'jq');
+            }
+
+            // Attach template autocomplete to other text inputs (like equals, notEquals values)
+            const otherInputs = modal.querySelectorAll('input[type="text"]:not(#valJsonpath)');
+            otherInputs.forEach(input => {
+                attachAutocompleteToInput(input, stepIndex, 'template');
             });
         }
     }, 0);
@@ -355,14 +410,26 @@ function toggleValidationCriteria() {
     const useExists = document.getElementById('valUseExists')?.checked || false;
     const useEquals = document.getElementById('valUseEquals')?.checked || false;
     const useNotEquals = document.getElementById('valUseNotEquals')?.checked || false;
+    const useGreaterThan = document.getElementById('valUseGreaterThan')?.checked || false;
+    const useLessThan = document.getElementById('valUseLessThan')?.checked || false;
+    const useGreaterThanOrEqual = document.getElementById('valUseGreaterThanOrEqual')?.checked || false;
+    const useLessThanOrEqual = document.getElementById('valUseLessThanOrEqual')?.checked || false;
 
     const existsEl = document.getElementById('valExistsValue');
     const equalsEl = document.getElementById('valEqualsValue');
     const notEqualsEl = document.getElementById('valNotEqualsValue');
+    const greaterThanEl = document.getElementById('valGreaterThanValue');
+    const lessThanEl = document.getElementById('valLessThanValue');
+    const greaterThanOrEqualEl = document.getElementById('valGreaterThanOrEqualValue');
+    const lessThanOrEqualEl = document.getElementById('valLessThanOrEqualValue');
 
     if (existsEl) existsEl.style.display = useExists ? 'block' : 'none';
     if (equalsEl) equalsEl.style.display = useEquals ? 'block' : 'none';
     if (notEqualsEl) notEqualsEl.style.display = useNotEquals ? 'block' : 'none';
+    if (greaterThanEl) greaterThanEl.style.display = useGreaterThan ? 'block' : 'none';
+    if (lessThanEl) lessThanEl.style.display = useLessThan ? 'block' : 'none';
+    if (greaterThanOrEqualEl) greaterThanOrEqualEl.style.display = useGreaterThanOrEqual ? 'block' : 'none';
+    if (lessThanOrEqualEl) lessThanOrEqualEl.style.display = useLessThanOrEqual ? 'block' : 'none';
 }
 
 function saveValidation(stepIndex, valIndex, isDefault = false) {
@@ -408,8 +475,42 @@ function saveValidation(stepIndex, valIndex, isDefault = false) {
             validation.notEquals = value;
         }
 
+        if (document.getElementById('valUseGreaterThan').checked) {
+            const value = document.getElementById('valGreaterThan').value;
+            if (value !== '') {
+                validation.greaterThan = parseFloat(value);
+            }
+        }
+
+        if (document.getElementById('valUseLessThan').checked) {
+            const value = document.getElementById('valLessThan').value;
+            if (value !== '') {
+                validation.lessThan = parseFloat(value);
+            }
+        }
+
+        if (document.getElementById('valUseGreaterThanOrEqual').checked) {
+            const value = document.getElementById('valGreaterThanOrEqual').value;
+            if (value !== '') {
+                validation.greaterThanOrEqual = parseFloat(value);
+            }
+        }
+
+        if (document.getElementById('valUseLessThanOrEqual').checked) {
+            const value = document.getElementById('valLessThanOrEqual').value;
+            if (value !== '') {
+                validation.lessThanOrEqual = parseFloat(value);
+            }
+        }
+
         // If no criteria selected, default to exists: true
-        if (validation.exists === undefined && validation.equals === undefined && validation.notEquals === undefined) {
+        if (validation.exists === undefined &&
+            validation.equals === undefined &&
+            validation.notEquals === undefined &&
+            validation.greaterThan === undefined &&
+            validation.lessThan === undefined &&
+            validation.greaterThanOrEqual === undefined &&
+            validation.lessThanOrEqual === undefined) {
             validation.exists = true;
         }
     }

@@ -18,9 +18,16 @@ function initAutocomplete() {
     });
 }
 
-function attachAutocompleteToInput(input, stepIndex = null) {
+function attachAutocompleteToInput(input, stepIndex = null, mode = 'template') {
+    // Store the mode on the input element
+    input.dataset.autocompleteMode = mode;
+
     input.addEventListener('input', function(e) {
-        handleAutocompleteInput(e.target, stepIndex);
+        if (mode === 'jq') {
+            handleJqAutocompleteInput(e.target);
+        } else {
+            handleAutocompleteInput(e.target, stepIndex);
+        }
     });
 
     input.addEventListener('keydown', function(e) {
@@ -231,6 +238,82 @@ function buildAutocompleteSuggestions(partialText, stepIndex) {
     return suggestions;
 }
 
+// ========================================
+// JQ AUTOCOMPLETE (for jsonpath fields)
+// ========================================
+
+function handleJqAutocompleteInput(input) {
+    const value = input.value;
+    const cursorPos = input.selectionStart;
+
+    // Build jq suggestions based on current context
+    const suggestions = buildJqSuggestions(value, cursorPos);
+
+    if (suggestions.length > 0) {
+        showJqAutocomplete(input, suggestions);
+    } else {
+        hideAutocomplete();
+    }
+}
+
+function buildJqSuggestions(value, cursorPos) {
+    const suggestions = [];
+
+    // Get text before cursor to understand context
+    const beforeCursor = value.substring(0, cursorPos);
+    const afterCursor = value.substring(cursorPos);
+
+    // Only show suggestions if field is empty or user just typed something
+    // Check if we should show suggestions (typing at start, after space, or after pipe)
+    const lastChar = beforeCursor.slice(-1);
+    const isEmpty = beforeCursor.trim() === '';
+    const afterPipe = beforeCursor.trim().endsWith('|');
+    const afterSpace = lastChar === ' ' && !isEmpty;
+
+    // Show suggestions when: empty field, after pipe, or field is short
+    if (isEmpty || afterPipe || beforeCursor.length <= 2) {
+        // Common Pattern 1: Filter array by field value
+        suggestions.push({
+            text: '.[] | select(.field == "value")',
+            display: '.[] | select(.field == "value")',
+            hint: 'Find items in array where field equals value',
+            category: 'Common Patterns',
+            isTemplate: true
+        });
+
+        // Common Pattern 2: Count matching items
+        suggestions.push({
+            text: '[.[] | select(.field == "value")] | length',
+            display: '[.[] | select(...)] | length',
+            hint: 'Count items matching condition',
+            category: 'Common Patterns',
+            isTemplate: true
+        });
+
+        // Common Pattern 3: Check field length
+        suggestions.push({
+            text: '.field | length',
+            display: '.field | length',
+            hint: 'Get length of array or string field',
+            category: 'Common Patterns',
+            isTemplate: true
+        });
+
+        // Format with categories
+        if (suggestions.length > 0) {
+            const withCategory = [{ isCategory: true, name: 'Common jq Patterns' }];
+            return withCategory.concat(suggestions);
+        }
+    }
+
+    return suggestions;
+}
+
+function showJqAutocomplete(input, suggestions) {
+    // Reuse existing showAutocomplete but don't require {{ }}
+    showAutocomplete(input, suggestions, 0);
+}
+
 function getCaretCoordinates(input) {
     const position = input.selectionStart;
 
@@ -437,6 +520,23 @@ function selectAutocompleteSuggestion(suggestion) {
     if (!autocompleteTarget || !suggestion) return;
 
     const input = autocompleteTarget;
+    const mode = input.dataset.autocompleteMode || 'template';
+
+    // Handle jq mode differently - just replace entire value
+    if (mode === 'jq') {
+        input.value = suggestion.text;
+        const newCursorPos = suggestion.text.length;
+        input.setSelectionRange(newCursorPos, newCursorPos);
+
+        // Trigger change event
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+
+        hideAutocomplete();
+        input.focus();
+        return;
+    }
+
+    // Template mode - existing logic
     const value = input.value;
     const cursorPos = input.selectionStart;
 
