@@ -421,13 +421,32 @@ function renderStepForm(step, index) {
 
             <div class="mb-3">
                 <label class="form-label">Headers</label>
-                <div id="headersList_${index}">
-                    ${renderHeadersList(step.headers || {}, index)}
+
+                <!-- Skip Default Headers Checkbox -->
+                <div class="form-check mb-2">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           id="skipDefaultHeaders_${index}"
+                           ${step.headers !== undefined ? 'checked' : ''}
+                           onchange="toggleSkipDefaultHeaders(${index}, this.checked)">
+                    <label class="form-check-label" for="skipDefaultHeaders_${index}">
+                        Skip default headers (define custom headers for this step)
+                    </label>
                 </div>
-                <button class="btn btn-outline-secondary btn-sm mt-2" onclick="addHeader(${index})">
+
+                <div id="headersList_${index}" style="${step.headers === undefined ? 'display: none;' : ''}">
+                    ${renderHeadersList(step.headers, index)}
+                </div>
+                <button class="btn btn-outline-secondary btn-sm mt-2"
+                        id="addHeaderBtn_${index}"
+                        onclick="addHeader(${index})"
+                        style="${step.headers === undefined ? 'display: none;' : ''}"
+                >
                     <i class="bi bi-plus"></i> Add Header
                 </button>
-                <div class="form-text">Merged with default headers. Format inferred from Content-Type.</div>
+                <div class="form-text">
+                    ${step.headers === undefined ? 'Using default headers from global settings (merged)' : 'Custom headers for this step (not merged with defaults)'}
+                </div>
             </div>
 
             <div class="mb-3">
@@ -451,13 +470,32 @@ function renderStepForm(step, index) {
 
             <div class="mb-3">
                 <label class="form-label">Response Validations</label>
-                <div id="validationsList_${index}">
-                    ${renderValidationsList(step.validations || [], index)}
+
+                <!-- Skip Default Validations Checkbox -->
+                <div class="form-check mb-2">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           id="skipDefaultValidations_${index}"
+                           ${step.validations !== undefined ? 'checked' : ''}
+                           onchange="toggleSkipDefaultValidations(${index}, this.checked)">
+                    <label class="form-check-label" for="skipDefaultValidations_${index}">
+                        Skip default validations (define custom validations for this step)
+                    </label>
                 </div>
-                <button class="btn btn-outline-secondary btn-sm mt-2" onclick="addValidation(${index})">
+
+                <div id="validationsList_${index}" style="${step.validations === undefined ? 'display: none;' : ''}">
+                    ${renderValidationsList(step.validations, index)}
+                </div>
+                <button class="btn btn-outline-secondary btn-sm mt-2"
+                        id="addValidationBtn_${index}"
+                        onclick="addValidation(${index})"
+                        style="${step.validations === undefined ? 'display: none;' : ''}"
+                >
                     <i class="bi bi-plus"></i> Add Validation
                 </button>
-                <div class="form-text">Validate HTTP status code and/or response fields (inherits default validations if empty)</div>
+                <div class="form-text">
+                    ${step.validations === undefined ? 'Using default validations from global settings' : 'Custom validations for this step (overrides defaults)'}
+                </div>
             </div>
         </div>
     `;

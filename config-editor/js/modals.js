@@ -207,8 +207,13 @@ function closeConditionModal() {
 
 // Validations Builder Functions
 function renderValidationsList(validations, stepIndex) {
-    if (!validations || validations.length === 0) {
-        return '<div class="help-text" style="font-style: italic; color: #6b7280;">No validations defined (will inherit default validations)</div>';
+    // Distinguish between undefined (inherit defaults) and empty array (custom, none added)
+    if (validations === undefined) {
+        return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using default validations</div>';
+    }
+
+    if (Array.isArray(validations) && validations.length === 0) {
+        return '<div class="help-text" style="font-style: italic; color: #6b7280;">No custom validations defined (click + to add)</div>';
     }
 
     return validations.map((validation, valIndex) => {
@@ -552,6 +557,36 @@ function removeValidation(stepIndex, valIndex) {
     }
 }
 
+function toggleSkipDefaultValidations(stepIndex, skipDefaults) {
+    if (skipDefaults) {
+        // Set to empty array - user can add custom validations
+        config.steps[stepIndex].validations = [];
+    } else {
+        // Remove validations property to inherit defaults
+        delete config.steps[stepIndex].validations;
+    }
+
+    // Update UI
+    saveToLocalStorage();
+    renderSteps();
+    updatePreview();
+}
+
+function toggleSkipDefaultHeaders(stepIndex, skipDefaults) {
+    if (skipDefaults) {
+        // Set to empty object - user can add custom headers
+        config.steps[stepIndex].headers = {};
+    } else {
+        // Remove headers property to inherit/merge with defaults
+        delete config.steps[stepIndex].headers;
+    }
+
+    // Update UI
+    saveToLocalStorage();
+    renderSteps();
+    updatePreview();
+}
+
 function closeValidationModal() {
     const modal = document.getElementById('validationModal');
     if (modal) modal.remove();
@@ -699,10 +734,15 @@ function closePromptModal() {
 
 // Headers Builder Functions
 function renderHeadersList(headers, stepIndex) {
-    const headerKeys = Object.keys(headers || {});
+    // Distinguish between undefined (merged with defaults) and empty object (custom, none added)
+    if (headers === undefined) {
+        return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using default headers (merged)</div>';
+    }
+
+    const headerKeys = Object.keys(headers);
 
     if (headerKeys.length === 0) {
-        return '<div class="help-text" style="font-style: italic; color: #6b7280;">No headers defined</div>';
+        return '<div class="help-text" style="font-style: italic; color: #6b7280;">No custom headers defined (click + to add)</div>';
     }
 
     return headerKeys.map((key) => {
@@ -967,6 +1007,8 @@ window.saveValidation = saveValidation;
 window.addValidation = addValidation;
 window.toggleValidationType = toggleValidationType;
 window.toggleValidationCriteria = toggleValidationCriteria;
+window.toggleSkipDefaultValidations = toggleSkipDefaultValidations;
+window.toggleSkipDefaultHeaders = toggleSkipDefaultHeaders;
 window.editPrompt = editPrompt;
 window.removePrompt = removePrompt;
 window.closePromptModal = closePromptModal;
