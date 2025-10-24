@@ -25,6 +25,11 @@ xdg-open config-editor.html     # Linux
 - Load, edit, and save JSON configs visually
 - Create new configs from templates (Empty, Simple, OAuth, User Input)
 - Form-based editing with validation
+- **Intelligent autocomplete** for `{{ }}` variable syntax (type `{{` in any field)
+  - Suggests global variables (`.vars.`)
+  - Suggests response references (`.responses[N].` or `.responses.stepId.`)
+  - Suggests user input variables (`.input.`)
+  - Appears at your text caret with keyboard navigation
 - Live JSON preview with one-click copy to clipboard
 - Auto-save to browser localStorage (never lose your work)
 - Download configs as JSON files

@@ -207,6 +207,49 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - Shows variable substitution, step execution flow, and internal state
 - Debug output goes to stderr, normal output to stdout
 
+## Visual Config Editor
+
+**config-editor.html** provides a browser-based GUI for creating and editing configuration files without manually writing JSON.
+
+**Key Features:**
+- Form-based editing with validation
+- Auto-save to browser localStorage (never lose work)
+- Live JSON preview with copy-to-clipboard
+- Template-based config creation (Empty, Simple, OAuth, User Input)
+- Download configs as JSON files
+
+**Intelligent Autocomplete:**
+The editor includes context-aware autocomplete for the `{{ }}` variable substitution syntax:
+
+- **Trigger**: Type `{{` in any text input or textarea
+- **Suggestions shown**:
+  - **Basic Syntax** (when you first type `{{`):
+    - `.responses[` - Access response by index
+    - `.responses.` - Access response by step ID
+    - `.vars.` - Access global variables
+    - `.input.` - Access user input prompts
+  - **Global Variables**: Shows all variables defined in the `variables` section with their values
+  - **Response References**: Shows available responses from previous steps (both index-based and named)
+  - **User Input**: Shows prompt variables defined in the current step
+- **Features**:
+  - Positions dropdown at text caret for accurate placement
+  - Filters suggestions as you type
+  - Keyboard navigation: Arrow keys, Enter/Tab to select, Escape to close
+  - Mouse selection: Click any suggestion
+  - Works in all text fields: URLs, headers, body, conditions, validations, modals
+
+**Implementation details:**
+- Uses mirror div technique for accurate caret positioning in textareas
+- Handles horizontal/vertical scrolling correctly
+- Accounts for all CSS properties affecting text layout
+- Browser-specific handling (Firefox, Chrome, Safari)
+
+**When to use:**
+- Creating new configs without writing JSON manually
+- Editing existing configs with visual feedback
+- Learning the config format through form-based UI
+- Quick testing of different configurations
+
 ## Postman Integration
 
 **Convert Postman collections to config files:**
