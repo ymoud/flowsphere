@@ -831,11 +831,130 @@ function closeHeaderModal() {
     if (modal) modal.remove();
 }
 
-// Export functions to global scope for onclick handlers
-window.createNew = createNew;
-window.selectTemplate = selectTemplate;
-window.closeNewConfigModal = closeNewConfigModal;
-window.confirmNewConfig = confirmNewConfig;
+// New Config Modal functions
+// Note: These functions are overridden by bootstrap-modal-bridge.js in Bootstrap 5 implementation
+// Only export if they don't already exist (Bootstrap bridge loads first)
+if (!window.createNew) {
+    function createNew() {
+        const modal = document.getElementById('newConfigModal');
+        if (modal) modal.classList.add('active');
+    }
+    window.createNew = createNew;
+}
+
+if (!window.closeNewConfigModal) {
+    function closeNewConfigModal() {
+        const modal = document.getElementById('newConfigModal');
+        if (modal) modal.classList.remove('active');
+    }
+    window.closeNewConfigModal = closeNewConfigModal;
+}
+
+if (!window.selectTemplate) {
+    function selectTemplate(templateType, element) {
+        // Remove selected class from all template options
+        const allOptions = document.querySelectorAll('.template-option');
+        allOptions.forEach(opt => opt.classList.remove('selected'));
+
+        // Add selected class to clicked option
+        if (element) {
+            element.classList.add('selected');
+        }
+
+        // Update radio button
+        const radio = element?.querySelector(`input[value="${templateType}"]`);
+        if (radio) {
+            radio.checked = true;
+        }
+
+        // Show/hide Postman import section
+        const postmanSection = document.getElementById('postmanImportSection');
+        if (postmanSection) {
+            postmanSection.style.display = templateType === 'postman' ? 'block' : 'none';
+        }
+    }
+    window.selectTemplate = selectTemplate;
+}
+
+if (!window.confirmNewConfig) {
+    function confirmNewConfig() {
+        const templateType = document.querySelector('input[name="template"]:checked')?.value || 'empty';
+        const newFileName = document.getElementById('newFileName').value.trim() || 'config.json';
+
+        if (templateType === 'postman') {
+            const fileInput = document.getElementById('postmanCollectionFile');
+            const file = fileInput?.files[0];
+
+            if (!file) {
+                alert('Please select a Postman collection file');
+                return;
+            }
+
+            // Read and parse Postman collection
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const collection = JSON.parse(e.target.result);
+
+                    // Use parsePostmanCollection from postman-parser.js
+                    if (typeof parsePostmanCollection !== 'function') {
+                        alert('Postman parser not loaded');
+                        return;
+                    }
+
+                    const parsedConfig = parsePostmanCollection(collection);
+
+                    // Set config and filename
+                    config = parsedConfig;
+                    fileName = newFileName;
+
+                    // Update UI
+                    closeNewConfigModal();
+                    updateFileNameDisplay();
+                    saveToLocalStorage();
+                    renderEditor();
+                    updatePreview();
+
+                    // Show download and close buttons
+                    const downloadBtn = document.getElementById('downloadBtn');
+                    const closeBtn = document.getElementById('closeBtn');
+                    if (downloadBtn) downloadBtn.style.display = 'inline-block';
+                    if (closeBtn) closeBtn.style.display = 'inline-block';
+
+                } catch (err) {
+                    alert('Error parsing Postman collection: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            return;
+        }
+
+        // Get template from templates.js
+        const template = typeof getTemplate === 'function' ? getTemplate(templateType) : null;
+        if (!template) {
+            alert('Template not found');
+            return;
+        }
+
+        // Set config and filename
+        config = template;
+        fileName = newFileName;
+
+        // Update UI
+        closeNewConfigModal();
+        updateFileNameDisplay();
+        saveToLocalStorage();
+        renderEditor();
+        updatePreview();
+
+        // Show download and close buttons
+        const downloadBtn = document.getElementById('downloadBtn');
+        const closeBtn = document.getElementById('closeBtn');
+        if (downloadBtn) downloadBtn.style.display = 'inline-block';
+        if (closeBtn) closeBtn.style.display = 'inline-block';
+    }
+    window.confirmNewConfig = confirmNewConfig;
+}
 window.closeConditionModal = closeConditionModal;
 window.saveCondition = saveCondition;
 window.editCondition = editCondition;
