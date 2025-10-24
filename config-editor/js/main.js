@@ -73,6 +73,9 @@ window.addEventListener('DOMContentLoaded', function() {
             const closeBtn = document.getElementById('closeBtn');
             if (downloadBtn) downloadBtn.style.display = 'inline-block';
             if (closeBtn) closeBtn.style.display = 'inline-block';
+
+            // Clear input to allow re-selecting the same file
+            fileInput.value = '';
         };
 
         reader.onerror = function() {

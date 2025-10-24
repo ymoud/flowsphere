@@ -186,7 +186,13 @@ function updateStepJSON(index, field, value) {
 }
 
 function updatePreview() {
-    if (!config) return;
+    const jsonPreview = document.getElementById('jsonPreview');
+
+    if (!config) {
+        // Clear preview when no config
+        jsonPreview.textContent = '';
+        return;
+    }
 
     // Clean up undefined fields before preview (preserve null and empty strings)
     const cleanConfig = JSON.parse(JSON.stringify(config, (key, value) => {
@@ -194,7 +200,7 @@ function updatePreview() {
         return value;
     }));
 
-    document.getElementById('jsonPreview').textContent = JSON.stringify(cleanConfig, null, 2);
+    jsonPreview.textContent = JSON.stringify(cleanConfig, null, 2);
 
     // Show download and close buttons if config exists
     document.getElementById('downloadBtn').style.display = 'inline-block';

@@ -77,6 +77,13 @@ function closeFile() {
         const closeBtn = document.getElementById('closeBtn');
         if (downloadBtn) downloadBtn.style.display = 'none';
         if (closeBtn) closeBtn.style.display = 'none';
+
+        // Clear auto-save indicator
+        const autoSaveIndicator = document.getElementById('autoSaveIndicator');
+        if (autoSaveIndicator) {
+            autoSaveIndicator.textContent = '';
+            autoSaveIndicator.style.display = 'none';
+        }
     }
 }
 
