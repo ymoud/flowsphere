@@ -10,17 +10,25 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 
 **Execute a sequence:**
 ```bash
-./apiseq.sh config.json
+./apiseq.sh examples/config-simple.json
 ```
 
-**Available config examples:**
+**Available config examples (in `examples/` folder):**
 - `config-simple.json` - Basic example using JSONPlaceholder API
 - `config.json` - Full-featured example with authentication flow
-- `config-onboarding.json` - NBG onboarding API sequence (generated from Postman)
-- `config-test-features.json` - Demonstrates user input prompts and variable substitution
-- `config-test-variables.json` - Demonstrates global variables feature
 - `config-oauth-example.json` - OAuth flow example with browser launch and user input
+- `config-test-features.json` - Demonstrates user input prompts and variable substitution
+- `config-user-input.json` - User input demonstration
+
+**Test configs (in `tests/` folder):**
+- `config-test-variables.json` - Demonstrates global variables feature
 - `config-test-multiple-validations.json` - Demonstrates multiple JSON path validations feature
+- `config-test-defaults.json` - Tests defaults merging behavior
+- `config-test-comparisons.json` - Tests numeric comparison validations
+
+**Production scenarios (in `scenarios/` folder):**
+- `config-onboarding.json` - NBG onboarding API sequence for QA environment (generated from Postman)
+- `config-onboarding-sbx.json` - NBG onboarding sandbox environment
 
 **Prerequisites:**
 - bash (4.0+)
@@ -268,11 +276,7 @@ The editor includes context-aware autocomplete for the `{{ }}` variable substitu
 
 **Convert Postman collections to config files:**
 ```bash
-# Recommended: Generates minified config with defaults section
-node postman-tools/parse-postman-minified.js
-
-# Legacy: Generates full config without defaults
-node postman-tools/parse-postman-enhanced.js
+node postman-tools/parse-postman.js
 ```
 
 **Parser capabilities:**
@@ -280,9 +284,10 @@ node postman-tools/parse-postman-enhanced.js
 - Resolves environment variables from `Postman/OnboardingApi.postman_environment.json`
 - Sorts requests by numeric prefixes (1., 2., 3., etc.)
 - Auto-detects dependencies between requests
-- Auto-wires dependencies using `{{ .responses[N].field }}` syntax
+- Auto-wires dependencies using `{{ .responses.stepId.field }}` syntax
 - Handles Postman dynamic variables (`{{$guid}}`, `{{$timestamp}}`)
-- Outputs to `config-onboarding.json`
+- Generates optimized config with defaults section
+- Outputs to `scenarios/config-onboarding.json`
 
 ## Development Guidelines
 
@@ -299,7 +304,7 @@ node postman-tools/parse-postman-enhanced.js
 - Temp files are stored in `$TEMP_DIR` (cleaned up automatically via trap)
 
 **Testing changes:**
-- Test with `config-simple.json` (uses public JSONPlaceholder API)
+- Test with `examples/config-simple.json` (uses public JSONPlaceholder API)
 - Verify conditional execution with steps that have condition blocks
 - Test variable substitution across multiple steps
 - Check error handling by introducing invalid expectations

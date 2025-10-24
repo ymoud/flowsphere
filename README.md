@@ -1,53 +1,98 @@
 # HTTP Sequence Runner
 
-Execute sequential HTTP requests from JSON configuration files. Cross-platform Bash tool with dynamic value substitution, conditional execution, and validation.
+**Automate multi-step API workflows** — Define once, run anywhere. No coding required.
+
+## What It Does
+
+Executes API call sequences where each step uses data from previous responses. Perfect for testing authentication flows, onboarding journeys, or any multi-step API process.
+
+**Example:** Login → Get user profile → Create resource → Verify creation
+- Each step automatically passes tokens, IDs, and data to the next
+- Visual config editor included (no JSON editing needed)
+- Works on Windows, macOS, and Linux
+
+## Why It Exists
+
+Complex API workflows require multiple requests with interdependent data. This tool eliminates manual curl commands and brittle shell scripts by providing:
+- **Reusable workflows** saved as JSON configurations
+- **Smart variable passing** between steps (no manual copy-paste)
+- **Built-in validation** to catch failures immediately
+- **Visual editing** with autocomplete for non-developers
 
 ## Quick Start
 
-### Run a Configuration
-```bash
-# Run from the beginning
-./apiseq.sh config-onboarding.json
+### 1. Run a Workflow
 
-# Start from a specific step (0-based index)
-./apiseq.sh config-onboarding.json 5    # Start from step 6 (index 5)
+**Try a learning example:**
+```bash
+./apiseq.sh examples/config-simple.json
 ```
 
-**Prerequisites:** bash, curl, jq (auto-install available)
-
-### Visual Config Editor
-Open `config-editor.html` in your browser for a visual way to create and edit configurations:
-
+**Or run a production scenario:**
 ```bash
-# Open in browser
-start config-editor.html        # Windows
-open config-editor.html         # macOS
-xdg-open config-editor.html     # Linux
+./apiseq.sh scenarios/config-onboarding-sbx.json
 ```
 
-**Features:**
-- Load, edit, and save JSON configs visually
-- Create new configs from templates (Empty, Simple, OAuth, User Input)
-- Form-based editing with validation
-- **Intelligent autocomplete** for `{{ }}` variable syntax (type `{{` in any field)
-  - Suggests global variables (`.vars.`)
-  - Suggests response references (`.responses.stepId.`)
-  - Suggests user input variables (`.input.`)
-  - Appears at your text caret with keyboard navigation
-- Live JSON preview with one-click copy to clipboard
-- Auto-save to browser localStorage (never lose your work)
-- Download configs as JSON files
+**That's it.** The script handles everything: making requests, extracting data, passing it forward, and validating responses.
 
-## Features
+**Prerequisites:** bash, curl, jq — all auto-install if missing
 
-- Named response references (`{{ .responses.login.token }}`)
-- Conditional execution based on previous responses
-- Form-urlencoded and JSON body support
-- User input prompts and browser launch
-- Timeout control and comprehensive validation
-- Visual feedback (✅/❌/⊘)
+**Advanced:**
+```bash
+# Resume from a specific step (useful for debugging)
+./apiseq.sh examples/config.json 5    # Start from step 6 (0-based index)
+```
 
-## Configuration Format
+### 2. Use the Visual Editor (Recommended)
+
+**No JSON knowledge required.** Open `config-editor/index.html` in any browser.
+
+```bash
+start config-editor/index.html        # Windows
+open config-editor/index.html         # macOS
+xdg-open config-editor/index.html     # Linux
+```
+
+**Key features:**
+- Form-based editing with templates (OAuth flow, user input, etc.)
+- **Smart autocomplete** — type `{{` to see available variables, responses, inputs
+- **Import from Postman** — convert existing Postman collections automatically
+- Auto-save to browser (never lose work)
+- Live preview with one-click export to JSON
+
+## Core Capabilities
+
+| Feature | Description |
+|---------|-------------|
+| **Smart Data Passing** | Reference any field from previous responses: `{{ .responses.login.token }}` |
+| **Conditional Logic** | Skip/execute steps based on previous results (e.g., premium vs. free user flows) |
+| **User Interaction** | Prompt for input (passwords, codes) or auto-launch browser (OAuth flows) |
+| **Validation** | Verify status codes and response fields; fail fast on errors |
+| **Flexible Formats** | JSON and form-urlencoded bodies supported |
+| **Visual Feedback** | Clear status indicators: ✅ success / ❌ failed / ⊘ skipped |
+
+## Examples
+
+See the [`examples/`](examples/) folder for complete, ready-to-run configurations:
+
+| File | Description |
+|------|-------------|
+| [`config-simple.json`](examples/config-simple.json) | **Start here** — Basic workflow with public JSONPlaceholder API |
+| [`config-oauth-example.json`](examples/config-oauth-example.json) | OAuth authentication flow with browser launch |
+| [`config-test-features.json`](examples/config-test-features.json) | User input prompts and interactive workflows |
+| [`config.json`](examples/config.json) | Full-featured example with authentication and validation |
+| [`config-ids-token.json`](examples/config-ids-token.json) | NBG token acquisition with form-urlencoded body |
+
+**Run any example:**
+```bash
+./apiseq.sh examples/config-simple.json
+```
+
+---
+
+## Technical Reference
+
+### Configuration Format
 
 ```json
 {
@@ -55,7 +100,9 @@ xdg-open config-editor.html     # Linux
     "baseUrl": "https://api.example.com",
     "headers": { "Content-Type": "application/json" },
     "timeout": 30,
-    "expect": { "status": 200 }
+    "validations": [
+      { "status": 200 }
+    ]
   },
   "steps": [
     {
@@ -64,7 +111,9 @@ xdg-open config-editor.html     # Linux
       "method": "POST",
       "url": "/login",
       "body": { "username": "user", "password": "pass" },
-      "expect": { "jsonpath": ".token" }
+      "validations": [
+        { "jsonpath": ".token", "exists": true }
+      ]
     },
     {
       "id": "getProfile",
@@ -88,10 +137,10 @@ xdg-open config-editor.html     # Linux
 | `headers` | | HTTP headers (merged with defaults) |
 | `body` | | Request body (JSON or form-urlencoded) |
 | `bodyFormat` | | `"json"` (default) or `"form-urlencoded"` |
-| `timeout` | | Request timeout in seconds |
+| `timeout` | | Request timeout in seconds (overrides defaults) |
 | `prompts` | | User input prompts: `{"key": "Prompt text"}` |
 | `condition` | | Conditional execution rules |
-| `expect` | | Validation rules (merged with defaults) |
+| `validations` | | Array of validation rules (overrides defaults) |
 | `launchBrowser` | | JSONPath to URL for browser launch |
 
 ## Response References
@@ -125,17 +174,22 @@ Execute steps conditionally based on previous responses:
 
 ## Validation
 
+Validations are specified as an array. Each validation can check status code or JSON path criteria:
+
 ```json
 {
-  "expect": {
-    "status": 201,                // Expected HTTP status
-    "jsonpath": ".id",            // Extract and validate field
-    "equals": "123",              // Value must equal
-    "notEquals": "error",         // Value must not equal
-    "exists": true                // Field must exist (or not exist)
-  }
+  "validations": [
+    { "status": 201 },                                    // HTTP status code
+    { "jsonpath": ".id", "exists": true },               // Field must exist
+    { "jsonpath": ".name", "equals": "John" },           // Field value equals
+    { "jsonpath": ".error", "notEquals": "failed" },     // Field value not equals
+    { "jsonpath": ".count", "greaterThan": 0 },          // Numeric comparison
+    { "jsonpath": ".age", "lessThanOrEqual": 120 }       // Multiple criteria supported
+  ]
 }
 ```
+
+**Default validations:** Set in `defaults.validations` to apply to all steps. Steps with their own validations override defaults completely.
 
 ## Form-Urlencoded Bodies
 
@@ -172,67 +226,6 @@ Automatically URL-encodes values. Does not support nested objects/arrays.
 }
 ```
 
-## Examples
-
-### OAuth Flow
-```json
-{
-  "steps": [
-    {
-      "id": "getAuthUrl",
-      "method": "POST",
-      "url": "/oauth/authorize",
-      "body": { "client_id": "xyz", "scope": "read" },
-      "launchBrowser": ".authorizationUrl"
-    },
-    {
-      "id": "exchangeToken",
-      "method": "POST",
-      "url": "/oauth/token",
-      "prompts": { "code": "Enter auth code from browser:" },
-      "bodyFormat": "form-urlencoded",
-      "body": {
-        "code": "{{ .input.code }}",
-        "client_id": "xyz",
-        "grant_type": "authorization_code"
-      }
-    },
-    {
-      "id": "getProfile",
-      "method": "GET",
-      "url": "/user/profile",
-      "headers": { "Authorization": "Bearer {{ .responses.exchangeToken.access_token }}" }
-    }
-  ]
-}
-```
-
-### Conditional Workflow
-```json
-{
-  "steps": [
-    {
-      "id": "login",
-      "method": "POST",
-      "url": "/login",
-      "body": { "username": "user", "password": "pass" }
-    },
-    {
-      "id": "premiumFeature",
-      "method": "GET",
-      "url": "/premium/dashboard",
-      "condition": { "step": "login", "field": ".isPremium", "equals": "true" }
-    },
-    {
-      "id": "regularFeature",
-      "method": "GET",
-      "url": "/regular/dashboard",
-      "condition": { "step": "login", "field": ".isPremium", "notEquals": "true" }
-    }
-  ]
-}
-```
-
 ## Debug Mode
 
 Enable detailed logging:
@@ -245,14 +238,7 @@ Enable detailed logging:
 
 Shows variable substitution, curl commands, and internal state.
 
-## Postman Import
-
-Convert Postman collections:
-```bash
-node postman-tools/parse-postman-minified.js
-```
-
-Reads from `Postman/*.postman_collection.json`, outputs to `config-onboarding.json`.
+---
 
 ## Installation
 
@@ -265,23 +251,10 @@ Run the script - missing dependencies trigger auto-install prompt.
 **RHEL/CentOS:** `sudo yum install curl jq`
 **Windows:** Install Git Bash, then `choco install jq` or `winget install jqlang.jq`
 
-## Tips
+## Best Practices
 
-- Use named references for maintainability
-- Set global defaults to reduce duplication
-- Use conditions for branching workflows
-- Enable debug mode for troubleshooting
-- Test with `config-simple.json` (uses public JSONPlaceholder API)
-- **Resume execution**: Use the start step parameter to skip already-completed steps
-  - Example: `./apiseq.sh config.json 7` starts from step 8 (0-based index)
-  - Earlier steps are marked as SKIPPED and get empty responses
-  - Useful for debugging specific steps without re-running the entire sequence
-  - ⚠️ **Warning**: If later steps reference data from skipped steps, execution will fail
-
-## Examples Included
-
-- `config-simple.json` - Basic usage with JSONPlaceholder API
-- `config.json` - Full-featured example with authentication
-- `config-oauth-example.json` - OAuth flow with browser launch
-- `config-test-features.json` - User input prompts demo
-- `config-onboarding.json` - NBG onboarding API sequence (generated from Postman)
+- **Use the visual editor** to avoid JSON syntax errors
+- **Set global defaults** (baseUrl, headers) to reduce duplication across steps
+- **Use named step IDs** instead of numeric indexes for maintainability
+- **Enable debug mode** when troubleshooting: add `"enableDebug": true` to your config
+- **Test incrementally** — use the resume feature to start from any step: `./apiseq.sh examples/config.json 5`
