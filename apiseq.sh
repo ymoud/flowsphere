@@ -42,9 +42,13 @@ ENABLE_DEBUG=false
 
 # Function to print usage
 usage() {
-    echo "Usage: $0 <config.json>"
+    echo "Usage: $0 <config.json> [start_step]"
     echo ""
     echo "Execute a sequence of HTTP requests defined in a JSON configuration file."
+    echo ""
+    echo "Arguments:"
+    echo "  config.json  - Path to the configuration file"
+    echo "  start_step   - Optional: Step index to start from (0-based, default: 0)"
     echo ""
     echo "Requirements:"
     echo "  - curl"
@@ -86,6 +90,11 @@ prompt_user_input() {
 
         # Read from stdin (fd 0) - waits indefinitely for user input
         read -r user_value
+
+        # Strip ANSI escape codes from user input (in case user copied from colored terminal output)
+        # This removes color codes, cursor movements, etc.
+        user_value=$(echo "$user_value" | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g')
+        debug_log "DEBUG: Stripped ANSI codes from input"
 
         # Add to USER_INPUT_JSON
         USER_INPUT_JSON=$(echo "$USER_INPUT_JSON" | jq --arg k "$key" --arg v "$user_value" '. + {($k): $v}')
@@ -136,7 +145,8 @@ launch_browser() {
     elif [[ "$OSTYPE" == "darwin"* ]]; then
         open "$url" &> /dev/null &
     elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
-        start "$url" &> /dev/null &
+        # Use rundll32 for reliable URL opening on Windows (handles special characters better)
+        rundll32.exe url.dll,FileProtocolHandler "$url" &
     else
         echo "Warning: Unsupported OS, cannot open browser" >&2
     fi
@@ -397,20 +407,46 @@ merge_with_defaults() {
         fi
     fi
 
-    # Merge default headers with step headers (step headers override)
-    if echo "$DEFAULTS_JSON" | jq -e '.headers' > /dev/null 2>&1; then
+    # Merge default headers with step headers (step headers override conflicts)
+    # Special case: if step has headers property but it's empty {}, skip defaults
+    if echo "$step_json" | jq -e '.headers' > /dev/null 2>&1; then
+        # Step has headers property defined - check if it's explicitly empty
+        local step_headers=$(echo "$step_json" | jq '.headers')
+        local step_headers_length=$(echo "$step_headers" | jq 'length')
+        if [ "$step_headers_length" -eq 0 ]; then
+            # Explicitly empty - skip defaults, keep empty object
+            merged=$(echo "$merged" | jq '.headers = {}')
+        elif echo "$DEFAULTS_JSON" | jq -e '.headers' > /dev/null 2>&1; then
+            # Merge defaults with step headers (step headers override)
+            local default_headers=$(echo "$DEFAULTS_JSON" | jq '.headers')
+            local merged_headers=$(echo "$default_headers $step_headers" | jq -s '.[0] * .[1]')
+            merged=$(echo "$merged" | jq --argjson headers "$merged_headers" '.headers = $headers')
+        fi
+    elif echo "$DEFAULTS_JSON" | jq -e '.headers' > /dev/null 2>&1; then
+        # No step headers, use defaults
         local default_headers=$(echo "$DEFAULTS_JSON" | jq '.headers')
-        local step_headers=$(echo "$step_json" | jq '.headers // {}')
-        local merged_headers=$(echo "$default_headers $step_headers" | jq -s '.[0] * .[1]')
-        merged=$(echo "$merged" | jq --argjson headers "$merged_headers" '.headers = $headers')
+        merged=$(echo "$merged" | jq --argjson headers "$default_headers" '.headers = $headers')
     fi
 
-    # Merge default validations with step validations (step validations override)
-    if echo "$DEFAULTS_JSON" | jq -e '.validations' > /dev/null 2>&1; then
-        if ! echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
+    # Merge default validations with step validations (concatenate arrays)
+    # Special case: if step has validations property but it's empty [], skip defaults
+    if echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
+        # Step has validations property defined - check if it's explicitly empty
+        local step_validations=$(echo "$step_json" | jq '.validations')
+        local step_val_length=$(echo "$step_validations" | jq 'length')
+        if [ "$step_val_length" -eq 0 ]; then
+            # Explicitly empty - skip defaults, keep empty array
+            merged=$(echo "$merged" | jq '.validations = []')
+        elif echo "$DEFAULTS_JSON" | jq -e '.validations' > /dev/null 2>&1; then
+            # Merge defaults with step validations
             local default_validations=$(echo "$DEFAULTS_JSON" | jq '.validations')
-            merged=$(echo "$merged" | jq --argjson validations "$default_validations" '.validations = $validations')
+            local merged_validations=$(echo "$default_validations $step_validations" | jq -s '.[0] + .[1]')
+            merged=$(echo "$merged" | jq --argjson validations "$merged_validations" '.validations = $validations')
         fi
+    elif echo "$DEFAULTS_JSON" | jq -e '.validations' > /dev/null 2>&1; then
+        # No step validations, use defaults
+        local default_validations=$(echo "$DEFAULTS_JSON" | jq '.validations')
+        merged=$(echo "$merged" | jq --argjson validations "$default_validations" '.validations = $validations')
     fi
 
     # Merge default timeout with step timeout (step timeout overrides)
@@ -482,13 +518,17 @@ substitute_variables() {
             exit 1
         fi
 
-        # Escape glob special characters
+        # URL-encode the value (user input may contain special characters)
+        local encoded_value=$(printf '%s' "$value" | jq -sRr '@uri')
+        debug_log "DEBUG: substitute_variables - URL-encoded value=$encoded_value"
+
+        # Escape glob special characters in the pattern to match
         local escaped_full_match="$full_match"
         escaped_full_match="${escaped_full_match//\*/\\*}"
         escaped_full_match="${escaped_full_match//\?/\\?}"
         escaped_full_match="${escaped_full_match//\[/\\[}"
         escaped_full_match="${escaped_full_match//\]/\\]}"
-        output="${output//$escaped_full_match/$value}"
+        output="${output//$escaped_full_match/$encoded_value}"
         debug_log "DEBUG: substitute_variables - replaced input pattern, output=$output"
 
         if [ $input_iteration -gt 10 ]; then
@@ -904,9 +944,18 @@ execute_step() {
 
     # Process validations (unified status and jsonpath validations)
     if echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
-        local validations=$(echo "$step_json" | jq -c '.validations[]')
-        local validation_count=0
-        local status_validated=false
+        # Check if validations array is explicitly empty (skip all validations)
+        local validations_length=$(echo "$step_json" | jq '.validations | length')
+
+        if [ "$validations_length" -eq 0 ]; then
+            debug_log "DEBUG: Step has empty validations array - skipping all validations"
+            # Empty array means skip all validations (including default status check)
+            # Do nothing - will fall through to browser launch and success message
+        else
+            # Process non-empty validations array
+            local validations=$(echo "$step_json" | jq -c '.validations[]')
+            local validation_count=0
+            local status_validated=false
 
         while IFS= read -r validation; do
             if [ -z "$validation" ]; then
@@ -1059,6 +1108,7 @@ execute_step() {
                 exit 1
             fi
         fi
+        fi  # Close the else block for non-empty validations
     else
         # No validations defined, default to checking status 200
         if [ "$status_code" != "200" ]; then
@@ -1093,6 +1143,13 @@ main() {
     fi
 
     local config_file="$1"
+    local start_step="${2:-0}"  # Default to 0 if not provided
+
+    # Validate start_step is a number
+    if ! [[ "$start_step" =~ ^[0-9]+$ ]]; then
+        echo "Error: start_step must be a non-negative integer"
+        exit 1
+    fi
 
     # Check if config file exists
     if [ ! -f "$config_file" ]; then
@@ -1145,15 +1202,51 @@ main() {
         exit 1
     fi
 
-    echo "Starting HTTP sequence with $num_steps steps..."
+    # Validate start_step is within bounds
+    if [ "$start_step" -ge "$num_steps" ]; then
+        echo "Error: start_step ($start_step) must be less than number of steps ($num_steps)"
+        exit 1
+    fi
+
+    if [ "$start_step" -eq 0 ]; then
+        echo "Starting HTTP sequence with $num_steps steps..."
+    else
+        echo "Starting HTTP sequence from step $((start_step + 1)) (skipping first $start_step steps)..."
+    fi
     echo ""
 
     # Track execution stats
     local steps_executed=0
     local steps_skipped=0
 
-    # Execute each step
-    for ((i=0; i<num_steps; i++)); do
+    # Populate empty responses for skipped initial steps (to maintain indexing)
+    for ((i=0; i<start_step; i++)); do
+        local step=$(echo "$config" | jq -c ".steps[$i]")
+        local step_meta=$(echo "$step" | jq -r '[.name, .id, .method, .url] | @tsv')
+        local step_num=$((i + 1))
+        local name=$(echo "$step_meta" | cut -f1)
+        local id=$(echo "$step_meta" | cut -f2)
+        local method=$(echo "$step_meta" | cut -f3)
+        local url=$(echo "$step_meta" | cut -f4)
+
+        # Map step ID to index (even for skipped steps)
+        response_ids["$id"]=$i
+
+        # Store empty response and status for skipped steps
+        responses_json+=("{}")
+        responses_status+=("0")
+        steps_skipped=$((steps_skipped + 1))
+
+        echo -e "Step $step_num: $method $url ${YELLOW}⊘ SKIPPED${NC} (starting from step $((start_step + 1)))"
+        debug_log "DEBUG: Skipped initial step $step_num (id=$id)"
+    done
+
+    if [ "$start_step" -gt 0 ]; then
+        echo ""
+    fi
+
+    # Execute each step (starting from start_step)
+    for ((i=start_step; i<num_steps; i++)); do
         debug_log "DEBUG: Loop iteration $i of $num_steps"
         local step_num=$((i + 1))
         # Extract step object once (optimization: 2 calls instead of 5)

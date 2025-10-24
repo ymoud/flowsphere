@@ -6,7 +6,11 @@ Execute sequential HTTP requests from JSON configuration files. Cross-platform B
 
 ### Run a Configuration
 ```bash
+# Run from the beginning
 ./apiseq.sh config-onboarding.json
+
+# Start from a specific step (0-based index)
+./apiseq.sh config-onboarding.json 5    # Start from step 6 (index 5)
 ```
 
 **Prerequisites:** bash, curl, jq (auto-install available)
@@ -268,6 +272,11 @@ Run the script - missing dependencies trigger auto-install prompt.
 - Use conditions for branching workflows
 - Enable debug mode for troubleshooting
 - Test with `config-simple.json` (uses public JSONPlaceholder API)
+- **Resume execution**: Use the start step parameter to skip already-completed steps
+  - Example: `./apiseq.sh config.json 7` starts from step 8 (0-based index)
+  - Earlier steps are marked as SKIPPED and get empty responses
+  - Useful for debugging specific steps without re-running the entire sequence
+  - ⚠️ **Warning**: If later steps reference data from skipped steps, execution will fail
 
 ## Examples Included
 
