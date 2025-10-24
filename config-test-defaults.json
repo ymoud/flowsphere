@@ -1,0 +1,56 @@
+{
+  "enableDebug": false,
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "timeout": 10,
+    "headers": {
+      "User-Agent": "Test-Runner/1.0",
+      "Accept": "application/json"
+    },
+    "validations": [
+      { "status": 200 },
+      { "jsonpath": ".id", "exists": true }
+    ]
+  },
+  "steps": [
+    {
+      "id": "step1",
+      "name": "Step 1 - Inherits defaults (no custom validations/headers)",
+      "method": "GET",
+      "url": "/posts/1"
+    },
+    {
+      "id": "step2",
+      "name": "Step 2 - MERGES custom validations WITH defaults",
+      "method": "GET",
+      "url": "/posts/2",
+      "validations": [
+        { "jsonpath": ".userId", "equals": "1" },
+        { "jsonpath": ".title", "exists": true }
+      ]
+    },
+    {
+      "id": "step3",
+      "name": "Step 3 - Empty array [] skips ALL defaults",
+      "method": "GET",
+      "url": "/posts/999",
+      "validations": []
+    },
+    {
+      "id": "step4",
+      "name": "Step 4 - MERGES custom headers WITH defaults",
+      "method": "GET",
+      "url": "/posts/4",
+      "headers": {
+        "Custom-Header": "MyValue"
+      }
+    },
+    {
+      "id": "step5",
+      "name": "Step 5 - Empty object {} skips default headers",
+      "method": "GET",
+      "url": "/posts/5",
+      "headers": {}
+    }
+  ]
+}
