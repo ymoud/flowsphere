@@ -2858,16 +2858,6 @@
 
                 // Add .responses if there are previous steps
                 if (config.steps && config.steps.length > 0 && stepIndex !== null && stepIndex > 0) {
-                    const respSyntax = ' .responses[';
-                    if (respSyntax.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
-                        basicSuggestions.push({
-                            text: respSyntax,
-                            display: '.responses[N].<field>',
-                            hint: 'Access previous step response by index',
-                            category: 'Basic Syntax'
-                        });
-                    }
-
                     const respNamedSyntax = ' .responses.';
                     if (respNamedSyntax.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
                         basicSuggestions.push({
@@ -2924,21 +2914,6 @@
             // Category: Response References
             if (config.steps && config.steps.length > 0 && stepIndex !== null) {
                 const respSuggestions = [];
-
-                // Add index-based references
-                for (let i = 0; i < Math.min(stepIndex, config.steps.length); i++) {
-                    const step = config.steps[i];
-                    const indexRef = ` .responses[${i}]`;
-
-                    if (indexRef.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
-                        respSuggestions.push({
-                            text: indexRef + '.',
-                            display: `.responses[${i}].<field>`,
-                            hint: `Response from step ${i + 1}: ${step.name || step.id || 'unnamed'}`,
-                            category: 'Response References'
-                        });
-                    }
-                }
 
                 // Add named references (by step ID)
                 for (let i = 0; i < Math.min(stepIndex, config.steps.length); i++) {

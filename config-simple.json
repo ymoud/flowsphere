@@ -26,7 +26,7 @@
       "id": "fetch-user",
       "name": "Fetch user details",
       "method": "GET",
-      "url": "/users/{{ .responses[0].userId }}",
+      "url": "/users/{{ .responses.check-health.userId }}",
       "validations": [
         {
           "jsonpath": ".id",
@@ -38,7 +38,7 @@
       "id": "get-todos",
       "name": "Get user's todos (only if user exists)",
       "method": "GET",
-      "url": "/users/{{ .responses[1].id }}/todos",
+      "url": "/users/{{ .responses.fetch-user.id }}/todos",
       "condition": {
         "response": 1,
         "field": ".id",
@@ -49,7 +49,7 @@
       "id": "get-albums",
       "name": "Get user's albums",
       "method": "GET",
-      "url": "/users/{{ .responses[1].id }}/albums",
+      "url": "/users/{{ .responses.fetch-user.id }}/albums",
       "condition": {
         "response": 1,
         "statusCode": 200

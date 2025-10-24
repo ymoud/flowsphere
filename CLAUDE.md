@@ -86,10 +86,10 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
   - Useful for API keys, user IDs, common values used across multiple steps
   - Used in: URLs, headers, request bodies
   - Example: `{{ .vars.apiKey }}`
-- Response syntax: `{{ .responses[N].field.subfield }}` or `{{ .responses.stepId.field }}`
-  - Index-based: responses[0] = first step, responses[1] = second step
+- Response syntax: `{{ .responses.stepId.field.subfield }}`
   - Named references: responses.stepId references step by its `id` field
   - Used in: URLs, headers, request bodies
+  - Example: `{{ .responses.authenticate.token }}`
 - User input syntax: `{{ .input.variableName }}`
   - References values collected from `prompts` in the same step
   - Used in: URLs, headers, request bodies
@@ -224,12 +224,11 @@ The editor includes context-aware autocomplete for the `{{ }}` variable substitu
 - **Trigger**: Type `{{` in any text input or textarea
 - **Suggestions shown**:
   - **Basic Syntax** (when you first type `{{`):
-    - `.responses[` - Access response by index
     - `.responses.` - Access response by step ID
     - `.vars.` - Access global variables
     - `.input.` - Access user input prompts
   - **Global Variables**: Shows all variables defined in the `variables` section with their values
-  - **Response References**: Shows available responses from previous steps (both index-based and named)
+  - **Response References**: Shows available responses from previous steps by step ID
   - **User Input**: Shows prompt variables defined in the current step
 - **Features**:
   - Positions dropdown at text caret for accurate placement

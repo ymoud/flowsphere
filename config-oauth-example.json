@@ -57,7 +57,7 @@
       "method": "GET",
       "url": "/user/profile",
       "headers": {
-        "Authorization": "Bearer {{ .responses[1].access_token }}"
+        "Authorization": "Bearer {{ .responses.exchange-code-for-token-after-user-approves.access_token }}"
       }
     }
   ]

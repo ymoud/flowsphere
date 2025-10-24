@@ -27,7 +27,7 @@ xdg-open config-editor.html     # Linux
 - Form-based editing with validation
 - **Intelligent autocomplete** for `{{ }}` variable syntax (type `{{` in any field)
   - Suggests global variables (`.vars.`)
-  - Suggests response references (`.responses[N].` or `.responses.stepId.`)
+  - Suggests response references (`.responses.stepId.`)
   - Suggests user input variables (`.input.`)
   - Appears at your text caret with keyboard navigation
 - Live JSON preview with one-click copy to clipboard
@@ -92,15 +92,12 @@ xdg-open config-editor.html     # Linux
 
 ## Response References
 
-### Named (Recommended)
+### Named References
 ```
 {{ .responses.stepId.field.subfield }}
 ```
 
-### Index-based (Legacy)
-```
-{{ .responses[0].field.subfield }}
-```
+Reference responses from previous steps using their step ID.
 
 ### User Input
 ```

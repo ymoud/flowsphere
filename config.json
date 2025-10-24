@@ -33,7 +33,7 @@
       "method": "GET",
       "url": "/profile",
       "headers": {
-        "Authorization": "Bearer {{ .responses[0].token }}"
+        "Authorization": "Bearer {{ .responses.authenticate.token }}"
       },
       "validations": [
         {
@@ -46,9 +46,9 @@
       "id": "update-premium-user-settings",
       "name": "Update premium user settings",
       "method": "PUT",
-      "url": "/users/{{ .responses[1].id }}/settings",
+      "url": "/users/{{ .responses.get-user-profile.id }}/settings",
       "headers": {
-        "Authorization": "Bearer {{ .responses[0].token }}"
+        "Authorization": "Bearer {{ .responses.authenticate.token }}"
       },
       "body": {
         "theme": "dark",
@@ -72,11 +72,11 @@
       "method": "POST",
       "url": "/emails/welcome",
       "headers": {
-        "Authorization": "Bearer {{ .responses[0].token }}"
+        "Authorization": "Bearer {{ .responses.authenticate.token }}"
       },
       "body": {
-        "userId": "{{ .responses[1].id }}",
-        "email": "{{ .responses[1].email }}"
+        "userId": "{{ .responses.get-user-profile.id }}",
+        "email": "{{ .responses.get-user-profile.email }}"
       },
       "condition": {
         "response": 1,
@@ -109,7 +109,7 @@
       "method": "GET",
       "url": "/profile",
       "headers": {
-        "Authorization": "Bearer {{ .responses[0].token }}"
+        "Authorization": "Bearer {{ .responses.authenticate.token }}"
       },
       "condition": {
         "response": 0,
@@ -122,7 +122,7 @@
       "method": "GET",
       "url": "/admin/dashboard",
       "headers": {
-        "Authorization": "Bearer {{ .responses[0].token }}"
+        "Authorization": "Bearer {{ .responses.authenticate.token }}"
       },
       "condition": {
         "response": 1,
@@ -134,9 +134,9 @@
       "id": "enable-notifications-if-disabled",
       "name": "Enable notifications if disabled",
       "method": "POST",
-      "url": "/users/{{ .responses[1].id }}/notifications/enable",
+      "url": "/users/{{ .responses.get-user-profile.id }}/notifications/enable",
       "headers": {
-        "Authorization": "Bearer {{ .responses[0].token }}"
+        "Authorization": "Bearer {{ .responses.authenticate.token }}"
       },
       "condition": {
         "response": 1,
@@ -150,7 +150,7 @@
       "method": "POST",
       "url": "/logout",
       "headers": {
-        "Authorization": "Bearer {{ .responses[0].token }}"
+        "Authorization": "Bearer {{ .responses.authenticate.token }}"
       },
       "condition": {
         "response": 0,

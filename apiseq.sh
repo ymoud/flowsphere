@@ -425,7 +425,7 @@ merge_with_defaults() {
 }
 
 # Function to substitute variables in a string
-# Supports syntax: {{ .vars.key }}, {{ .responses[N].field.subfield }}, and {{ .input.key }}
+# Supports syntax: {{ .vars.key }}, {{ .responses.stepId.field.subfield }}, and {{ .input.key }}
 substitute_variables() {
     local input="$1"
     local output="$input"
@@ -545,51 +545,6 @@ substitute_variables() {
 
         if [ $named_iteration -gt 10 ]; then
             echo "ERROR: substitute_variables - infinite loop detected in named reference substitution" >&2
-            exit 1
-        fi
-    done
-
-    # Find all {{ .responses[N]... }} patterns (index-based references for backward compatibility)
-    local iteration=0
-    while [[ "$output" =~ \{\{[[:space:]]*\.responses\[([0-9]+)\]\.([^}]+)[[:space:]]*\}\} ]]; do
-        iteration=$((iteration + 1))
-        debug_log "DEBUG: substitute_variables - iteration $iteration"
-        local index="${BASH_REMATCH[1]}"
-        local jsonpath="${BASH_REMATCH[2]}"
-        # Trim whitespace from jsonpath
-        jsonpath=$(echo "$jsonpath" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        local full_match="${BASH_REMATCH[0]}"
-        debug_log "DEBUG: substitute_variables - index=$index, jsonpath=$jsonpath, full_match=$full_match"
-
-        # Get the value from the stored response
-        if [ "$index" -lt "${#responses_json[@]}" ]; then
-            debug_log "DEBUG: substitute_variables - extracting from responses_json[$index]"
-            debug_log "DEBUG: substitute_variables - response data: ${responses_json[$index]}"
-            local value=$(echo "${responses_json[$index]}" | jq -r ".$jsonpath")
-            debug_log "DEBUG: substitute_variables - extracted value=$value"
-            if [ "$value" = "null" ] || [ -z "$value" ]; then
-                echo "Error: Could not extract value from .responses[$index].$jsonpath" >&2
-                exit 1
-            fi
-            # Replace the placeholder with the actual value
-            # For bash string replacement, we need to escape glob special chars: * ? [ ]
-            debug_log "DEBUG: substitute_variables - replacing '$full_match' with '$value'"
-            # Escape glob special characters by replacing them with [x] pattern
-            local escaped_full_match="$full_match"
-            escaped_full_match="${escaped_full_match//\*/\\*}"
-            escaped_full_match="${escaped_full_match//\?/\\?}"
-            escaped_full_match="${escaped_full_match//\[/\\[}"
-            escaped_full_match="${escaped_full_match//\]/\\]}"
-            debug_log "DEBUG: escaped_full_match=$escaped_full_match"
-            output="${output//$escaped_full_match/$value}"
-            debug_log "DEBUG: substitute_variables - output after replacement=$output"
-        else
-            echo "Error: Response index $index not found (only ${#responses_json[@]} responses stored)" >&2
-            exit 1
-        fi
-
-        if [ $iteration -gt 10 ]; then
-            echo "ERROR: substitute_variables - infinite loop detected, breaking" >&2
             exit 1
         fi
     done

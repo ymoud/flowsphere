@@ -35,7 +35,7 @@
       "id": "fetch-the-created-post",
       "name": "Fetch the created post",
       "method": "GET",
-      "url": "/posts/{{ .responses[0].id }}",
+      "url": "/posts/{{ .responses.create-a-post-with-user-input.id }}",
       "validations": [
         {
           "jsonpath": ".id",
