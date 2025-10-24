@@ -407,46 +407,70 @@ merge_with_defaults() {
         fi
     fi
 
-    # Merge default headers with step headers (step headers override conflicts)
-    # Special case: if step has headers property but it's empty {}, skip defaults
-    if echo "$step_json" | jq -e '.headers' > /dev/null 2>&1; then
-        # Step has headers property defined - check if it's explicitly empty
-        local step_headers=$(echo "$step_json" | jq '.headers')
-        local step_headers_length=$(echo "$step_headers" | jq 'length')
-        if [ "$step_headers_length" -eq 0 ]; then
-            # Explicitly empty - skip defaults, keep empty object
+    # Merge default headers with step headers based on skipDefaultHeaders flag
+    local skip_default_headers=$(echo "$step_json" | jq -r '.skipDefaultHeaders // false')
+    if [ "$skip_default_headers" = "true" ]; then
+        # Skip defaults - use only step headers (if any)
+        if echo "$step_json" | jq -e '.headers' > /dev/null 2>&1; then
+            # Step has headers, use them
+            local step_headers=$(echo "$step_json" | jq '.headers')
+            merged=$(echo "$merged" | jq --argjson headers "$step_headers" '.headers = $headers')
+        else
+            # No step headers defined, set empty object (no headers will be sent)
             merged=$(echo "$merged" | jq '.headers = {}')
-        elif echo "$DEFAULTS_JSON" | jq -e '.headers' > /dev/null 2>&1; then
-            # Merge defaults with step headers (step headers override)
-            local default_headers=$(echo "$DEFAULTS_JSON" | jq '.headers')
-            local merged_headers=$(echo "$default_headers $step_headers" | jq -s '.[0] * .[1]')
-            merged=$(echo "$merged" | jq --argjson headers "$merged_headers" '.headers = $headers')
         fi
-    elif echo "$DEFAULTS_JSON" | jq -e '.headers' > /dev/null 2>&1; then
-        # No step headers, use defaults
-        local default_headers=$(echo "$DEFAULTS_JSON" | jq '.headers')
-        merged=$(echo "$merged" | jq --argjson headers "$default_headers" '.headers = $headers')
+    else
+        # Merge behavior (default) - merge step headers with defaults
+        if echo "$step_json" | jq -e '.headers' > /dev/null 2>&1; then
+            # Step has headers - merge with defaults
+            if echo "$DEFAULTS_JSON" | jq -e '.headers' > /dev/null 2>&1; then
+                local default_headers=$(echo "$DEFAULTS_JSON" | jq '.headers')
+                local step_headers=$(echo "$step_json" | jq '.headers')
+                local merged_headers=$(echo "$default_headers $step_headers" | jq -s '.[0] * .[1]')
+                merged=$(echo "$merged" | jq --argjson headers "$merged_headers" '.headers = $headers')
+            else
+                # No defaults, use step headers only
+                local step_headers=$(echo "$step_json" | jq '.headers')
+                merged=$(echo "$merged" | jq --argjson headers "$step_headers" '.headers = $headers')
+            fi
+        elif echo "$DEFAULTS_JSON" | jq -e '.headers' > /dev/null 2>&1; then
+            # No step headers, use defaults
+            local default_headers=$(echo "$DEFAULTS_JSON" | jq '.headers')
+            merged=$(echo "$merged" | jq --argjson headers "$default_headers" '.headers = $headers')
+        fi
     fi
 
-    # Merge default validations with step validations (concatenate arrays)
-    # Special case: if step has validations property but it's empty [], skip defaults
-    if echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
-        # Step has validations property defined - check if it's explicitly empty
-        local step_validations=$(echo "$step_json" | jq '.validations')
-        local step_val_length=$(echo "$step_validations" | jq 'length')
-        if [ "$step_val_length" -eq 0 ]; then
-            # Explicitly empty - skip defaults, keep empty array
+    # Merge default validations with step validations based on skipDefaultValidations flag
+    local skip_default_validations=$(echo "$step_json" | jq -r '.skipDefaultValidations // false')
+    if [ "$skip_default_validations" = "true" ]; then
+        # Skip defaults - use only step validations (if any)
+        if echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
+            # Step has validations, use them
+            local step_validations=$(echo "$step_json" | jq '.validations')
+            merged=$(echo "$merged" | jq --argjson validations "$step_validations" '.validations = $validations')
+        else
+            # No step validations defined, set empty array (no validations will be performed)
             merged=$(echo "$merged" | jq '.validations = []')
-        elif echo "$DEFAULTS_JSON" | jq -e '.validations' > /dev/null 2>&1; then
-            # Merge defaults with step validations
-            local default_validations=$(echo "$DEFAULTS_JSON" | jq '.validations')
-            local merged_validations=$(echo "$default_validations $step_validations" | jq -s '.[0] + .[1]')
-            merged=$(echo "$merged" | jq --argjson validations "$merged_validations" '.validations = $validations')
         fi
-    elif echo "$DEFAULTS_JSON" | jq -e '.validations' > /dev/null 2>&1; then
-        # No step validations, use defaults
-        local default_validations=$(echo "$DEFAULTS_JSON" | jq '.validations')
-        merged=$(echo "$merged" | jq --argjson validations "$default_validations" '.validations = $validations')
+    else
+        # Merge behavior (default) - concatenate step validations with defaults
+        if echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
+            # Step has validations - concatenate with defaults
+            if echo "$DEFAULTS_JSON" | jq -e '.validations' > /dev/null 2>&1; then
+                local default_validations=$(echo "$DEFAULTS_JSON" | jq '.validations')
+                local step_validations=$(echo "$step_json" | jq '.validations')
+                local merged_validations=$(echo "$default_validations $step_validations" | jq -s '.[0] + .[1]')
+                merged=$(echo "$merged" | jq --argjson validations "$merged_validations" '.validations = $validations')
+            else
+                # No defaults, use step validations only
+                local step_validations=$(echo "$step_json" | jq '.validations')
+                merged=$(echo "$merged" | jq --argjson validations "$step_validations" '.validations = $validations')
+            fi
+        elif echo "$DEFAULTS_JSON" | jq -e '.validations' > /dev/null 2>&1; then
+            # No step validations, use defaults
+            local default_validations=$(echo "$DEFAULTS_JSON" | jq '.validations')
+            merged=$(echo "$merged" | jq --argjson validations "$default_validations" '.validations = $validations')
+        fi
     fi
 
     # Merge default timeout with step timeout (step timeout overrides)

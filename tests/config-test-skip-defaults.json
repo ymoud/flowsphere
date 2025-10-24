@@ -1,0 +1,131 @@
+{
+  "enableDebug": false,
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "timeout": 10,
+    "headers": {
+      "User-Agent": "Test-Runner/1.0",
+      "Accept": "application/json",
+      "X-Default-Header": "DefaultValue"
+    },
+    "validations": [
+      { "status": 200 },
+      { "jsonpath": ".id", "exists": true }
+    ]
+  },
+  "steps": [
+    {
+      "id": "step1",
+      "name": "Step 1 - Inherits ALL defaults (no flags, no local settings)",
+      "method": "GET",
+      "url": "/posts/1"
+    },
+    {
+      "id": "step2",
+      "name": "Step 2 - MERGES local headers with defaults (no skip flag)",
+      "method": "GET",
+      "url": "/posts/2",
+      "headers": {
+        "X-Custom-Header": "CustomValue"
+      }
+    },
+    {
+      "id": "step3",
+      "name": "Step 3 - MERGES local validations with defaults (no skip flag)",
+      "method": "GET",
+      "url": "/posts/3",
+      "validations": [
+        { "jsonpath": ".userId", "equals": "1" },
+        { "jsonpath": ".title", "exists": true }
+      ]
+    },
+    {
+      "id": "step4",
+      "name": "Step 4 - SKIPS default headers, uses ONLY local headers",
+      "method": "GET",
+      "url": "/posts/4",
+      "skipDefaultHeaders": true,
+      "headers": {
+        "X-Only-This-Header": "OnlyThisValue"
+      }
+    },
+    {
+      "id": "step5",
+      "name": "Step 5 - SKIPS default headers, NO local headers defined (sends NO headers)",
+      "method": "GET",
+      "url": "/posts/5",
+      "skipDefaultHeaders": true
+    },
+    {
+      "id": "step6",
+      "name": "Step 6 - SKIPS default validations, uses ONLY local validations",
+      "method": "GET",
+      "url": "/posts/6",
+      "skipDefaultValidations": true,
+      "validations": [
+        { "status": 201 }
+      ]
+    },
+    {
+      "id": "step7",
+      "name": "Step 7 - SKIPS default validations, NO local validations (NO validations performed, allows any status)",
+      "method": "GET",
+      "url": "/posts/999",
+      "skipDefaultValidations": true
+    },
+    {
+      "id": "step8",
+      "name": "Step 8 - SKIPS BOTH defaults, uses local headers AND validations",
+      "method": "GET",
+      "url": "/posts/8",
+      "skipDefaultHeaders": true,
+      "skipDefaultValidations": true,
+      "headers": {
+        "X-Custom-Only": "Value"
+      },
+      "validations": [
+        { "status": 200 },
+        { "jsonpath": ".body", "exists": true }
+      ]
+    },
+    {
+      "id": "step9",
+      "name": "Step 9 - SKIPS BOTH defaults, NO local settings (no headers, no validations)",
+      "method": "GET",
+      "url": "/posts/999",
+      "skipDefaultHeaders": true,
+      "skipDefaultValidations": true
+    },
+    {
+      "id": "step10",
+      "name": "Step 10 - Explicit false flags = MERGE behavior (same as step 1)",
+      "method": "GET",
+      "url": "/posts/10",
+      "skipDefaultHeaders": false,
+      "skipDefaultValidations": false
+    },
+    {
+      "id": "step11",
+      "name": "Step 11 - MERGES headers + SKIPS validations (mixed behavior)",
+      "method": "GET",
+      "url": "/posts/999",
+      "skipDefaultValidations": true,
+      "headers": {
+        "X-Merged-Header": "MergedValue"
+      }
+    },
+    {
+      "id": "step12",
+      "name": "Step 12 - SKIPS headers + MERGES validations (mixed behavior)",
+      "method": "GET",
+      "url": "/posts/12",
+      "skipDefaultHeaders": true,
+      "headers": {
+        "X-Only-Header": "OnlyValue"
+      },
+      "validations": [
+        { "jsonpath": ".body", "exists": true }
+      ]
+    }
+  ]
+}

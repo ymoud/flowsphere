@@ -56,6 +56,7 @@ xdg-open config-editor/index.html     # Linux
 **Key features:**
 - Form-based editing with templates (OAuth flow, user input, etc.)
 - **Smart autocomplete** — type `{{` to see available variables, responses, inputs
+- **Skip defaults controls** — checkboxes to override global headers/validations per step
 - **Import from Postman** — convert existing Postman collections automatically
 - Auto-save to browser (never lose work)
 - Live preview with one-click export to JSON
@@ -66,6 +67,7 @@ xdg-open config-editor/index.html     # Linux
 |---------|-------------|
 | **Smart Data Passing** | Reference any field from previous responses: `{{ .responses.login.token }}` |
 | **Conditional Logic** | Skip/execute steps based on previous results (e.g., premium vs. free user flows) |
+| **Defaults Control** | Merge or skip global defaults per step with `skipDefaultHeaders`/`skipDefaultValidations` |
 | **User Interaction** | Prompt for input (passwords, codes) or auto-launch browser (OAuth flows) |
 | **Validation** | Verify status codes and response fields; fail fast on errors |
 | **Flexible Formats** | JSON and form-urlencoded bodies supported |
@@ -83,9 +85,19 @@ See the [`examples/`](examples/) folder for complete, ready-to-run configuration
 | [`config.json`](examples/config.json) | Full-featured example with authentication and validation |
 | [`config-ids-token.json`](examples/config-ids-token.json) | NBG token acquisition with form-urlencoded body |
 
+**Test configurations** (in [`tests/`](tests/) folder):
+
+| File | Description |
+|------|-------------|
+| [`config-test-skip-defaults.json`](tests/config-test-skip-defaults.json) | Comprehensive test of `skipDefaultHeaders` and `skipDefaultValidations` flags |
+| [`config-test-defaults.json`](tests/config-test-defaults.json) | Tests defaults merging behavior |
+| [`config-test-variables.json`](tests/config-test-variables.json) | Demonstrates global variables feature |
+| [`config-test-comparisons.json`](tests/config-test-comparisons.json) | Tests numeric comparison validations |
+
 **Run any example:**
 ```bash
 ./apiseq.sh examples/config-simple.json
+./apiseq.sh tests/config-test-skip-defaults.json
 ```
 
 ---
@@ -134,13 +146,15 @@ See the [`examples/`](examples/) folder for complete, ready-to-run configuration
 | `name` | ✓ | Human-readable description |
 | `method` | ✓ | HTTP method (GET, POST, PUT, DELETE, PATCH) |
 | `url` | ✓ | Full URL or relative path (with baseUrl) |
-| `headers` | | HTTP headers (merged with defaults) |
+| `headers` | | HTTP headers (merged with defaults unless `skipDefaultHeaders: true`) |
+| `skipDefaultHeaders` | | `true` to use only step headers, `false` (default) to merge with defaults |
 | `body` | | Request body (JSON or form-urlencoded) |
 | `bodyFormat` | | `"json"` (default) or `"form-urlencoded"` |
 | `timeout` | | Request timeout in seconds (overrides defaults) |
 | `prompts` | | User input prompts: `{"key": "Prompt text"}` |
 | `condition` | | Conditional execution rules |
-| `validations` | | Array of validation rules (overrides defaults) |
+| `validations` | | Array of validation rules (concatenated with defaults unless `skipDefaultValidations: true`) |
+| `skipDefaultValidations` | | `true` to use only step validations, `false` (default) to concatenate with defaults |
 | `launchBrowser` | | JSONPath to URL for browser launch |
 
 ## Response References
@@ -189,7 +203,92 @@ Validations are specified as an array. Each validation can check status code or 
 }
 ```
 
-**Default validations:** Set in `defaults.validations` to apply to all steps. Steps with their own validations override defaults completely.
+**Default validations:** Set in `defaults.validations` to apply to all steps. Step validations are concatenated with defaults unless `skipDefaultValidations: true` is set.
+
+## Defaults Merging vs. Skipping
+
+Control how step-level settings interact with global defaults:
+
+### Headers Behavior
+
+**Merge (default):** Step headers are merged with default headers. Step headers override conflicting keys.
+```json
+{
+  "defaults": { "headers": { "Content-Type": "application/json", "User-Agent": "App/1.0" } },
+  "steps": [{
+    "headers": { "Authorization": "Bearer token" }
+    // Result: All three headers are sent
+  }]
+}
+```
+
+**Skip defaults:** Use only step headers, ignore all defaults.
+```json
+{
+  "steps": [{
+    "skipDefaultHeaders": true,
+    "headers": { "Authorization": "Bearer token" }
+    // Result: Only Authorization header is sent
+  }]
+}
+```
+
+**No headers:** Skip defaults without defining step headers.
+```json
+{
+  "steps": [{
+    "skipDefaultHeaders": true
+    // Result: No headers sent at all
+  }]
+}
+```
+
+### Validations Behavior
+
+**Concatenate (default):** Step validations are added to default validations.
+```json
+{
+  "defaults": { "validations": [{ "status": 200 }, { "jsonpath": ".id", "exists": true }] },
+  "steps": [{
+    "validations": [{ "jsonpath": ".name", "exists": true }]
+    // Result: All 3 validations are checked (status 200, .id exists, .name exists)
+  }]
+}
+```
+
+**Skip defaults:** Use only step validations, ignore all defaults.
+```json
+{
+  "steps": [{
+    "skipDefaultValidations": true,
+    "validations": [{ "status": 201 }]
+    // Result: Only status 201 is validated
+  }]
+}
+```
+
+**No validations:** Skip defaults without defining step validations.
+```json
+{
+  "steps": [{
+    "skipDefaultValidations": true
+    // Result: No validations performed (accepts any response)
+  }]
+}
+```
+
+### Common Use Cases
+
+**When to use merge behavior (default):**
+- Most API calls in a sequence share common headers (Authorization, Content-Type)
+- You want consistent validation across all steps (status 200 + common field checks)
+- Step-level settings add to or override specific defaults
+
+**When to use skip defaults:**
+- File upload step needs `Content-Type: multipart/form-data` (completely different from JSON default)
+- Create endpoint expects status 201 instead of 200 (different validation)
+- Public endpoint doesn't need authentication headers (no headers at all)
+- Testing error scenarios where you expect failures (no validation checks)
 
 ## Form-Urlencoded Bodies
 
@@ -255,6 +354,8 @@ Run the script - missing dependencies trigger auto-install prompt.
 
 - **Use the visual editor** to avoid JSON syntax errors
 - **Set global defaults** (baseUrl, headers) to reduce duplication across steps
+- **Use merge behavior (default)** for most steps — add step-level headers/validations that complement defaults
+- **Use skip defaults** only when a step needs completely different behavior (e.g., file upload with different Content-Type, or status 201 instead of 200)
 - **Use named step IDs** instead of numeric indexes for maintainability
 - **Enable debug mode** when troubleshooting: add `"enableDebug": true` to your config
 - **Test incrementally** — use the resume feature to start from any step: `./apiseq.sh examples/config.json 5`

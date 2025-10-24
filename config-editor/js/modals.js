@@ -207,13 +207,28 @@ function closeConditionModal() {
 
 // Validations Builder Functions
 function renderValidationsList(validations, stepIndex) {
-    // Distinguish between undefined (inherit defaults) and empty array (custom, none added)
+    const step = config.steps[stepIndex];
+    const skipDefaults = step.skipDefaultValidations === true;
+
+    // If validations undefined
     if (validations === undefined) {
-        return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using default validations</div>';
+        if (skipDefaults) {
+            // Skip defaults but no validations defined = no validations performed
+            return '<div class="help-text" style="font-style: italic; color: #dc2626;">No validations will be performed (click + to add)</div>';
+        } else {
+            // Merge behavior - using defaults
+            return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using default validations (click + to add step-level validations)</div>';
+        }
     }
 
     if (Array.isArray(validations) && validations.length === 0) {
-        return '<div class="help-text" style="font-style: italic; color: #6b7280;">No custom validations defined (click + to add)</div>';
+        if (skipDefaults) {
+            // Skip defaults with empty array = no validations performed
+            return '<div class="help-text" style="font-style: italic; color: #dc2626;">No validations will be performed (click + to add)</div>';
+        } else {
+            // Merge behavior with empty array = just defaults
+            return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using only default validations (click + to add step-level validations)</div>';
+        }
     }
 
     return validations.map((validation, valIndex) => {
@@ -559,11 +574,11 @@ function removeValidation(stepIndex, valIndex) {
 
 function toggleSkipDefaultValidations(stepIndex, skipDefaults) {
     if (skipDefaults) {
-        // Set to empty array - user can add custom validations
-        config.steps[stepIndex].validations = [];
+        // Set skipDefaultValidations flag to true
+        config.steps[stepIndex].skipDefaultValidations = true;
     } else {
-        // Remove validations property to inherit defaults
-        delete config.steps[stepIndex].validations;
+        // Remove skipDefaultValidations flag (defaults to false/merge behavior)
+        delete config.steps[stepIndex].skipDefaultValidations;
     }
 
     // Update UI
@@ -574,11 +589,11 @@ function toggleSkipDefaultValidations(stepIndex, skipDefaults) {
 
 function toggleSkipDefaultHeaders(stepIndex, skipDefaults) {
     if (skipDefaults) {
-        // Set to empty object - user can add custom headers
-        config.steps[stepIndex].headers = {};
+        // Set skipDefaultHeaders flag to true
+        config.steps[stepIndex].skipDefaultHeaders = true;
     } else {
-        // Remove headers property to inherit/merge with defaults
-        delete config.steps[stepIndex].headers;
+        // Remove skipDefaultHeaders flag (defaults to false/merge behavior)
+        delete config.steps[stepIndex].skipDefaultHeaders;
     }
 
     // Update UI
@@ -734,15 +749,30 @@ function closePromptModal() {
 
 // Headers Builder Functions
 function renderHeadersList(headers, stepIndex) {
-    // Distinguish between undefined (merged with defaults) and empty object (custom, none added)
+    const step = config.steps[stepIndex];
+    const skipDefaults = step.skipDefaultHeaders === true;
+
+    // If headers undefined
     if (headers === undefined) {
-        return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using default headers (merged)</div>';
+        if (skipDefaults) {
+            // Skip defaults but no headers defined = no headers sent
+            return '<div class="help-text" style="font-style: italic; color: #dc2626;">No headers will be sent (click + to add)</div>';
+        } else {
+            // Merge behavior - using defaults
+            return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using default headers (merged)</div>';
+        }
     }
 
     const headerKeys = Object.keys(headers);
 
     if (headerKeys.length === 0) {
-        return '<div class="help-text" style="font-style: italic; color: #6b7280;">No custom headers defined (click + to add)</div>';
+        if (skipDefaults) {
+            // Skip defaults with empty object = no headers sent
+            return '<div class="help-text" style="font-style: italic; color: #dc2626;">No headers will be sent (click + to add)</div>';
+        } else {
+            // Merge behavior with empty object = just defaults
+            return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using only default headers</div>';
+        }
     }
 
     return headerKeys.map((key) => {

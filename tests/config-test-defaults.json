@@ -31,10 +31,10 @@
     },
     {
       "id": "step3",
-      "name": "Step 3 - Empty array [] skips ALL defaults",
+      "name": "Step 3 - Skip defaults flag skips ALL default validations",
       "method": "GET",
       "url": "/posts/999",
-      "validations": []
+      "skipDefaultValidations": true
     },
     {
       "id": "step4",
@@ -47,10 +47,10 @@
     },
     {
       "id": "step5",
-      "name": "Step 5 - Empty object {} skips default headers",
+      "name": "Step 5 - Skip defaults flag skips default headers",
       "method": "GET",
       "url": "/posts/5",
-      "headers": {}
+      "skipDefaultHeaders": true
     }
   ]
 }
