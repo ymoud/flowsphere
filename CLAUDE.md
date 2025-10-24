@@ -311,3 +311,5 @@ node postman-tools/parse-postman-enhanced.js
 - Default validations apply to steps without validations; steps with validations override defaults completely
 - Conditional steps reference only completed steps (step 3 can check responses 0, 1, or 2)
 - All steps must have a unique `id` field for named references
+- each time you implement a feature/bug fix dont automatically update documentation. Ask me first
+- you should not create documentation files for bug fixes u make, unless i tell to do so.

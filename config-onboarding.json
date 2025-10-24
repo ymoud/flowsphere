@@ -121,10 +121,16 @@
           "application": "81D9AF3A-C56C-4EA5-B9BE-01127D451394"
         },
         "payload": {
-          "longitude": "{{ .vars.firstName   }}",
+          "longitude": "23.512318",
           "latitude": "38.197055"
         }
-      }
+      },
+      "validations": [
+        {
+          "jsonpath": ".payload.countryCode",
+          "equals": "GR"
+        }
+      ]
     },
     {
       "id": "getHighRiskCountries",
