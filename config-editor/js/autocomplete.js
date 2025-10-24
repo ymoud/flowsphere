@@ -81,6 +81,9 @@ function handleAutocompleteInput(input, stepIndex) {
     // Get the partial text after "{{"
     const partialText = afterLastBrace.trim();
 
+    // Store the stepIndex for this autocomplete session
+    autocompleteStepIndex = stepIndex;
+
     // Build suggestions
     const suggestions = buildAutocompleteSuggestions(partialText, stepIndex);
 
@@ -96,14 +99,19 @@ function buildAutocompleteSuggestions(partialText, stepIndex) {
 
     if (!config) return suggestions;
 
-    // Category: Basic Syntax (when typing is minimal)
-    if (partialText.length <= 3) {
+    // Count dots in partialText to determine nesting level
+    const dotCount = (partialText.match(/\./g) || []).length;
+
+    // Category: Basic Syntax (only show when starting fresh or typing first level)
+    // Don't show if user has already typed a complete keyword like ".responses." (2+ dots)
+    if (partialText.length <= 3 && dotCount < 2) {
         const basicSuggestions = [];
 
         // Add .vars if there are variables
         if (config.variables && Object.keys(config.variables).length > 0) {
             const varSyntax = ' .vars.';
-            if (varSyntax.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
+            // Only match if suggestion starts with what user typed
+            if (varSyntax.toLowerCase().startsWith(partialText.toLowerCase()) || partialText === '') {
                 basicSuggestions.push({
                     text: varSyntax,
                     display: '.vars.<variableName>',
@@ -116,7 +124,8 @@ function buildAutocompleteSuggestions(partialText, stepIndex) {
         // Add .responses if there are previous steps
         if (config.steps && config.steps.length > 0 && stepIndex !== null && stepIndex > 0) {
             const respNamedSyntax = ' .responses.';
-            if (respNamedSyntax.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
+            // Only match if suggestion starts with what user typed
+            if (respNamedSyntax.toLowerCase().startsWith(partialText.toLowerCase()) || partialText === '') {
                 basicSuggestions.push({
                     text: respNamedSyntax,
                     display: '.responses.<stepId>.<field>',
@@ -131,7 +140,8 @@ function buildAutocompleteSuggestions(partialText, stepIndex) {
             const step = config.steps[stepIndex];
             if (step.prompts && Object.keys(step.prompts).length > 0) {
                 const inputSyntax = ' .input.';
-                if (inputSyntax.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
+                // Only match if suggestion starts with what user typed
+                if (inputSyntax.toLowerCase().startsWith(partialText.toLowerCase()) || partialText === '') {
                     basicSuggestions.push({
                         text: inputSyntax,
                         display: '.input.<variableName>',
@@ -152,7 +162,7 @@ function buildAutocompleteSuggestions(partialText, stepIndex) {
     if (config.variables && Object.keys(config.variables).length > 0) {
         const varSuggestions = [];
         for (const [key, value] of Object.entries(config.variables)) {
-            const suggestion = ` .vars.${key} `;
+            const suggestion = ` .vars.${key}`;
             if (suggestion.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
                 varSuggestions.push({
                     text: suggestion,
@@ -201,7 +211,7 @@ function buildAutocompleteSuggestions(partialText, stepIndex) {
         if (step.prompts && Object.keys(step.prompts).length > 0) {
             const inputSuggestions = [];
             for (const key of Object.keys(step.prompts)) {
-                const suggestion = ` .input.${key} `;
+                const suggestion = ` .input.${key}`;
                 if (suggestion.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
                     inputSuggestions.push({
                         text: suggestion,
@@ -350,56 +360,63 @@ function showAutocomplete(input, suggestions, bracePosition) {
 
     autocompleteDropdown.innerHTML = html;
 
-    // Position dropdown at caret (text cursor)
-    const rect = input.getBoundingClientRect();
-    const caretPos = getCaretCoordinates(input);
-    const inputStyle = window.getComputedStyle(input);
-    const lineHeight = parseInt(inputStyle.lineHeight) || parseInt(inputStyle.fontSize) * 1.2 || 18;
-
-    // Calculate absolute position
-    // For textarea, add lineHeight to position below the current line
-    // For input, caretPos.top already accounts for the input height
-    let top, left;
-
-    if (input.tagName === 'TEXTAREA') {
-        top = rect.top + window.scrollY + caretPos.top + lineHeight + 2;
-        left = rect.left + window.scrollX + caretPos.left;
-    } else {
-        top = rect.top + window.scrollY + caretPos.top;
-        left = rect.left + window.scrollX + caretPos.left;
-    }
-
-    // Ensure dropdown stays on screen
-    const dropdownWidth = 250;
-    const dropdownMaxHeight = 300;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    // Adjust if goes off right edge
-    if (left + dropdownWidth > window.scrollX + viewportWidth) {
-        left = Math.max(10, window.scrollX + viewportWidth - dropdownWidth - 10);
-    }
-
-    // Adjust if goes off bottom edge
-    if (top + dropdownMaxHeight > window.scrollY + viewportHeight) {
-        // Position above caret instead
-        if (input.tagName === 'TEXTAREA') {
-            top = rect.top + window.scrollY + caretPos.top - dropdownMaxHeight - 2;
-        } else {
-            top = rect.top + window.scrollY - dropdownMaxHeight - 2;
-        }
-    }
-
-    autocompleteDropdown.style.top = top + 'px';
-    autocompleteDropdown.style.left = left + 'px';
+    // Make dropdown visible first (but position off-screen) so browser can calculate dimensions
+    autocompleteDropdown.style.visibility = 'hidden';
     autocompleteDropdown.classList.add('show');
 
-    // Add click handlers
-    const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
-    items.forEach((item, index) => {
-        item.addEventListener('click', () => {
-            const text = item.getAttribute('data-text');
-            selectAutocompleteSuggestion({ text });
+    // Use requestAnimationFrame to ensure DOM is laid out before calculating position
+    requestAnimationFrame(() => {
+        // Position dropdown at caret (text cursor)
+        const rect = input.getBoundingClientRect();
+        const caretPos = getCaretCoordinates(input);
+        const inputStyle = window.getComputedStyle(input);
+        const lineHeight = parseInt(inputStyle.lineHeight) || parseInt(inputStyle.fontSize) * 1.2 || 18;
+
+        // Calculate absolute position
+        // For textarea, add lineHeight to position below the current line
+        // For input, caretPos.top already accounts for the input height
+        let top, left;
+
+        if (input.tagName === 'TEXTAREA') {
+            top = rect.top + window.scrollY + caretPos.top + lineHeight + 2;
+            left = rect.left + window.scrollX + caretPos.left;
+        } else {
+            top = rect.top + window.scrollY + caretPos.top;
+            left = rect.left + window.scrollX + caretPos.left;
+        }
+
+        // Get actual dropdown height after layout
+        const dropdownHeight = autocompleteDropdown.offsetHeight;
+        const dropdownWidth = 250;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Adjust if goes off right edge
+        if (left + dropdownWidth > window.scrollX + viewportWidth) {
+            left = Math.max(10, window.scrollX + viewportWidth - dropdownWidth - 10);
+        }
+
+        // Adjust if goes off bottom edge (use actual height instead of max height)
+        if (top + dropdownHeight > window.scrollY + viewportHeight) {
+            // Position above caret instead
+            if (input.tagName === 'TEXTAREA') {
+                top = rect.top + window.scrollY + caretPos.top - dropdownHeight - 2;
+            } else {
+                top = rect.top + window.scrollY - dropdownHeight - 2;
+            }
+        }
+
+        autocompleteDropdown.style.top = top + 'px';
+        autocompleteDropdown.style.left = left + 'px';
+        autocompleteDropdown.style.visibility = 'visible';
+
+        // Add click handlers after positioning
+        const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+        items.forEach((item, index) => {
+            item.addEventListener('click', () => {
+                const text = item.getAttribute('data-text');
+                selectAutocompleteSuggestion({ text });
+            });
         });
     });
 }
@@ -432,18 +449,39 @@ function selectAutocompleteSuggestion(suggestion) {
     // Replace from "{{" to cursor with "{{ suggestion }}"
     const before = value.substring(0, lastOpenBrace);
     const after = value.substring(cursorPos);
-    const newValue = before + '{{' + suggestion.text + '}}' + after;
+
+    // Check if closing brackets already exist immediately after cursor (on same line)
+    // Only check up to the next newline or end of string to avoid false positives from other lines
+    const nextNewline = after.indexOf('\n');
+    const afterCurrentLine = nextNewline === -1 ? after : after.substring(0, nextNewline);
+    const hasClosingBrackets = afterCurrentLine.trimStart().startsWith('}}');
+
+    // Check if suggestion ends with "." (expects more input)
+    const expectsMoreInput = suggestion.text.trimEnd().endsWith('.');
+
+    // If closing brackets exist, remove leading whitespace from after to avoid double spaces
+    const afterCleaned = hasClosingBrackets ? after.trimStart() : after;
+
+    // Add trailing space if closing brackets already exist and suggestion is complete
+    const trailingSpace = (hasClosingBrackets && !expectsMoreInput) ? ' ' : '';
+
+    // Only add closing brackets if they don't exist and suggestion is complete
+    const closingBrackets = (hasClosingBrackets || expectsMoreInput) ? '' : ' }}';
+    const newValue = before + '{{' + suggestion.text + trailingSpace + closingBrackets + afterCleaned;
 
     input.value = newValue;
 
     // Set cursor position after the inserted text
-    const newCursorPos = lastOpenBrace + 2 + suggestion.text.length + 2;
+    const newCursorPos = lastOpenBrace + 2 + suggestion.text.length + trailingSpace.length + closingBrackets.length;
     input.setSelectionRange(newCursorPos, newCursorPos);
 
     // Trigger change event
     input.dispatchEvent(new Event('change', { bubbles: true }));
 
+    // Always hide autocomplete after selection
+    // If user types "." next, the input event will trigger autocomplete again
     hideAutocomplete();
+
     input.focus();
 }
 
@@ -455,6 +493,7 @@ function hideAutocomplete() {
     autocompleteTarget = null;
     autocompleteSelectedIndex = -1;
     autocompleteSuggestions = [];
+    autocompleteStepIndex = null;
 }
 
 function escapeHtml(text) {

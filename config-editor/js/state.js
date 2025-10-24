@@ -8,3 +8,4 @@ let autocompleteDropdown = null;
 let autocompleteTarget = null;
 let autocompleteSelectedIndex = -1;
 let autocompleteSuggestions = [];
+let autocompleteStepIndex = null; // Track the step index for current autocomplete session
