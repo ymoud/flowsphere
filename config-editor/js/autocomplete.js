@@ -1,0 +1,504 @@
+// ========================================
+// AUTOCOMPLETE FUNCTIONALITY
+// ========================================
+
+function initAutocomplete() {
+    // Create dropdown element if it doesn't exist
+    if (!autocompleteDropdown) {
+        autocompleteDropdown = document.createElement('div');
+        autocompleteDropdown.className = 'autocomplete-dropdown';
+        document.body.appendChild(autocompleteDropdown);
+    }
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (autocompleteDropdown && !autocompleteDropdown.contains(e.target) && e.target !== autocompleteTarget) {
+            hideAutocomplete();
+        }
+    });
+}
+
+function attachAutocompleteToInput(input, stepIndex = null) {
+    input.addEventListener('input', function(e) {
+        handleAutocompleteInput(e.target, stepIndex);
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (!autocompleteDropdown || !autocompleteDropdown.classList.contains('show')) {
+            return;
+        }
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            autocompleteSelectedIndex = Math.min(autocompleteSelectedIndex + 1, autocompleteSuggestions.length - 1);
+            updateAutocompleteSelection();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            autocompleteSelectedIndex = Math.max(autocompleteSelectedIndex - 1, -1);
+            updateAutocompleteSelection();
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+            if (autocompleteSelectedIndex >= 0 && autocompleteSelectedIndex < autocompleteSuggestions.length) {
+                e.preventDefault();
+                selectAutocompleteSuggestion(autocompleteSuggestions[autocompleteSelectedIndex]);
+            }
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            hideAutocomplete();
+        }
+    });
+
+    // Handle blur with slight delay to allow clicking on dropdown
+    input.addEventListener('blur', function(e) {
+        setTimeout(() => {
+            if (autocompleteTarget === e.target) {
+                hideAutocomplete();
+            }
+        }, 200);
+    });
+}
+
+function handleAutocompleteInput(input, stepIndex) {
+    const value = input.value;
+    const cursorPos = input.selectionStart;
+
+    // Find if cursor is after "{{" and before "}}"
+    const beforeCursor = value.substring(0, cursorPos);
+    const lastOpenBrace = beforeCursor.lastIndexOf('{{');
+
+    if (lastOpenBrace === -1) {
+        hideAutocomplete();
+        return;
+    }
+
+    const afterLastBrace = beforeCursor.substring(lastOpenBrace + 2);
+    const hasCloseBrace = afterLastBrace.includes('}}');
+
+    if (hasCloseBrace) {
+        hideAutocomplete();
+        return;
+    }
+
+    // Get the partial text after "{{"
+    const partialText = afterLastBrace.trim();
+
+    // Build suggestions
+    const suggestions = buildAutocompleteSuggestions(partialText, stepIndex);
+
+    if (suggestions.length > 0) {
+        showAutocomplete(input, suggestions, lastOpenBrace + 2);
+    } else {
+        hideAutocomplete();
+    }
+}
+
+function buildAutocompleteSuggestions(partialText, stepIndex) {
+    const suggestions = [];
+
+    if (!config) return suggestions;
+
+    // Category: Basic Syntax (when typing is minimal)
+    if (partialText.length <= 3) {
+        const basicSuggestions = [];
+
+        // Add .vars if there are variables
+        if (config.variables && Object.keys(config.variables).length > 0) {
+            const varSyntax = ' .vars.';
+            if (varSyntax.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
+                basicSuggestions.push({
+                    text: varSyntax,
+                    display: '.vars.<variableName>',
+                    hint: 'Access global variables',
+                    category: 'Basic Syntax'
+                });
+            }
+        }
+
+        // Add .responses if there are previous steps
+        if (config.steps && config.steps.length > 0 && stepIndex !== null && stepIndex > 0) {
+            const respNamedSyntax = ' .responses.';
+            if (respNamedSyntax.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
+                basicSuggestions.push({
+                    text: respNamedSyntax,
+                    display: '.responses.<stepId>.<field>',
+                    hint: 'Access previous step response by ID',
+                    category: 'Basic Syntax'
+                });
+            }
+        }
+
+        // Add .input if there are prompts
+        if (stepIndex !== null && config.steps && config.steps[stepIndex]) {
+            const step = config.steps[stepIndex];
+            if (step.prompts && Object.keys(step.prompts).length > 0) {
+                const inputSyntax = ' .input.';
+                if (inputSyntax.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
+                    basicSuggestions.push({
+                        text: inputSyntax,
+                        display: '.input.<variableName>',
+                        hint: 'Access user input from prompts',
+                        category: 'Basic Syntax'
+                    });
+                }
+            }
+        }
+
+        if (basicSuggestions.length > 0) {
+            suggestions.push({ isCategory: true, name: 'Basic Syntax' });
+            suggestions.push(...basicSuggestions);
+        }
+    }
+
+    // Category: Global Variables
+    if (config.variables && Object.keys(config.variables).length > 0) {
+        const varSuggestions = [];
+        for (const [key, value] of Object.entries(config.variables)) {
+            const suggestion = ` .vars.${key} `;
+            if (suggestion.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
+                varSuggestions.push({
+                    text: suggestion,
+                    display: `.vars.${key}`,
+                    hint: `Global variable: ${JSON.stringify(value)}`,
+                    category: 'Global Variables'
+                });
+            }
+        }
+        if (varSuggestions.length > 0) {
+            suggestions.push({ isCategory: true, name: 'Global Variables' });
+            suggestions.push(...varSuggestions);
+        }
+    }
+
+    // Category: Response References
+    if (config.steps && config.steps.length > 0 && stepIndex !== null) {
+        const respSuggestions = [];
+
+        // Add named references (by step ID)
+        for (let i = 0; i < Math.min(stepIndex, config.steps.length); i++) {
+            const step = config.steps[i];
+            if (step.id) {
+                const namedRef = ` .responses.${step.id}`;
+
+                if (namedRef.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
+                    respSuggestions.push({
+                        text: namedRef + '.',
+                        display: `.responses.${step.id}.<field>`,
+                        hint: `Response from step: ${step.name || step.id}`,
+                        category: 'Response References'
+                    });
+                }
+            }
+        }
+
+        if (respSuggestions.length > 0) {
+            suggestions.push({ isCategory: true, name: 'Response References' });
+            suggestions.push(...respSuggestions);
+        }
+    }
+
+    // Category: User Input (from current step's prompts)
+    if (stepIndex !== null && config.steps && config.steps[stepIndex]) {
+        const step = config.steps[stepIndex];
+        if (step.prompts && Object.keys(step.prompts).length > 0) {
+            const inputSuggestions = [];
+            for (const key of Object.keys(step.prompts)) {
+                const suggestion = ` .input.${key} `;
+                if (suggestion.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
+                    inputSuggestions.push({
+                        text: suggestion,
+                        display: `.input.${key}`,
+                        hint: `User input: ${step.prompts[key]}`,
+                        category: 'User Input'
+                    });
+                }
+            }
+            if (inputSuggestions.length > 0) {
+                suggestions.push({ isCategory: true, name: 'User Input (Current Step)' });
+                suggestions.push(...inputSuggestions);
+            }
+        }
+    }
+
+    return suggestions;
+}
+
+function getCaretCoordinates(input) {
+    const position = input.selectionStart;
+
+    if (input.tagName === 'TEXTAREA') {
+        // Create mirror div for textarea
+        const div = document.createElement('div');
+        const computed = window.getComputedStyle(input);
+        const isFirefox = window.mozInnerScreenX != null;
+
+        // Copy all CSS properties
+        div.style.position = 'absolute';
+        div.style.top = '0px';
+        div.style.left = '-9999px';
+        div.style.whiteSpace = 'pre-wrap';
+        div.style.wordWrap = 'break-word';
+
+        // Transfer CSS properties
+        const properties = [
+            'direction', 'boxSizing', 'width', 'height', 'overflowX', 'overflowY',
+            'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
+            'borderStyle', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+            'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
+            'fontSizeAdjust', 'lineHeight', 'fontFamily', 'textAlign', 'textTransform',
+            'textIndent', 'textDecoration', 'letterSpacing', 'wordSpacing', 'tabSize'
+        ];
+
+        properties.forEach(prop => {
+            div.style[prop] = computed[prop];
+        });
+
+        // Firefox needs this
+        if (isFirefox) {
+            if (input.scrollHeight > parseInt(computed.height)) {
+                div.style.overflowY = 'scroll';
+            }
+        } else {
+            div.style.overflow = 'hidden';
+        }
+
+        document.body.appendChild(div);
+
+        // Get text before caret
+        const textContent = input.value.substring(0, position);
+        div.textContent = textContent;
+
+        // Create span at caret position
+        const span = document.createElement('span');
+        span.textContent = input.value.substring(position) || '.';
+        div.appendChild(span);
+
+        const coordinates = {
+            top: span.offsetTop - input.scrollTop,
+            left: span.offsetLeft - input.scrollLeft
+        };
+
+        document.body.removeChild(div);
+
+        return coordinates;
+    } else {
+        // For single-line input
+        const div = document.createElement('div');
+        const computed = window.getComputedStyle(input);
+
+        div.style.position = 'absolute';
+        div.style.top = '0px';
+        div.style.left = '-9999px';
+        div.style.whiteSpace = 'nowrap';
+
+        // Transfer CSS properties
+        const properties = [
+            'boxSizing', 'width',
+            'borderLeftWidth', 'borderRightWidth',
+            'paddingLeft', 'paddingRight',
+            'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize',
+            'fontFamily', 'letterSpacing'
+        ];
+
+        properties.forEach(prop => {
+            div.style[prop] = computed[prop];
+        });
+
+        document.body.appendChild(div);
+
+        // Get text before caret
+        const textContent = input.value.substring(0, position);
+        div.textContent = textContent;
+
+        // Create span at caret position
+        const span = document.createElement('span');
+        span.textContent = input.value.substring(position) || '.';
+        div.appendChild(span);
+
+        const coordinates = {
+            top: parseInt(computed.height) - 5,
+            left: span.offsetLeft - input.scrollLeft
+        };
+
+        document.body.removeChild(div);
+
+        return coordinates;
+    }
+}
+
+function showAutocomplete(input, suggestions, bracePosition) {
+    if (!autocompleteDropdown) return;
+
+    autocompleteTarget = input;
+    autocompleteSuggestions = suggestions.filter(s => !s.isCategory);
+    autocompleteSelectedIndex = -1;
+
+    // Build dropdown HTML
+    let html = '';
+    let currentCategory = null;
+
+    for (const suggestion of suggestions) {
+        if (suggestion.isCategory) {
+            html += `<div class="autocomplete-category">${suggestion.name}</div>`;
+        } else {
+            html += `
+                <div class="autocomplete-item" data-text="${suggestion.text.replace(/"/g, '&quot;')}">
+                    <div class="autocomplete-item-main">${escapeHtml(suggestion.display)}</div>
+                    <div class="autocomplete-item-hint">${escapeHtml(suggestion.hint)}</div>
+                </div>
+            `;
+        }
+    }
+
+    autocompleteDropdown.innerHTML = html;
+
+    // Position dropdown at caret (text cursor)
+    const rect = input.getBoundingClientRect();
+    const caretPos = getCaretCoordinates(input);
+    const inputStyle = window.getComputedStyle(input);
+    const lineHeight = parseInt(inputStyle.lineHeight) || parseInt(inputStyle.fontSize) * 1.2 || 18;
+
+    // Calculate absolute position
+    // For textarea, add lineHeight to position below the current line
+    // For input, caretPos.top already accounts for the input height
+    let top, left;
+
+    if (input.tagName === 'TEXTAREA') {
+        top = rect.top + window.scrollY + caretPos.top + lineHeight + 2;
+        left = rect.left + window.scrollX + caretPos.left;
+    } else {
+        top = rect.top + window.scrollY + caretPos.top;
+        left = rect.left + window.scrollX + caretPos.left;
+    }
+
+    // Ensure dropdown stays on screen
+    const dropdownWidth = 250;
+    const dropdownMaxHeight = 300;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Adjust if goes off right edge
+    if (left + dropdownWidth > window.scrollX + viewportWidth) {
+        left = Math.max(10, window.scrollX + viewportWidth - dropdownWidth - 10);
+    }
+
+    // Adjust if goes off bottom edge
+    if (top + dropdownMaxHeight > window.scrollY + viewportHeight) {
+        // Position above caret instead
+        if (input.tagName === 'TEXTAREA') {
+            top = rect.top + window.scrollY + caretPos.top - dropdownMaxHeight - 2;
+        } else {
+            top = rect.top + window.scrollY - dropdownMaxHeight - 2;
+        }
+    }
+
+    autocompleteDropdown.style.top = top + 'px';
+    autocompleteDropdown.style.left = left + 'px';
+    autocompleteDropdown.classList.add('show');
+
+    // Add click handlers
+    const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+    items.forEach((item, index) => {
+        item.addEventListener('click', () => {
+            const text = item.getAttribute('data-text');
+            selectAutocompleteSuggestion({ text });
+        });
+    });
+}
+
+function updateAutocompleteSelection() {
+    const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+    items.forEach((item, index) => {
+        if (index === autocompleteSelectedIndex) {
+            item.classList.add('selected');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('selected');
+        }
+    });
+}
+
+function selectAutocompleteSuggestion(suggestion) {
+    if (!autocompleteTarget || !suggestion) return;
+
+    const input = autocompleteTarget;
+    const value = input.value;
+    const cursorPos = input.selectionStart;
+
+    // Find the "{{" before cursor
+    const beforeCursor = value.substring(0, cursorPos);
+    const lastOpenBrace = beforeCursor.lastIndexOf('{{');
+
+    if (lastOpenBrace === -1) return;
+
+    // Replace from "{{" to cursor with "{{ suggestion }}"
+    const before = value.substring(0, lastOpenBrace);
+    const after = value.substring(cursorPos);
+    const newValue = before + '{{' + suggestion.text + '}}' + after;
+
+    input.value = newValue;
+
+    // Set cursor position after the inserted text
+    const newCursorPos = lastOpenBrace + 2 + suggestion.text.length + 2;
+    input.setSelectionRange(newCursorPos, newCursorPos);
+
+    // Trigger change event
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    hideAutocomplete();
+    input.focus();
+}
+
+function hideAutocomplete() {
+    if (autocompleteDropdown) {
+        autocompleteDropdown.classList.remove('show');
+        autocompleteDropdown.innerHTML = '';
+    }
+    autocompleteTarget = null;
+    autocompleteSelectedIndex = -1;
+    autocompleteSuggestions = [];
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function attachAutocompleteToAllInputs() {
+    if (!config) return;
+
+    // Attach to global variable inputs
+    const varInputs = document.querySelectorAll('#globalVariablesContainer input[type="text"]');
+    varInputs.forEach(input => {
+        attachAutocompleteToInput(input, null);
+    });
+
+    // Attach to default header inputs
+    const headerInputs = document.querySelectorAll('#defaultHeadersContainer input[type="text"]');
+    headerInputs.forEach(input => {
+        attachAutocompleteToInput(input, null);
+    });
+
+    // Attach to baseUrl input
+    const baseUrlInput = document.getElementById('baseUrl');
+    if (baseUrlInput) {
+        attachAutocompleteToInput(baseUrlInput, null);
+    }
+
+    // Attach to all step inputs
+    if (config.steps) {
+        config.steps.forEach((step, stepIndex) => {
+            // Find all inputs and textareas within this step
+            const stepInputs = document.querySelectorAll(`#stepsList .step-item:nth-child(${stepIndex + 1}) input[type="text"], #stepsList .step-item:nth-child(${stepIndex + 1}) textarea`);
+            stepInputs.forEach(input => {
+                // Skip inputs that shouldn't have autocomplete (like step name)
+                const skipPlaceholders = ['Describe this step', 'uniqueStepId'];
+                if (!skipPlaceholders.includes(input.placeholder)) {
+                    attachAutocompleteToInput(input, stepIndex);
+                }
+            });
+        });
+    }
+}
+
+// Initialize autocomplete on page load
+initAutocomplete();

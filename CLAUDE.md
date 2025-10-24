@@ -209,7 +209,15 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 
 ## Visual Config Editor
 
-**config-editor.html** provides a browser-based GUI for creating and editing configuration files without manually writing JSON.
+**config-editor/** provides a browser-based GUI for creating and editing configuration files without manually writing JSON.
+
+The editor has a modular structure with separate HTML, CSS, and JavaScript files organized by functionality. See `config-editor/README.md` for detailed module documentation.
+
+**IMPORTANT - Backup File:**
+- **config-editor-backup/config-editor.html** contains the old monolithic version
+- **DO NOT update the backup file with new features**
+- The backup exists only for reference/recovery purposes
+- All new development should be done in the modular `config-editor/` folder
 
 **Key Features:**
 - Form-based editing with validation
@@ -217,6 +225,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - Live JSON preview with copy-to-clipboard
 - Template-based config creation (Empty, Simple, OAuth, User Input)
 - Download configs as JSON files
+- Modular architecture for maintainability
 
 **Intelligent Autocomplete:**
 The editor includes context-aware autocomplete for the `{{ }}` variable substitution syntax:
