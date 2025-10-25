@@ -55,13 +55,13 @@ function renderEditor() {
                     <div class="mb-3">
                         <label class="form-label">Base URL</label>
                         <input type="text" class="form-control" id="baseUrl" value="${config.defaults?.baseUrl || ''}" onchange="updateConfig()" placeholder="https://api.example.com">
-                        <div class="form-text">Base URL prepended to relative step URLs</div>
+                        <div class="form-text">Base URL prepended to relative node URLs</div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Default Timeout (seconds)</label>
                         <input type="number" class="form-control" id="timeout" value="${config.defaults?.timeout || 30}" onchange="updateConfig()">
-                        <div class="form-text">Request timeout for all steps (can be overridden per step)</div>
+                        <div class="form-text">Request timeout for all nodes (can be overridden per node)</div>
                     </div>
 
                     <div class="mb-3">
@@ -79,24 +79,24 @@ function renderEditor() {
                         <button class="btn btn-secondary btn-sm mt-2" onclick="addDefaultHeader()">
                             <i class="bi bi-plus"></i> Add Header
                         </button>
-                        <div class="form-text">Headers applied to all requests (merged with step headers)</div>
+                        <div class="form-text">Headers applied to all requests (merged with node headers)</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Steps -->
+        <!-- Nodes -->
         <div class="accordion-item mb-3 border rounded">
             <h2 class="accordion-header">
                 <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#stepsSection">
-                    Steps (${config.steps?.length || 0})
+                    Nodes (${config.steps?.length || 0})
                 </button>
             </h2>
             <div id="stepsSection" class="accordion-collapse collapse show">
                 <div class="accordion-body">
                     <div id="stepsList"></div>
                     <button class="btn btn-primary btn-sm mt-2" onclick="addStep()">
-                        <i class="bi bi-plus"></i> Add Step
+                        <i class="bi bi-plus"></i> Add Node
                     </button>
                 </div>
             </div>
@@ -263,9 +263,9 @@ function renderSteps() {
                  ${!isDraggable && showDragHandle ? 'data-drag-disabled="true"' : ''}>
                 <h2 class="accordion-header d-flex align-items-center">
                     <button class="accordion-button ${isOpen ? '' : 'collapsed'} py-2 flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
-                        ${showDragHandle ? `<i class="bi bi-grip-vertical text-muted me-2 drag-handle ${isOpen ? 'drag-handle-disabled' : ''}" title="${isOpen ? 'Close step to enable dragging' : 'Drag to reorder'}"></i>` : ''}
+                        ${showDragHandle ? `<i class="bi bi-grip-vertical text-muted me-2 drag-handle ${isOpen ? 'drag-handle-disabled' : ''}" title="${isOpen ? 'Close node to enable dragging' : 'Drag to reorder'}"></i>` : ''}
                         <span class="fw-medium">
-                            ${index + 1}. ${step.name || 'Unnamed Step'}
+                            ${index + 1}. ${step.name || 'Unnamed Node'}
                             ${step.id ? `<span class="text-muted small">[${step.id}]</span>` : ''}
                             <span class="badge ${getMethodBadgeClass(step.method)} ms-2">${step.method || 'GET'}</span>
                         </span>
@@ -325,7 +325,7 @@ function renderSteps() {
                 const inputs = stepItem.querySelectorAll('input[type="text"], textarea');
                 inputs.forEach(input => {
                     // Skip inputs that shouldn't have autocomplete
-                    const skipPlaceholders = ['Describe this step', 'uniqueStepId'];
+                    const skipPlaceholders = ['Describe this node', 'uniqueNodeId'];
                     if (!skipPlaceholders.includes(input.placeholder)) {
                         attachAutocompleteToInput(input, stepIndex);
                     }
@@ -359,27 +359,27 @@ function getMethodBadgeClass(method) {
 
 function renderStepForm(step, index) {
     return `
-        <!-- Step Details -->
+        <!-- Node Details -->
         <div class="border-bottom pb-3 mb-3">
-            <h6 class="text-uppercase fw-semibold small text-secondary mb-3">Step Details</h6>
+            <h6 class="text-uppercase fw-semibold small text-secondary mb-3">Node Details</h6>
 
             <div class="row g-3 mb-3">
                 <div class="col-md-6">
-                    <label class="form-label">Step ID</label>
+                    <label class="form-label">Node ID</label>
                     <input type="text" class="form-control form-control-sm" value="${step.id || ''}"
-                           onchange="updateStep(${index}, 'id', this.value || undefined)" placeholder="uniqueStepId">
-                    <div class="form-text">Unique identifier for named response references: {{ .responses.stepId.field }}</div>
+                           onchange="updateStep(${index}, 'id', this.value || undefined)" placeholder="uniqueNodeId">
+                    <div class="form-text">Unique identifier for named response references: {{ .responses.nodeId.field }}</div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Step Name</label>
+                    <label class="form-label">Node Name</label>
                     <input type="text" class="form-control form-control-sm" value="${step.name || ''}"
-                           onchange="updateStep(${index}, 'name', this.value)" placeholder="Describe this step">
+                           onchange="updateStep(${index}, 'name', this.value)" placeholder="Describe this node">
                 </div>
             </div>
 
             ${index > 0 ? `
             <div class="mb-3">
-                <label class="form-label">Condition (Skip step based on previous response)</label>
+                <label class="form-label">Condition (Skip node based on previous response)</label>
                 <div id="conditionSummary_${index}" class="mb-2">
                     ${renderConditionSummary(step.condition || {}, index)}
                 </div>
@@ -394,7 +394,7 @@ function renderStepForm(step, index) {
                     </button>
                     ` : ''}
                 </div>
-                <div class="form-text">Skip this step if a condition on a previous response is met</div>
+                <div class="form-text">Skip this node if a condition on a previous response is met</div>
             </div>
             ` : ''}
 
@@ -406,7 +406,7 @@ function renderStepForm(step, index) {
                 <button class="btn btn-outline-secondary btn-sm mt-2" onclick="addPrompt(${index})">
                     <i class="bi bi-plus"></i> Add Prompt
                 </button>
-                <div class="form-text">Collect user input before executing this step</div>
+                <div class="form-text">Collect user input before executing this node</div>
             </div>
         </div>
 
@@ -450,7 +450,7 @@ function renderStepForm(step, index) {
                            ${step.skipDefaultHeaders === true ? 'checked' : ''}
                            onchange="toggleSkipDefaultHeaders(${index}, this.checked)">
                     <label class="form-check-label" for="skipDefaultHeaders_${index}">
-                        Skip default headers (use only step headers)
+                        Skip default headers (use only node headers)
                     </label>
                 </div>
 
@@ -464,7 +464,7 @@ function renderStepForm(step, index) {
                     <i class="bi bi-plus"></i> Add Header
                 </button>
                 <div class="form-text">
-                    ${step.skipDefaultHeaders === true ? 'Skip mode: Only step headers will be sent' : 'Merge mode: Step headers are merged with defaults'}
+                    ${step.skipDefaultHeaders === true ? 'Skip mode: Only node headers will be sent' : 'Merge mode: Node headers are merged with defaults'}
                 </div>
             </div>
 
@@ -484,7 +484,7 @@ function renderStepForm(step, index) {
                 <label class="form-label">Launch Browser (JSONPath)</label>
                 <input type="text" class="form-control form-control-sm" value="${step.launchBrowser || ''}"
                        onchange="updateStep(${index}, 'launchBrowser', this.value || undefined)" placeholder=".authorizationUrl">
-                <div class="form-text">Opens URL in browser after step executes (useful for OAuth flows)</div>
+                <div class="form-text">Opens URL in browser after node executes (useful for OAuth flows)</div>
             </div>
 
             <div class="mb-3">
@@ -498,7 +498,7 @@ function renderStepForm(step, index) {
                            ${step.skipDefaultValidations === true ? 'checked' : ''}
                            onchange="toggleSkipDefaultValidations(${index}, this.checked)">
                     <label class="form-check-label" for="skipDefaultValidations_${index}">
-                        Skip default validations (use only step validations)
+                        Skip default validations (use only node validations)
                     </label>
                 </div>
 
@@ -512,7 +512,7 @@ function renderStepForm(step, index) {
                     <i class="bi bi-plus"></i> Add Validation
                 </button>
                 <div class="form-text">
-                    ${step.skipDefaultValidations === true ? 'Skip mode: Only step validations will be performed' : 'Merge mode: Step validations are concatenated with defaults'}
+                    ${step.skipDefaultValidations === true ? 'Skip mode: Only node validations will be performed' : 'Merge mode: Node validations are concatenated with defaults'}
                 </div>
             </div>
         </div>
@@ -556,7 +556,7 @@ function updateStepDraggableState(index, isDraggable) {
             dragHandle.setAttribute('title', 'Drag to reorder');
         } else {
             dragHandle.classList.add('drag-handle-disabled');
-            dragHandle.setAttribute('title', 'Close step to enable dragging');
+            dragHandle.setAttribute('title', 'Close node to enable dragging');
         }
     }
 

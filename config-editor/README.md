@@ -1,6 +1,6 @@
-# HTTP Sequence Config Editor - Modular Version
+# FlowSphere Studio - Modular Version
 
-Visual editor for creating and editing `apiseq.sh` configuration files.
+Visual flow designer for creating and editing API workflow configurations.
 
 ## Structure
 
@@ -26,7 +26,7 @@ config-editor/
 ### Core Modules
 
 **state.js** (307 bytes)
-- Global variables: `config`, `fileName`, `openStepIndices`
+- Global variables: `config`, `fileName`, `openNodeIndices`
 - Autocomplete state
 
 **config-manager.js** (3.2KB)
@@ -50,8 +50,8 @@ config-editor/
 - `renderGlobalVariables()` - Global variables section
 - `renderDefaultHeaders()` - Default headers section
 - `renderDefaultValidations()` - Default validations section
-- `renderSteps()` - Steps list
-- `renderStepForm(step, index)` - Individual step form
+- `renderNodes()` - Nodes list
+- `renderNodeForm(node, index)` - Individual node form
 - `updatePreview()` - JSON preview panel
 - `toggleSection()` - Collapsible sections
 
@@ -66,12 +66,12 @@ config-editor/
 - `updateConfig()` - Update enableDebug, baseUrl, timeout
 - `addGlobalVariable()` / `updateGlobalVariable()` / `removeGlobalVariable()`
 - `addDefaultHeader()` / `updateDefaultHeader()` / `removeDefaultHeader()`
-- `addStep()` / `updateStep()` / `removeStep()` / `moveStep()`
+- `addNode()` / `updateNode()` / `removeNode()` / `moveNode()`
 
 **autocomplete.js** (18KB)
 - `initAutocomplete()` - Initialize autocomplete system
-- `attachAutocompleteToInput(input, stepIndex)` - Attach to text inputs
-- `buildAutocompleteSuggestions(partialText, stepIndex)` - Generate suggestions
+- `attachAutocompleteToInput(input, nodeIndex)` - Attach to text inputs
+- `buildAutocompleteSuggestions(partialText, nodeIndex)` - Generate suggestions
 - `showAutocomplete()` / `hideAutocomplete()` - Display/hide dropdown
 - `getCaretCoordinates(input)` - Calculate caret position
 - Keyboard navigation (arrow keys, enter, escape)

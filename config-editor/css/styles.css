@@ -1,132 +1,773 @@
 /*
- * Bootstrap 5 Config Editor - Minimal Custom CSS
- * Most styling uses Bootstrap classes. Only essential custom styles here.
+ * API FlowSphere Theme - Engineering Flow
+ * Dual-theme design for API workflow management (Dark & Light)
  */
 
-/* Page padding and container styling */
-body {
-    padding: 1rem;
-    background-color: #e9ecef;
+/* ========================================
+   ROOT VARIABLES & TYPOGRAPHY
+   ======================================== */
+
+:root {
+    /* Brand Colors (theme-independent) */
+    --primary: #0056D2;
+    --primary-hover: #0046B2;
+    --primary-active: #003C9A;
+    --accent: #FF4C29;
+    --accent-hover: #E63E20;
+    --success: #00C896;
+    --warning: #FFC857;
+    --error: #E63946;
+
+    /* HTTP Verb Colors */
+    --http-get: #0066CC;
+    --http-post: #28A745;
+    --http-put: #E6A700;
+    --http-patch: #7B61FF;
+    --http-delete: #E63946;
+
+    /* Layout */
+    --border-radius: 6px;
+    --focus-ring: 2px solid var(--primary);
+    --transition-speed: 0.2s;
+    --spacing-unit: 8px;
 }
 
-body > header {
-    border-radius: 0.5rem 0.5rem 0 0;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+/* Dark Theme (default) */
+:root,
+[data-theme="dark"] {
+    --secondary: #2E3A59;
+    --secondary-hover: #37456A;
+    --bg-dark: #121826;
+    --bg-light: #FFFFFF;
+    --bg-main: #121826;
+    --bg-surface: #2E3A59;
+    --bg-surface-hover: #37456A;
+    --bg-input: #121826;
+    --bg-preview: #0d1117;
+    --border-color: #404B69;
+    --text-primary: #E6EDF3;
+    --text-secondary: #AAB4C4;
+    --text-muted: #6B7280;
+    --shadow-color: rgba(0, 0, 0, 0.15);
+    --shadow-color-strong: rgba(0, 0, 0, 0.3);
 }
+
+/* Light Theme */
+[data-theme="light"] {
+    --secondary: #E9ECEF;
+    --secondary-hover: #DEE2E6;
+    --bg-dark: #FFFFFF;
+    --bg-light: #FFFFFF;
+    --bg-main: #F8F9FA;
+    --bg-surface: #FFFFFF;
+    --bg-surface-hover: #F8F9FA;
+    --bg-input: #FFFFFF;
+    --bg-preview: #F8F9FA;
+    --border-color: #CED4DA;
+    --text-primary: #212529;
+    --text-secondary: #6C757D;
+    --text-muted: #ADB5BD;
+    --shadow-color: rgba(0, 0, 0, 0.08);
+    --shadow-color-strong: rgba(0, 0, 0, 0.15);
+}
+
+body {
+    font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    padding: 1rem;
+    transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+}
+
+/* ========================================
+   SCROLLBARS
+   ======================================== */
+
+/* Dark theme scrollbars */
+[data-theme="dark"] ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: var(--bg-main);
+    border-radius: 6px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 6px;
+    border: 2px solid var(--bg-main);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-hover);
+}
+
+/* Light theme scrollbars */
+[data-theme="light"] ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+    background: #F1F3F5;
+    border-radius: 6px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: #ADB5BD;
+    border-radius: 6px;
+    border: 2px solid #F1F3F5;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: #868E96;
+}
+
+/* Firefox scrollbars */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--bg-main);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Roboto Condensed', sans-serif;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+code, pre, .monospace {
+    font-family: 'Fira Code', 'Courier New', monospace;
+}
+
+/* ========================================
+   APP HEADER
+   ======================================== */
+
+.app-header {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    padding: 1.5rem 0;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    transition: background var(--transition-speed) ease;
+}
+
+.app-logo {
+    height: 48px;
+    width: 48px;
+    flex-shrink: 0;
+}
+
+.app-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.app-subtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: var(--border-radius);
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.theme-toggle:hover {
+    background: var(--bg-surface-hover);
+    border-color: var(--primary);
+}
+
+.theme-toggle i {
+    font-size: 1rem;
+}
+
+/* ========================================
+   MAIN LAYOUT
+   ======================================== */
 
 body > div.container-fluid {
-    background-color: #f8f9fa;
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    border-radius: 0 0 0.5rem 0.5rem;
+    background-color: var(--bg-main);
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
 }
 
-/* Accordion customizations */
+/* ========================================
+   CARDS & PANELS
+   ======================================== */
+
+.card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    transition: background var(--transition-speed) ease;
+}
+
+.card-header {
+    background: var(--bg-surface) !important;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.card-body {
+    background: var(--bg-surface) !important;
+    color: var(--text-primary);
+}
+
+/* Preview panel (darker in both themes) */
+.card.bg-dark {
+    background: var(--bg-preview) !important;
+}
+
+.card.bg-dark .card-header {
+    background: var(--bg-preview) !important;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary) !important;
+}
+
+.card.bg-dark .card-body {
+    background: var(--bg-preview) !important;
+    color: var(--text-primary) !important;
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+
+.btn {
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    padding: 10px 20px;
+    transition: all var(--transition-speed) ease-in-out;
+}
+
+.btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.25rem rgba(0, 86, 210, 0.25);
+}
+
+/* Primary Button */
+.btn-primary {
+    background: var(--primary);
+    border: none;
+    color: #FFFFFF;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    border: none;
+    color: #FFFFFF;
+}
+
+.btn-primary:active {
+    background: var(--primary-active) !important;
+    border: none;
+    color: #FFFFFF;
+}
+
+.btn-primary:disabled {
+    background: var(--secondary);
+    color: var(--text-secondary);
+}
+
+/* Secondary Button */
+.btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-secondary:active {
+    background: var(--secondary-hover) !important;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Success Button */
+.btn-success {
+    background: var(--success);
+    border: none;
+    color: #FFFFFF;
+}
+
+.btn-success:hover {
+    background: #00B585;
+    border: none;
+    color: #FFFFFF;
+}
+
+/* Danger Button */
+.btn-danger {
+    background: var(--error);
+    border: none;
+    color: #FFFFFF;
+}
+
+.btn-danger:hover {
+    background: #C72E3C;
+    border: none;
+    color: #FFFFFF;
+}
+
+.btn-danger:active {
+    background: #A12231 !important;
+    border: none;
+    color: #FFFFFF;
+}
+
+/* Outline buttons for dark theme */
+.btn-outline-light {
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-outline-light:hover {
+    background: var(--secondary-hover);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Small buttons */
+.btn-small, .btn-sm {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Ensure all buttons are visible and clickable */
+button {
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Fix for buttons inside accordions */
+.accordion-body button {
+    position: relative;
+    z-index: 1;
+}
+
+/* ========================================
+   FORMS & INPUTS
+   ======================================== */
+
+.form-control, .form-select {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: var(--border-radius);
+    padding: 0.5rem 0.75rem;
+    transition: all var(--transition-speed) ease-in-out;
+}
+
+.form-control:focus, .form-select:focus {
+    background: var(--bg-input);
+    border-color: var(--primary);
+    color: var(--text-primary);
+    outline: none;
+    box-shadow: 0 0 0 0.25rem rgba(0, 86, 210, 0.25);
+}
+
+.form-control::placeholder {
+    color: var(--text-secondary);
+}
+
+.form-label {
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.form-text {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* ========================================
+   ACCORDION
+   ======================================== */
+
+.accordion {
+    --bs-accordion-bg: var(--bg-surface);
+    --bs-accordion-border-color: var(--border-color);
+    --bs-accordion-btn-bg: var(--bg-surface);
+    --bs-accordion-btn-color: var(--text-primary);
+    --bs-accordion-active-bg: var(--bg-surface-hover);
+    --bs-accordion-active-color: var(--text-primary);
+}
+
+.accordion-button {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: none;
+    padding: 1rem 1.25rem;
+    font-weight: 500;
+}
+
+.accordion-button:not(.collapsed) {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+    box-shadow: none;
+}
+
 .accordion-button:focus {
     box-shadow: none;
-    border-color: inherit;
+    border-color: var(--primary);
+    outline: none;
 }
 
-/* More padding for accordion headers */
-.accordion-button {
-    padding: 1rem 1.25rem;
+/* Dark theme: white arrow */
+[data-theme="dark"] .accordion-button::after {
+    filter: brightness(0) invert(1);
 }
 
-/* Give all step items full borders and rounded corners */
+/* Light theme: dark arrow */
+[data-theme="light"] .accordion-button::after {
+    filter: brightness(0);
+}
+
+.accordion-item {
+    background: var(--bg-surface);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+}
+
+.accordion-body {
+    background: var(--bg-main);
+    color: var(--text-primary);
+    border-top: 1px solid var(--border-color);
+}
+
+/* Steps accordion - HTTP method colors */
 #stepsAccordion .accordion-item {
-    border: 2px solid var(--bs-accordion-border-color) !important;
-    border-radius: var(--bs-accordion-border-radius) !important;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
 }
 
-#stepsAccordion .accordion-item + .accordion-item {
-    margin-top: 0 !important;
-}
-
-#stepsAccordion .accordion-item:not(:first-of-type) {
-    border-radius: var(--bs-accordion-border-radius) !important;
-}
-
-#stepsAccordion .accordion-item:not(:first-of-type) .accordion-button {
-    border-top-left-radius: var(--bs-accordion-border-radius) !important;
-}
-
-/* HTTP Method border colors and shadows */
 #stepsAccordion .step-method-get {
-    border-color: #0dcaf0 !important;
-    box-shadow: 0 2px 4px rgba(13, 202, 240, 0.15);
+    border-color: var(--http-get) !important;
+    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.15);
 }
 
 #stepsAccordion .step-method-get .accordion-button:not(.collapsed) {
-    background-color: #cff4fc;
-    color: #055160;
+    background-color: rgba(0, 102, 204, 0.15);
+    color: var(--text-primary);
 }
 
 #stepsAccordion .step-method-post {
-    border-color: #198754 !important;
-    box-shadow: 0 2px 4px rgba(25, 135, 84, 0.15);
+    border-color: var(--http-post) !important;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.15);
 }
 
 #stepsAccordion .step-method-post .accordion-button:not(.collapsed) {
-    background-color: #d1e7dd;
-    color: #0a3622;
+    background-color: rgba(40, 167, 69, 0.15);
+    color: var(--text-primary);
 }
 
 #stepsAccordion .step-method-put {
-    border-color: #ffc107 !important;
-    box-shadow: 0 2px 4px rgba(255, 193, 7, 0.15);
+    border-color: var(--http-put) !important;
+    box-shadow: 0 2px 8px rgba(230, 167, 0, 0.15);
 }
 
 #stepsAccordion .step-method-put .accordion-button:not(.collapsed) {
-    background-color: #fff3cd;
-    color: #664d03;
+    background-color: rgba(230, 167, 0, 0.15);
+    color: var(--text-primary);
 }
 
 #stepsAccordion .step-method-delete {
-    border-color: #dc3545 !important;
-    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.15);
+    border-color: var(--http-delete) !important;
+    box-shadow: 0 2px 8px rgba(230, 57, 70, 0.15);
 }
 
 #stepsAccordion .step-method-delete .accordion-button:not(.collapsed) {
-    background-color: #f8d7da;
-    color: #58151c;
+    background-color: rgba(230, 57, 70, 0.15);
+    color: var(--text-primary);
 }
 
 #stepsAccordion .step-method-patch {
-    border-color: #6610f2 !important;
-    box-shadow: 0 2px 4px rgba(102, 16, 242, 0.15);
+    border-color: var(--http-patch) !important;
+    box-shadow: 0 2px 8px rgba(123, 97, 255, 0.15);
 }
 
 #stepsAccordion .step-method-patch .accordion-button:not(.collapsed) {
-    background-color: #e0cffc;
-    color: #3d0a91;
+    background-color: rgba(123, 97, 255, 0.15);
+    color: var(--text-primary);
 }
 
-/* Step accordion header with action buttons */
-.accordion-header {
-    display: flex;
-    align-items: stretch;
+/* HTTP Method Badges */
+.badge {
+    border-radius: 4px;
+    padding: 0.35rem 0.65rem;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-.accordion-header .accordion-button {
-    border-top-right-radius: 0 !important;
-    border-bottom-right-radius: 0 !important;
-    border: none;
+.badge-get {
+    background: var(--http-get);
+    color: #FFFFFF;
 }
 
-.accordion-header > div {
-    background-color: var(--bs-accordion-btn-bg);
-    border: none;
-    border-left: 1px solid var(--bs-accordion-border-color);
-    display: flex;
+.badge-post {
+    background: var(--http-post);
+    color: #FFFFFF;
+}
+
+.badge-put {
+    background: var(--http-put);
+    color: #FFFFFF;
+}
+
+.badge-patch {
+    background: var(--http-patch);
+    color: #FFFFFF;
+}
+
+.badge-delete {
+    background: var(--http-delete);
+    color: #FFFFFF;
+}
+
+/* ========================================
+   MODALS
+   ======================================== */
+
+/* Custom modal system (non-Bootstrap) */
+.modal:not(.fade) {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1055;
     align-items: center;
+    justify-content: center;
+    overflow-y: auto;
 }
 
-/* Autocomplete dropdown (custom component, not in Bootstrap) */
+.modal.active {
+    display: flex;
+}
+
+.modal:not(.fade) .modal-content {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: 0 8px 32px var(--shadow-color-strong);
+    padding: 1.5rem;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: auto;
+}
+
+/* Bootstrap modals */
+.modal.fade .modal-content {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: 0 8px 32px var(--shadow-color-strong);
+}
+
+.modal-header {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    margin-bottom: 1.25rem;
+}
+
+.modal-header h2,
+.modal-header h5 {
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+}
+
+.modal-header p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.modal-body {
+    background: var(--bg-surface);
+}
+
+.modal-footer {
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+}
+
+/* Dark theme: white close button */
+[data-theme="dark"] .btn-close {
+    filter: brightness(0) invert(1);
+    opacity: 0.8;
+}
+
+/* Light theme: dark close button */
+[data-theme="light"] .btn-close {
+    filter: brightness(0);
+    opacity: 0.6;
+}
+
+.btn-close:hover {
+    opacity: 1;
+}
+
+/* Template options */
+.template-option {
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all var(--transition-speed) ease-in-out;
+}
+
+.template-option:hover {
+    border-color: var(--primary);
+    background: var(--bg-surface-hover);
+}
+
+.template-option.selected {
+    border-color: var(--primary);
+    background: rgba(0, 86, 210, 0.1);
+}
+
+/* Modal form groups */
+.modal .form-group {
+    margin-bottom: 1rem;
+}
+
+.modal .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.modal .form-group input[type="text"],
+.modal .form-group input[type="number"],
+.modal .form-group select,
+.modal .form-group textarea {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.modal .form-group input:focus,
+.modal .form-group select:focus,
+.modal .form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.25rem rgba(0, 86, 210, 0.25);
+}
+
+.modal .form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.modal .help-text {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* ========================================
+   JSON PREVIEW
+   ======================================== */
+
+#jsonPreview {
+    background-color: var(--bg-preview);
+    color: var(--text-primary) !important;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    min-height: 300px;
+    transition: background var(--transition-speed) ease, color var(--transition-speed) ease;
+}
+
+/* JSON Preview scrollbar uses same theme as rest of app */
+#jsonPreview::-webkit-scrollbar {
+    width: 12px;
+}
+
+#jsonPreview::-webkit-scrollbar-track {
+    background: var(--bg-preview);
+    border-radius: 6px;
+}
+
+#jsonPreview::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 6px;
+    border: 2px solid var(--bg-preview);
+}
+
+#jsonPreview::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-hover);
+}
+
+/* ========================================
+   AUTOCOMPLETE
+   ======================================== */
+
 .autocomplete-dropdown {
     position: absolute;
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: 0 8px 24px var(--shadow-color-strong);
     max-height: 300px;
     overflow-y: auto;
     z-index: 10000;
@@ -141,10 +782,10 @@ body > div.container-fluid {
 .autocomplete-item {
     padding: 0.5rem 1rem;
     cursor: pointer;
-    font-family: 'Courier New', monospace;
+    font-family: 'Fira Code', monospace;
     font-size: 0.875rem;
-    border-bottom: 1px solid #f8f9fa;
-    transition: background 0.1s;
+    border-bottom: 1px solid var(--border-color);
+    transition: background var(--transition-speed);
 }
 
 .autocomplete-item:last-child {
@@ -153,203 +794,42 @@ body > div.container-fluid {
 
 .autocomplete-item:hover,
 .autocomplete-item.selected {
-    background-color: #e9ecef;
+    background-color: var(--bg-surface-hover);
 }
 
 .autocomplete-item-main {
-    color: #212529;
+    color: var(--text-primary);
     font-weight: 500;
 }
 
 .autocomplete-item-hint {
-    color: #6c757d;
+    color: var(--text-secondary);
     font-size: 0.75rem;
     margin-top: 0.125rem;
 }
 
 .autocomplete-category {
     padding: 0.375rem 1rem;
-    background: #f8f9fa;
-    color: #6c757d;
+    background: var(--bg-main);
+    color: var(--text-secondary);
     font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
 }
 
-/* JSON Preview dark theme */
-#jsonPreview {
-    background-color: #1e1e1e;
-    color: #d4d4d4;
-    font-family: 'Courier New', Courier, monospace;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    min-height: 300px;
-}
+/* ========================================
+   DRAG AND DROP
+   ======================================== */
 
-#jsonPreview::-webkit-scrollbar {
-    width: 10px;
-}
-
-#jsonPreview::-webkit-scrollbar-track {
-    background: #1e1e1e;
-}
-
-#jsonPreview::-webkit-scrollbar-thumb {
-    background: #555;
-    border-radius: 5px;
-}
-
-#jsonPreview::-webkit-scrollbar-thumb:hover {
-    background: #777;
-}
-
-/* Custom modals (from modals.js - uses simple modal system, not Bootstrap modal component) */
-.modal:not(.fade) {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 1055;
-    align-items: center;
-    justify-content: center;
-    overflow-y: auto;
-}
-
-.modal.active {
-    display: flex;
-}
-
-.modal-content {
-    background: white;
-    border-radius: 0.5rem;
-    padding: 1.5rem;
-    max-width: 600px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
-    margin: auto;
-}
-
-.modal-header {
-    margin-bottom: 1.25rem;
-}
-
-.modal-header h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin: 0 0 0.5rem 0;
-    color: #212529;
-}
-
-.modal-header p {
-    margin: 0;
-    color: #6c757d;
-    font-size: 0.875rem;
-}
-
-.modal-footer {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: flex-end;
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid #dee2e6;
-}
-
-/* Modal form groups (matches Bootstrap styling) */
-.modal .form-group {
-    margin-bottom: 1rem;
-}
-
-.modal .form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    font-size: 0.875rem;
-}
-
-.modal .form-group input[type="text"],
-.modal .form-group input[type="number"],
-.modal .form-group select,
-.modal .form-group textarea {
-    width: 100%;
-    padding: 0.375rem 0.75rem;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    color: #212529;
-    background-color: #fff;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
-
-.modal .form-group input:focus,
-.modal .form-group select:focus,
-.modal .form-group textarea:focus {
-    outline: none;
-    border-color: #86b7fe;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-}
-
-.modal .form-group textarea {
-    resize: vertical;
-    min-height: 80px;
-}
-
-.modal .help-text {
-    color: #6c757d;
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
-}
-
-/* Builder summary (used in modals) */
-.builder-summary {
-    background-color: #f8f9fa;
-    padding: 0.75rem;
-    border-radius: 0.375rem;
-    border-left: 4px solid #0d6efd;
-    margin-bottom: 0.75rem;
-    font-size: 0.875rem;
-    color: #212529;
-}
-
-.builder-form {
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
-    padding: 1rem;
-    background: #f8f9fa;
-    margin-top: 0.625rem;
-}
-
-/* Button styles for modals (matching Bootstrap but needed for .btn-small) */
-.btn-small {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
-}
-
-/* Empty state */
-.empty-state {
-    min-height: 400px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-}
-
-/* Drag and Drop Styles */
-/* Drag handle icon */
 .drag-handle {
     cursor: grab;
     user-select: none;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--transition-speed) ease;
+    color: var(--text-secondary);
 }
 
 .drag-handle:active {
@@ -361,27 +841,20 @@ body > div.container-fluid {
     opacity: 0.3;
 }
 
-.drag-handle-disabled:active {
-    cursor: not-allowed;
-}
-
-/* Draggable step items */
 .accordion-item[draggable="true"] {
     cursor: move;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition: opacity var(--transition-speed) ease, transform var(--transition-speed) ease;
 }
 
-/* Non-draggable step items (expanded steps) */
 .accordion-item[draggable="false"],
 .accordion-item[data-drag-disabled="true"] {
     cursor: default;
 }
 
-/* Visual feedback while dragging */
 .accordion-item.dragging {
     opacity: 0.5;
     transform: scale(0.98);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
 }
 
 /* Drop indicator line */
@@ -392,15 +865,15 @@ body > div.container-fluid {
     height: 2px;
     background: linear-gradient(90deg,
         transparent 0%,
-        #0d6efd 3%,
-        #0d6efd 97%,
+        var(--primary) 3%,
+        var(--primary) 97%,
         transparent 100%);
     pointer-events: none;
     z-index: 1000;
     opacity: 0;
     transform: scaleX(0);
     transition: opacity 0.15s ease, transform 0.15s ease;
-    box-shadow: 0 0 4px rgba(13, 110, 253, 0.4);
+    box-shadow: 0 0 4px var(--primary);
 }
 
 .drop-indicator.show {
@@ -413,7 +886,7 @@ body > div.container-fluid {
     position: absolute;
     left: 50%;
     transform: translateX(-50%) translateY(-50%);
-    background: #0d6efd;
+    background: var(--primary);
     color: white;
     padding: 4px 12px;
     border-radius: 12px;
@@ -424,25 +897,11 @@ body > div.container-fluid {
     z-index: 1001;
     opacity: 0;
     transition: opacity 0.15s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .position-indicator.show {
     opacity: 1;
-}
-
-/* Disable dragging when only one step exists */
-.accordion-item:only-of-type[draggable="true"] {
-    cursor: default;
-}
-
-.accordion-item:only-of-type[draggable="true"] .drag-handle {
-    display: none;
-}
-
-/* Prevent text selection during drag */
-.accordion-item[draggable="true"]:active {
-    user-select: none;
 }
 
 /* Step reorder animations */
@@ -474,4 +933,118 @@ body > div.container-fluid {
         opacity: 1;
         transform: scale(1) translateY(0);
     }
+}
+
+/* ========================================
+   ALERTS & BADGES
+   ======================================== */
+
+.alert {
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.alert-info {
+    background: rgba(0, 86, 210, 0.15);
+    color: var(--text-primary);
+    border-color: var(--primary);
+}
+
+.alert-success {
+    background: rgba(0, 200, 150, 0.15);
+    color: var(--text-primary);
+    border-color: var(--success);
+}
+
+.alert-warning {
+    background: rgba(255, 200, 87, 0.15);
+    color: var(--text-primary);
+    border-color: var(--warning);
+}
+
+.alert-danger {
+    background: rgba(230, 57, 70, 0.15);
+    color: var(--text-primary);
+    border-color: var(--error);
+}
+
+/* ========================================
+   UTILITIES
+   ======================================== */
+
+.text-muted {
+    color: var(--text-secondary) !important;
+}
+
+.bg-light {
+    background-color: var(--bg-light) !important;
+    color: var(--text-dark) !important;
+}
+
+/* Override Bootstrap white backgrounds */
+.bg-white {
+    background-color: var(--secondary) !important;
+}
+
+.card-header.bg-white {
+    background-color: var(--secondary) !important;
+}
+
+.empty-state {
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: var(--text-secondary);
+}
+
+.empty-state i {
+    color: var(--text-secondary);
+}
+
+.help-text {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+/* Builder summary in modals */
+.builder-summary {
+    background-color: rgba(0, 86, 210, 0.15);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--primary);
+    margin-bottom: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.builder-form {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    background: var(--bg-main);
+    margin-top: 0.625rem;
+}
+
+/* Sticky header */
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+
+/* File name display - make it more visible */
+#currentFileName {
+    color: var(--text-primary) !important;
+}
+
+#currentFileName i {
+    color: var(--text-secondary);
+}
+
+#fileNameText {
+    color: var(--text-primary) !important;
+    font-weight: 500;
 }
