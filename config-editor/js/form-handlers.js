@@ -11,8 +11,8 @@ function renderDefaultValidations() {
 
     container.innerHTML = validations.map((validation, index) => {
         let summary = '';
-        if (validation.status !== undefined) {
-            summary = `<strong>Status:</strong> ${validation.status}`;
+        if (validation.httpStatusCode !== undefined) {
+            summary = `<strong>HTTP Status Code:</strong> ${validation.httpStatusCode}`;
         } else if (validation.jsonpath) {
             summary = `<strong>${validation.jsonpath}</strong>`;
             const criteria = [];

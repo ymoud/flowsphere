@@ -6,7 +6,7 @@
     },
     "validations": [
       {
-        "status": 200
+        "httpStatusCode": 200
       }
     ]
   },
@@ -99,7 +99,7 @@
       },
       "validations": [
         {
-          "status": 201
+          "httpStatusCode": 201
         }
       ]
     },

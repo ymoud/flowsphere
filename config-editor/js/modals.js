@@ -234,8 +234,8 @@ function renderValidationsList(validations, stepIndex) {
     return validations.map((validation, valIndex) => {
         let summary = '';
 
-        if (validation.status !== undefined) {
-            summary = `<strong>Status:</strong> ${validation.status}`;
+        if (validation.httpStatusCode !== undefined) {
+            summary = `<strong>HTTP Status Code:</strong> ${validation.httpStatusCode}`;
         } else if (validation.jsonpath) {
             summary = `<strong>${validation.jsonpath}</strong>`;
             const criteria = [];
@@ -262,7 +262,7 @@ function renderValidationsList(validations, stepIndex) {
 }
 
 function addValidation(stepIndex) {
-    showValidationModal(stepIndex, -1, {status: 200}, false);
+    showValidationModal(stepIndex, -1, {httpStatusCode: 200}, false);
 }
 
 function editValidation(stepIndex, valIndex) {
@@ -272,7 +272,7 @@ function editValidation(stepIndex, valIndex) {
 
 function showValidationModal(stepIndex, valIndex, validation, isDefault = false) {
     const isNew = valIndex === -1;
-    const validationType = validation.status !== undefined ? 'status' : 'jsonpath';
+    const validationType = validation.httpStatusCode !== undefined ? 'status' : 'jsonpath';
 
     const modalHtml = `
         <div class="modal active" id="validationModal">
@@ -294,7 +294,7 @@ function showValidationModal(stepIndex, valIndex, validation, isDefault = false)
                 <div id="statusValidation" style="${validationType === 'status' ? '' : 'display: none;'}">
                     <div class="form-group">
                         <label>Expected HTTP Status Code *</label>
-                        <input type="number" id="valStatus" value="${validation.status || 200}" placeholder="200">
+                        <input type="number" id="valStatus" value="${validation.httpStatusCode || 200}" placeholder="200">
                         <div class="help-text">HTTP status code to expect (e.g., 200, 201, 404)</div>
                     </div>
                 </div>
@@ -462,7 +462,7 @@ function saveValidation(stepIndex, valIndex, isDefault = false) {
             alert('Status code is required');
             return;
         }
-        validation.status = parseInt(status);
+        validation.httpStatusCode = parseInt(status);
     } else {
         const jsonpath = document.getElementById('valJsonpath').value.trim();
         if (!jsonpath) {

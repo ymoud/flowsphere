@@ -4,7 +4,7 @@
     "timeout": 2,
     "validations": [
       {
-        "status": 200
+        "httpStatusCode": 200
       }
     ]
   },

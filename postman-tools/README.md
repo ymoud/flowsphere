@@ -51,7 +51,7 @@ The parser generates an optimized config with defaults:
       "Content-Type": "application/json"
     },
     "validations": [
-      { "status": 200 }
+      { "httpStatusCode": 200 }
     ]
   },
   "steps": [

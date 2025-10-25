@@ -7,7 +7,7 @@
     },
     "validations": [
       {
-        "status": 200
+        "httpStatusCode": 200
       }
     ]
   },

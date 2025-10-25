@@ -113,7 +113,7 @@ See the [`examples/`](examples/) folder for complete, ready-to-run configuration
     "headers": { "Content-Type": "application/json" },
     "timeout": 30,
     "validations": [
-      { "status": 200 }
+      { "httpStatusCode": 200 }
     ]
   },
   "steps": [
@@ -188,12 +188,12 @@ Execute steps conditionally based on previous responses:
 
 ## Validation
 
-Validations are specified as an array. Each validation can check status code or JSON path criteria:
+Validations are specified as an array. Each validation can check HTTP status code or JSON path criteria:
 
 ```json
 {
   "validations": [
-    { "status": 201 },                                    // HTTP status code
+    { "httpStatusCode": 201 },                            // HTTP status code
     { "jsonpath": ".id", "exists": true },               // Field must exist
     { "jsonpath": ".name", "equals": "John" },           // Field value equals
     { "jsonpath": ".error", "notEquals": "failed" },     // Field value not equals
@@ -248,10 +248,10 @@ Control how step-level settings interact with global defaults:
 **Concatenate (default):** Step validations are added to default validations.
 ```json
 {
-  "defaults": { "validations": [{ "status": 200 }, { "jsonpath": ".id", "exists": true }] },
+  "defaults": { "validations": [{ "httpStatusCode": 200 }, { "jsonpath": ".id", "exists": true }] },
   "steps": [{
     "validations": [{ "jsonpath": ".name", "exists": true }]
-    // Result: All 3 validations are checked (status 200, .id exists, .name exists)
+    // Result: All 3 validations are checked (httpStatusCode 200, .id exists, .name exists)
   }]
 }
 ```
@@ -261,8 +261,8 @@ Control how step-level settings interact with global defaults:
 {
   "steps": [{
     "skipDefaultValidations": true,
-    "validations": [{ "status": 201 }]
-    // Result: Only status 201 is validated
+    "validations": [{ "httpStatusCode": 201 }]
+    // Result: Only httpStatusCode 201 is validated
   }]
 }
 ```
@@ -281,12 +281,12 @@ Control how step-level settings interact with global defaults:
 
 **When to use merge behavior (default):**
 - Most API calls in a sequence share common headers (Authorization, Content-Type)
-- You want consistent validation across all steps (status 200 + common field checks)
+- You want consistent validation across all steps (httpStatusCode 200 + common field checks)
 - Step-level settings add to or override specific defaults
 
 **When to use skip defaults:**
 - File upload step needs `Content-Type: multipart/form-data` (completely different from JSON default)
-- Create endpoint expects status 201 instead of 200 (different validation)
+- Create endpoint expects httpStatusCode 201 instead of 200 (different validation)
 - Public endpoint doesn't need authentication headers (no headers at all)
 - Testing error scenarios where you expect failures (no validation checks)
 

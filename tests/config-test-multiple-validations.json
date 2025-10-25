@@ -8,7 +8,7 @@
     },
     "validations": [
       {
-        "status": 200
+        "httpStatusCode": 200
       }
     ]
   },
@@ -20,7 +20,7 @@
       "url": "/posts/1",
       "validations": [
         {
-          "status": 200
+          "httpStatusCode": 200
         },
         {
           "jsonpath": ".userId",
@@ -47,7 +47,7 @@
       "url": "/users/1",
       "validations": [
         {
-          "status": 200
+          "httpStatusCode": 200
         },
         {
           "jsonpath": ".id",
@@ -67,7 +67,7 @@
       },
       "validations": [
         {
-          "status": 201
+          "httpStatusCode": 201
         },
         {
           "jsonpath": ".id",
@@ -94,7 +94,7 @@
       "url": "/comments/1",
       "validations": [
         {
-          "status": 200
+          "httpStatusCode": 200
         },
         {
           "jsonpath": ".postId",

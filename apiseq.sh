@@ -988,9 +988,9 @@ execute_step() {
 
             validation_count=$((validation_count + 1))
 
-            # Check if this is a status validation
-            if echo "$validation" | jq -e '.status' > /dev/null 2>&1; then
-                local expect_status=$(echo "$validation" | jq -r '.status')
+            # Check if this is a httpStatusCode validation
+            if echo "$validation" | jq -e '.httpStatusCode' > /dev/null 2>&1; then
+                local expect_status=$(echo "$validation" | jq -r '.httpStatusCode')
 
                 if [ "$status_code" != "$expect_status" ]; then
                     echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code (expected $expect_status)${NC}"
@@ -1119,7 +1119,7 @@ execute_step() {
                     fi
                 fi
             else
-                echo -e "Step $step_num: $method $url ${RED}❌ Validation $validation_count must have either 'status' or 'jsonpath' field${NC}"
+                echo -e "Step $step_num: $method $url ${RED}❌ Validation $validation_count must have either 'httpStatusCode' or 'jsonpath' field${NC}"
                 exit 1
             fi
         done <<< "$validations"

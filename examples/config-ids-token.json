@@ -18,7 +18,7 @@
       "timeout": 10,
       "validations": [
         {
-          "status": 200
+          "httpStatusCode": 200
         },
         {
           "jsonpath": ".access_token",

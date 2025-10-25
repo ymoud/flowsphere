@@ -65,7 +65,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
     "timeout": 30,                   // Request timeout in seconds
     "headers": { "Content-Type": "application/json" },
     "validations": [                 // Default validations applied to all steps
-      { "status": 200 }
+      { "httpStatusCode": 200 }
     ]
   },
   "steps": [
@@ -79,7 +79,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
       "body": {},                    // Optional request payload
       "prompts": {},                 // Optional user input prompts
       "condition": {},               // Optional conditional execution
-      "validations": [],             // Response validations (status + jsonpath)
+      "validations": [],             // Response validations (httpStatusCode + jsonpath)
       "launchBrowser": ".url"        // Optional: launch browser with URL from response
     }
   ]
@@ -113,12 +113,12 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - Skipped steps maintain array indexing (stored as empty responses)
 
 **Validation:**
-- **Unified validations array** - All validations (status + jsonpath) in one array
-- **Status validation**: `{"status": 200}`
+- **Unified validations array** - All validations (httpStatusCode + jsonpath) in one array
+- **HTTP Status Code validation**: `{"httpStatusCode": 200}`
   - Validates HTTP response status code
-  - If no status validation defined, defaults to 200
+  - If no httpStatusCode validation defined, defaults to 200
   - Can be set globally in `defaults.validations`
-  - Example: `{"status": 201}`
+  - Example: `{"httpStatusCode": 201}`
 - **JSON path validations**: Validate response body fields
   - Each validation must have `jsonpath` field
   - Optional criteria:
@@ -140,7 +140,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
     {
       "defaults": {
         "validations": [
-          { "status": 200 }
+          { "httpStatusCode": 200 }
         ]
       },
       "steps": [
@@ -150,7 +150,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
           "method": "POST",
           "url": "/users",
           "validations": [
-            { "status": 201 },
+            { "httpStatusCode": 201 },
             { "jsonpath": ".id", "exists": true, "greaterThan": 0 },
             { "jsonpath": ".email", "notEquals": "" },
             { "jsonpath": ".age", "greaterThanOrEqual": 18, "lessThanOrEqual": 120 }
@@ -318,3 +318,4 @@ node postman-tools/parse-postman.js
 - All steps must have a unique `id` field for named references
 - each time you implement a feature/bug fix dont automatically update documentation. Ask me first
 - you should not create documentation files for bug fixes u make, unless i tell to do so.
+- dont open a browser each time you make a change to the ui, instruct the user to refresh the page and provide them with a lclickable link

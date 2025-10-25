@@ -16,7 +16,7 @@ Create a **command-line Bash script** named `apiseq.sh` that:
    - `url`
    - Optional `headers` (key-value pairs)
    - Optional `body`
-   - Optional `expect` (e.g., `"status":200`, `"jsonpath":".success", "equals":true`)
+   - Optional `validations` (e.g., `"httpStatusCode":200`, `"jsonpath":".success", "equals":true`)
 4. Prints one line after each step showing:
    ```
    Step 2: POST /api/token ✅ Status 200 OK
@@ -53,10 +53,10 @@ Claude must produce a **sample `config.json`** like this:
         "username": "demo",
         "password": "demo123"
       },
-      "expect": {
-        "status": 200,
-        "jsonpath": ".token"
-      }
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "jsonpath": ".token", "exists": true }
+      ]
     },
     {
       "name": "Get user profile",
@@ -65,9 +65,9 @@ Claude must produce a **sample `config.json`** like this:
       "headers": {
         "Authorization": "Bearer {{ .responses[0].token }}"
       },
-      "expect": {
-        "status": 200,
-        "jsonpath": ".id"
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "jsonpath": ".id", "exists": true }
       }
     }
   ]

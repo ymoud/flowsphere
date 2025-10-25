@@ -9,7 +9,7 @@
       "X-Default-Header": "DefaultValue"
     },
     "validations": [
-      { "status": 200 },
+      { "httpStatusCode": 200 },
       { "jsonpath": ".id", "exists": true }
     ]
   },
@@ -63,7 +63,7 @@
       "url": "/posts/6",
       "skipDefaultValidations": true,
       "validations": [
-        { "status": 201 }
+        { "httpStatusCode": 201 }
       ]
     },
     {
@@ -84,7 +84,7 @@
         "X-Custom-Only": "Value"
       },
       "validations": [
-        { "status": 200 },
+        { "httpStatusCode": 200 },
         { "jsonpath": ".body", "exists": true }
       ]
     },

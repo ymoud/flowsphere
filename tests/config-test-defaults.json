@@ -8,7 +8,7 @@
       "Accept": "application/json"
     },
     "validations": [
-      { "status": 200 },
+      { "httpStatusCode": 200 },
       { "jsonpath": ".id", "exists": true }
     ]
   },
