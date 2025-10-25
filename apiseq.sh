@@ -26,10 +26,115 @@ declare -a responses_status=()
 declare -A response_ids=()
 # Storage for user input (as JSON object)
 USER_INPUT_JSON="{}"
+# Array to store execution log entries (JSON objects)
+declare -a execution_log=()
+# Track if sequence completed successfully
+SEQUENCE_COMPLETED=false
+# Track if user interrupted execution
+USER_INTERRUPTED=false
+# Store config file path for exit trap
+CONFIG_FILE_PATH=""
+# Store start_step parameter for logging
+START_STEP=0
 
 # Temporary directory for storing response files
 TEMP_DIR=$(mktemp -d)
-trap 'rm -rf "$TEMP_DIR"' EXIT
+
+# Handle user interruption (Ctrl+C)
+handle_interrupt() {
+    USER_INTERRUPTED=true
+    echo "" >&2
+    echo "Execution interrupted by user" >&2
+    exit 130  # Standard exit code for SIGINT
+}
+
+trap handle_interrupt SIGINT SIGTERM
+
+# Cleanup and log prompt on exit
+cleanup_and_prompt() {
+    local exit_code=$?
+    rm -rf "$TEMP_DIR"
+
+    # Always prompt to save log if there are entries (using /dev/tty for Git Bash compatibility)
+    if [ ${#execution_log[@]} -gt 0 ]; then
+        # Determine status based on flags
+        local status="failure"
+        if [ "$USER_INTERRUPTED" = "true" ]; then
+            status="interrupted_by_user"
+        elif [ "$SEQUENCE_COMPLETED" = "true" ]; then
+            status="success"
+        fi
+
+        # Prompt user to save log
+        echo "" >&2
+
+        # Use /dev/tty to ensure input works in Git Bash on Windows
+        if [ -e /dev/tty ]; then
+            read -p "Would you like to save an execution log? (y/n): " -n 1 -r </dev/tty >&2
+            echo "" >&2
+        else
+            read -p "Would you like to save an execution log? (y/n): " -n 1 -r >&2
+            echo "" >&2
+        fi
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            # Create logs directory if it doesn't exist
+            mkdir -p logs
+
+            # Generate default filename with timestamp
+            local timestamp=$(date +"%Y%m%d_%H%M%S")
+            local default_filename="execution_log_${timestamp}.json"
+
+            if [ -e /dev/tty ]; then
+                read -p "Enter filename [$default_filename]: " filename </dev/tty >&2
+            else
+                read -p "Enter filename [$default_filename]: " filename >&2
+            fi
+            filename=${filename:-$default_filename}
+
+            # Append .json extension if user didn't provide any extension
+            if [[ ! "$filename" =~ \. ]]; then
+                filename="${filename}.json"
+            fi
+
+            # If filename doesn't contain a path (is just a basename), save to logs directory
+            # This works on all OS (Unix/Linux/macOS/Windows)
+            if [[ "$(basename "$filename")" == "$filename" ]]; then
+                filename="logs/${filename}"
+            fi
+
+            # Build the complete log JSON
+            local steps_json=$(printf '%s\n' "${execution_log[@]}" | jq -s '.')
+
+            local full_log=$(jq -n \
+                --arg config "$CONFIG_FILE_PATH" \
+                --arg status "$status" \
+                --arg timestamp "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+                --arg skip_steps "$START_STEP" \
+                --argjson steps "$steps_json" \
+                '{
+                    metadata: {
+                        config_file: $config,
+                        execution_status: $status,
+                        timestamp: $timestamp,
+                        skip_steps: ($skip_steps | tonumber),
+                        executed_steps: ($steps | length)
+                    },
+                    steps: $steps
+                }')
+
+            echo "$full_log" > "$filename"
+
+            if [ $? -eq 0 ]; then
+                echo -e "${GREEN}✓${NC} Execution log saved to: $filename" >&2
+            else
+                echo -e "${RED}✗${NC} Failed to save execution log" >&2
+            fi
+        fi
+    fi
+}
+
+trap cleanup_and_prompt EXIT
 
 # Global defaults
 DEFAULTS_JSON="{}"
@@ -855,6 +960,7 @@ execute_step() {
 
     # Extract step details
     debug_log "DEBUG: execute_step - extracting step details"
+    local step_id=$(echo "$step_json" | jq -r '.id // ""')
     local name=$(echo "$step_json" | jq -r '.name')
     local method=$(echo "$step_json" | jq -r '.method')
     local url=$(echo "$step_json" | jq -r '.url')
@@ -880,6 +986,7 @@ execute_step() {
     fi
 
     # Add headers if present
+    local final_headers_json="{}"
     if echo "$step_json" | jq -e '.headers' > /dev/null 2>&1; then
         debug_log "DEBUG: Headers found in step_json"
         local headers_json=$(echo "$step_json" | jq -c '.headers')
@@ -901,6 +1008,9 @@ execute_step() {
                 value=$(substitute_variables "$value")
                 debug_log "DEBUG: After substitution: $key = $value"
 
+                # Store final header for logging
+                final_headers_json=$(echo "$final_headers_json" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
+
                 # Add header to curl command
                 curl_cmd+=" -H '$key: $value'"
             fi
@@ -908,6 +1018,7 @@ execute_step() {
     fi
 
     # Add body if present
+    local final_body=""
     if echo "$step_json" | jq -e '.body' > /dev/null 2>&1; then
         local body=$(echo "$step_json" | jq -c '.body')
 
@@ -924,6 +1035,7 @@ execute_step() {
         fi
 
         body=$(process_body "$body" "$content_type" "$body_format")
+        final_body="$body"
         curl_cmd+=" -d '$body'"
     fi
 
@@ -974,6 +1086,39 @@ execute_step() {
     # Store response JSON and status code for future reference
     responses_json+=("$response_body")
     responses_status+=("$status_code")
+
+    # Build execution log entry (BEFORE validations, so failed requests are logged too)
+    local log_entry=$(jq -n \
+        --arg step_num "$step_num" \
+        --arg step_id "$step_id" \
+        --arg name "$name" \
+        --arg method "$method" \
+        --arg url "$url" \
+        --argjson headers "$final_headers_json" \
+        --arg request_body "$final_body" \
+        --arg status_code "$status_code" \
+        --arg response_body "$response_body" \
+        --arg elapsed_ms "$elapsed_ms" \
+        '{
+            step: ($step_num | tonumber),
+            id: $step_id,
+            name: $name,
+            method: $method,
+            url: $url,
+            request: {
+                headers: $headers,
+                body: $request_body
+            },
+            response: {
+                status: ($status_code | tonumber),
+                body: $response_body
+            },
+            timing: {
+                elapsed_ms: ($elapsed_ms | tonumber)
+            }
+        }')
+
+    execution_log+=("$log_entry")
 
     # Process validations (unified status and jsonpath validations)
     if echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
@@ -1168,6 +1313,7 @@ execute_step() {
     debug_log "DEBUG: execute_step returning for step $step_num"
 }
 
+
 # Main execution
 main() {
     # Check for config file argument
@@ -1175,8 +1321,10 @@ main() {
         usage
     fi
 
-    local config_file="$1"
-    local start_step="${2:-0}"  # Default to 0 if not provided
+    CONFIG_FILE_PATH="$1"
+    local config_file="$CONFIG_FILE_PATH"
+    START_STEP="${2:-0}"  # Default to 0 if not provided (store globally for logging)
+    local start_step="$START_STEP"
 
     # Validate start_step is a number
     if ! [[ "$start_step" =~ ^[0-9]+$ ]]; then
@@ -1327,7 +1475,10 @@ main() {
 
     echo ""
     echo -e "${GREEN}Sequence completed: $steps_executed executed, $steps_skipped skipped 🎉${NC}"
+
+    # Mark sequence as completed successfully (for EXIT trap to determine status)
+    SEQUENCE_COMPLETED=true
 }
 
-# Run main function
+# Run main function (EXIT trap will handle log prompt)
 main "$@"

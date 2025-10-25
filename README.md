@@ -72,6 +72,7 @@ xdg-open config-editor/index.html     # Linux
 | **Validation** | Verify status codes and response fields; fail fast on errors |
 | **Flexible Formats** | JSON and form-urlencoded bodies supported |
 | **Visual Feedback** | Clear status indicators: ✅ success / ❌ failed / ⊘ skipped |
+| **Execution Logging** | Save detailed logs of all requests/responses for debugging and audit trails |
 
 ## Examples
 
@@ -336,6 +337,66 @@ Enable detailed logging:
 ```
 
 Shows variable substitution, curl commands, and internal state.
+
+## Execution Logging
+
+After every execution (success, failure, or user interruption), you'll be prompted to save a detailed log file:
+
+```
+Would you like to save an execution log? (y/n): y
+Enter filename [execution_log_20250125_143022.json]: mytest
+```
+
+**Features:**
+- **Automatic directory management** — Logs saved to `logs/` directory (created automatically)
+- **Auto .json extension** — Just enter a name, `.json` is added automatically
+- **Custom paths supported** — Provide full path to save elsewhere: `/tmp/mylog.json`
+- **Cross-platform** — Works on Windows, macOS, and Linux
+- **Captures all executions** — Successful runs, validation failures, and user interruptions (Ctrl+C)
+
+**Log File Format:**
+```json
+{
+  "metadata": {
+    "config_file": "scenarios/config-onboarding-sbx.json",
+    "execution_status": "success",           // "success", "failure", or "interrupted_by_user"
+    "timestamp": "2025-01-25T12:30:45Z",
+    "skip_steps": 15,                        // Number of steps skipped (from start_step parameter)
+    "executed_steps": 3                      // Number of steps that were executed
+  },
+  "steps": [
+    {
+      "step": 16,
+      "id": "save-app-data",
+      "name": "Save application data",
+      "method": "POST",
+      "url": "http://localhost:5000/egov/saveApplicationData",
+      "request": {
+        "headers": { "Content-Type": "application/json", "Authorization": "Bearer xyz" },
+        "body": "{\"data\":\"value\"}"
+      },
+      "response": {
+        "status": 200,
+        "body": "{\"success\":true,\"id\":12345}"
+      },
+      "timing": {
+        "elapsed_ms": 1234                   // Request duration in milliseconds
+      }
+    }
+  ]
+}
+```
+
+**Use cases:**
+- **Debugging** — Inspect exact requests/responses when troubleshooting failures
+- **Audit trails** — Keep records of production API executions
+- **Performance analysis** — Review timing data to identify slow endpoints
+- **Test documentation** — Share logs with team members for issue reproduction
+
+**Execution status values:**
+- `success` — All steps completed successfully
+- `failure` — Step failed validation, timeout, or network error
+- `interrupted_by_user` — User pressed Ctrl+C during execution
 
 ---
 
