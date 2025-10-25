@@ -154,10 +154,29 @@ code, pre, .monospace {
     transition: background var(--transition-speed) ease;
 }
 
+/* Logo */
 .app-logo {
-    height: 48px;
-    width: 48px;
+    height: 64px; /* 33% increase from 48px */
+    width: 64px;
     flex-shrink: 0;
+    animation: logoEnter 0.2s ease-out;
+}
+
+/* Dark mode glow effect */
+[data-theme="dark"] .app-logo {
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
+}
+
+/* Logo fade-in animation */
+@keyframes logoEnter {
+    from {
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .app-title {
