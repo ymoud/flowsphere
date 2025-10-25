@@ -137,6 +137,25 @@ function moveStep(index, direction) {
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= config.steps.length) return;
 
+    // Get the step element for animation
+    const stepsAccordion = document.getElementById('stepsAccordion');
+    const stepElement = stepsAccordion?.querySelectorAll('.accordion-item')[index];
+
+    if (stepElement) {
+        // Add fade-out animation
+        stepElement.classList.add('step-fade-out');
+
+        // Wait for fade-out animation to complete, then swap and re-render
+        setTimeout(() => {
+            performStepSwap(index, newIndex);
+        }, 250); // Match fade-out animation duration
+    } else {
+        // Fallback: swap immediately if element not found
+        performStepSwap(index, newIndex);
+    }
+}
+
+function performStepSwap(index, newIndex) {
     const temp = config.steps[index];
     config.steps[index] = config.steps[newIndex];
     config.steps[newIndex] = temp;
@@ -156,6 +175,24 @@ function moveStep(index, direction) {
     saveToLocalStorage();
     renderSteps();
     updatePreview();
+
+    // Apply fade-in animation to the moved step at its new position
+    setTimeout(() => {
+        const stepsAccordion = document.getElementById('stepsAccordion');
+        if (stepsAccordion) {
+            const stepItems = stepsAccordion.querySelectorAll('.accordion-item');
+            const movedStep = stepItems[newIndex];
+
+            if (movedStep) {
+                movedStep.classList.add('step-fade-in');
+
+                // Remove class after animation completes
+                setTimeout(() => {
+                    movedStep.classList.remove('step-fade-in');
+                }, 300); // Match fade-in animation duration
+            }
+        }
+    }, 0);
 }
 
 function updateStep(index, field, value) {

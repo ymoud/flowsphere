@@ -254,10 +254,16 @@ function renderSteps() {
         ${steps.map((step, index) => {
             const isOpen = openStepIndices.has(index);
             const collapseId = `step_${index}`;
+            const showDragHandle = steps.length > 1;
+            const isDraggable = showDragHandle && !isOpen; // Only collapsed steps can be dragged
             return `
-            <div class="accordion-item mb-3 step-method-${(step.method || 'GET').toLowerCase()}">
+            <div class="accordion-item mb-3 step-method-${(step.method || 'GET').toLowerCase()}"
+                 draggable="${isDraggable}"
+                 data-step-index="${index}"
+                 ${!isDraggable && showDragHandle ? 'data-drag-disabled="true"' : ''}>
                 <h2 class="accordion-header d-flex align-items-center">
                     <button class="accordion-button ${isOpen ? '' : 'collapsed'} py-2 flex-grow-1" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                        ${showDragHandle ? `<i class="bi bi-grip-vertical text-muted me-2 drag-handle ${isOpen ? 'drag-handle-disabled' : ''}" title="${isOpen ? 'Close step to enable dragging' : 'Drag to reorder'}"></i>` : ''}
                         <span class="fw-medium">
                             ${index + 1}. ${step.name || 'Unnamed Step'}
                             ${step.id ? `<span class="text-muted small">[${step.id}]</span>` : ''}
@@ -289,15 +295,29 @@ function renderSteps() {
 
     container.innerHTML = html;
 
-    // Track collapse state
+    // Track collapse state and update draggable attribute
     const collapseEls = container.querySelectorAll('.accordion-collapse');
     collapseEls.forEach((collapseEl, index) => {
-        collapseEl.addEventListener('shown.bs.collapse', () => openStepIndices.add(index));
-        collapseEl.addEventListener('hidden.bs.collapse', () => openStepIndices.delete(index));
+        collapseEl.addEventListener('shown.bs.collapse', () => {
+            openStepIndices.add(index);
+            // Update draggable state when step is opened
+            updateStepDraggableState(index, false);
+        });
+        collapseEl.addEventListener('hidden.bs.collapse', () => {
+            openStepIndices.delete(index);
+            // Update draggable state when step is closed
+            updateStepDraggableState(index, true);
+        });
     });
 
-    // Attach autocomplete to all step inputs
+    // Attach autocomplete and drag-drop handlers
     setTimeout(() => {
+        // Initialize drag and drop for step reordering
+        if (typeof initStepDragAndDrop === 'function') {
+            initStepDragAndDrop();
+        }
+
+        // Attach autocomplete to all step inputs
         steps.forEach((step, stepIndex) => {
             const stepItem = container.querySelectorAll('.accordion-item')[stepIndex];
             if (stepItem) {
@@ -512,9 +532,46 @@ function updateConfig() {
     updatePreview();
 }
 
+/**
+ * Update a step's draggable state and visual appearance
+ * @param {number} index - Step index
+ * @param {boolean} isDraggable - Whether the step should be draggable
+ */
+function updateStepDraggableState(index, isDraggable) {
+    const stepsAccordion = document.getElementById('stepsAccordion');
+    if (!stepsAccordion) return;
+
+    const stepItems = stepsAccordion.querySelectorAll('.accordion-item');
+    const stepItem = stepItems[index];
+    if (!stepItem) return;
+
+    // Update draggable attribute
+    stepItem.setAttribute('draggable', isDraggable);
+
+    // Update drag handle appearance
+    const dragHandle = stepItem.querySelector('.drag-handle');
+    if (dragHandle) {
+        if (isDraggable) {
+            dragHandle.classList.remove('drag-handle-disabled');
+            dragHandle.setAttribute('title', 'Drag to reorder');
+        } else {
+            dragHandle.classList.add('drag-handle-disabled');
+            dragHandle.setAttribute('title', 'Close step to enable dragging');
+        }
+    }
+
+    // Update data attribute
+    if (isDraggable) {
+        stepItem.removeAttribute('data-drag-disabled');
+    } else {
+        stepItem.setAttribute('data-drag-disabled', 'true');
+    }
+}
+
 // Export functions to global scope for onclick handlers
 window.toggleSection = toggleSection;
 window.updateConfig = updateConfig;
 window.updateGlobalVariable = updateGlobalVariable;
 window.addGlobalVariable = addGlobalVariable;
 window.removeGlobalVariable = removeGlobalVariable;
+window.updateStepDraggableState = updateStepDraggableState;
