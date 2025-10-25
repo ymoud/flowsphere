@@ -938,9 +938,18 @@ execute_step() {
     # Temporarily disable errexit to allow curl to fail gracefully and return exit code
     # Without this, set -e would cause the script to exit on curl errors
     set +e
+
+    # Start timing the API call
+    local start_time=$(date +%s%3N)
     eval "$curl_cmd" > "$response_file" 2>&1
     local curl_exit_code=$?
+    local end_time=$(date +%s%3N)
+
     set -e
+
+    # Calculate elapsed time in milliseconds
+    local elapsed_ms=$((end_time - start_time))
+    local elapsed_s=$(awk "BEGIN {printf \"%.3f\", $elapsed_ms/1000}")
 
     # Check for curl errors (including timeout)
     if [ $curl_exit_code -eq 28 ]; then
@@ -1154,8 +1163,8 @@ execute_step() {
         fi
     fi
 
-    # Print success
-    echo -e "Step $step_num: $method $url ${GREEN}✅ Status $status_code OK${NC}"
+    # Print success with elapsed time
+    echo -e "Step $step_num: $method $url ${GREEN}✅ Status $status_code OK${NC} (${elapsed_s}s)"
     debug_log "DEBUG: execute_step returning for step $step_num"
 }
 
