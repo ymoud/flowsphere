@@ -9,11 +9,11 @@ function renderEditor() {
         <!-- General Settings -->
         <div class="accordion-item mb-3 border rounded">
             <h2 class="accordion-header">
-                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#generalSettings">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#generalSettings">
                     General Settings
                 </button>
             </h2>
-            <div id="generalSettings" class="accordion-collapse collapse show" data-bs-parent="#mainAccordion">
+            <div id="generalSettings" class="accordion-collapse collapse">
                 <div class="accordion-body">
                     <div class="form-check">
                         <input type="checkbox" class="form-check-input" id="enableDebug" ${config.enableDebug ? 'checked' : ''} onchange="updateConfig()">
@@ -27,11 +27,11 @@ function renderEditor() {
         <!-- Global Variables -->
         <div class="accordion-item mb-3 border rounded">
             <h2 class="accordion-header">
-                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#globalVariables">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#globalVariables">
                     Global Variables
                 </button>
             </h2>
-            <div id="globalVariables" class="accordion-collapse collapse show" data-bs-parent="#mainAccordion">
+            <div id="globalVariables" class="accordion-collapse collapse">
                 <div class="accordion-body">
                     <label class="form-label">Variables</label>
                     <div id="globalVariablesContent"></div>
@@ -46,11 +46,11 @@ function renderEditor() {
         <!-- Default Settings -->
         <div class="accordion-item mb-3 border rounded">
             <h2 class="accordion-header">
-                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#defaultSettings">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#defaultSettings">
                     Default Settings
                 </button>
             </h2>
-            <div id="defaultSettings" class="accordion-collapse collapse show" data-bs-parent="#mainAccordion">
+            <div id="defaultSettings" class="accordion-collapse collapse">
                 <div class="accordion-body">
                     <div class="mb-3">
                         <label class="form-label">Base URL</label>
@@ -92,7 +92,7 @@ function renderEditor() {
                     Steps (${config.steps?.length || 0})
                 </button>
             </h2>
-            <div id="stepsSection" class="accordion-collapse collapse show" data-bs-parent="#mainAccordion">
+            <div id="stepsSection" class="accordion-collapse collapse show">
                 <div class="accordion-body">
                     <div id="stepsList"></div>
                     <button class="btn btn-primary btn-sm mt-2" onclick="addStep()">
