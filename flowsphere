@@ -36,6 +36,9 @@ USER_INTERRUPTED=false
 CONFIG_FILE_PATH=""
 # Store start_step parameter for logging
 START_STEP=0
+# Track failed step for metadata logging
+FAILED_STEP_NUM=""
+FAILED_STEP_ID=""
 
 # Temporary directory for storing response files
 TEMP_DIR=$(mktemp -d)
@@ -122,6 +125,8 @@ cleanup_and_prompt() {
                 --arg status "$status" \
                 --arg timestamp "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
                 --arg skip_steps "$START_STEP" \
+                --arg failed_step_num "$FAILED_STEP_NUM" \
+                --arg failed_step_id "$FAILED_STEP_ID" \
                 --slurpfile steps "$temp_log_file" \
                 '{
                     metadata: {
@@ -130,7 +135,18 @@ cleanup_and_prompt() {
                         timestamp: $timestamp,
                         skip_steps: ($skip_steps | tonumber),
                         executed_steps: ($steps[0] | length)
-                    },
+                    } + (
+                        if $status == "failure" and $failed_step_num != "" then
+                            {
+                                failed_step: {
+                                    step: ($failed_step_num | tonumber),
+                                    id: $failed_step_id
+                                }
+                            }
+                        else
+                            {}
+                        end
+                    ),
                     steps: $steps[0]
                 }' > "$filename"
 
@@ -1046,8 +1062,50 @@ execute_step() {
     responses_json+=("$response_body")
     responses_status+=("$status_code")
 
-    # Build execution log entry (BEFORE validations, so failed requests are logged too)
+    # Build execution log entry (will be updated with validation results later)
     local t_before_log=$(date +%s%3N)
+
+    # Array to track validation results for logging
+    local validation_results_json="[]"
+
+    # Helper function to add validation result
+    add_validation_result() {
+        local v_type="$1"
+        local v_field="$2"
+        local v_expected="$3"
+        local v_actual="$4"
+        local v_passed="$5"
+
+        validation_results_json=$(echo "$validation_results_json" | jq \
+            --arg type "$v_type" \
+            --arg field "$v_field" \
+            --arg expected "$v_expected" \
+            --arg actual "$v_actual" \
+            --arg passed "$v_passed" \
+            '. + [{
+                type: $type,
+                field: $field,
+                expected: $expected,
+                actual: $actual,
+                passed: ($passed == "true")
+            }]')
+    }
+
+    # Helper function to update log entry with current validation results
+    # Also sets failed step globals if validation failed (for metadata logging)
+    update_log_entry_validations() {
+        execution_log[$log_entry_index]=$(echo "${execution_log[$log_entry_index]}" | jq \
+            --argjson validations "$validation_results_json" \
+            '. + {validations: $validations}')
+
+        # Check if any validation failed and set globals for metadata
+        local has_failure=$(echo "$validation_results_json" | jq 'any(.[]; .passed == false)')
+        if [ "$has_failure" = "true" ]; then
+            FAILED_STEP_NUM="$step_num"
+            FAILED_STEP_ID="$step_id"
+        fi
+    }
+
     local log_entry=$(jq -n \
         --arg step_num "$step_num" \
         --arg step_id "$step_id" \
@@ -1078,9 +1136,13 @@ execute_step() {
             }
         }')
 
-    execution_log+=("$log_entry")
     local t_after_log=$(date +%s%3N)
     timing_log "[TIMING] Step $step_num: build log entry took $((t_after_log - t_before_log))ms" >&2
+
+    # Add log entry to execution log NOW (before validations)
+    # This ensures the step is logged even if validation fails
+    execution_log+=("$log_entry")
+    local log_entry_index=$((${#execution_log[@]} - 1))
 
     # Process validations (unified status and jsonpath validations)
     local t_before_validations=$(date +%s%3N)
@@ -1135,10 +1197,13 @@ execute_step() {
             # Check if this is a httpStatusCode validation
             if [ -n "$v_httpStatus" ]; then
                 if [ "$status_code" != "$v_httpStatus" ]; then
+                    add_validation_result "httpStatusCode" "status" "$v_httpStatus" "$status_code" "false"
+                    update_log_entry_validations
                     echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code (expected $v_httpStatus)${NC}"
                     echo "Response body: $response_body"
                     exit 1
                 fi
+                add_validation_result "httpStatusCode" "status" "$v_httpStatus" "$status_code" "true"
                 status_validated=true
 
             # Check if this is a jsonpath validation
@@ -1146,6 +1211,7 @@ execute_step() {
                 local jsonpath="$v_jsonpath"
 
                 if [ "$jsonpath" = "null" ] || [ -z "$jsonpath" ]; then
+                    update_log_entry_validations
                     echo -e "Step $step_num: $method $url ${RED}❌ Validation $validation_count has invalid 'jsonpath' field${NC}"
                     exit 1
                 fi
@@ -1156,17 +1222,23 @@ execute_step() {
                 if [ -n "$v_exists" ]; then
                     if [ "$v_exists" = "true" ]; then
                         if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
+                            add_validation_result "jsonpath_exists" "$jsonpath" "true" "null" "false"
+                            update_log_entry_validations
                             echo -e "Step $step_num: $method $url ${RED}❌ Expected field '$jsonpath' to exist${NC}"
                             echo "Response body: $response_body"
                             exit 1
                         else
+                            add_validation_result "jsonpath_exists" "$jsonpath" "true" "$extracted" "true"
                             echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
                         fi
                     else
                         if [ "$extracted" != "null" ] && [ -n "$extracted" ]; then
+                            add_validation_result "jsonpath_exists" "$jsonpath" "false" "$extracted" "false"
+                            update_log_entry_validations
                             echo -e "Step $step_num: $method $url ${RED}❌ Expected field '$jsonpath' to NOT exist${NC}"
                             exit 1
                         else
+                            add_validation_result "jsonpath_exists" "$jsonpath" "false" "null" "true"
                             echo -e "  ${GREEN}✓${NC} Confirmed $jsonpath does not exist"
                         fi
                     fi
@@ -1175,9 +1247,12 @@ execute_step() {
                 # Check if equals is specified
                 if [ -n "$v_equals" ]; then
                     if [ "$extracted" != "$v_equals" ]; then
+                        add_validation_result "jsonpath_equals" "$jsonpath" "$v_equals" "$extracted" "false"
+                        update_log_entry_validations
                         echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected '$v_equals')${NC}"
                         exit 1
                     else
+                        add_validation_result "jsonpath_equals" "$jsonpath" "$v_equals" "$extracted" "true"
                         echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC}"
                     fi
                 fi
@@ -1185,9 +1260,12 @@ execute_step() {
                 # Check if notEquals is specified
                 if [ -n "$v_notEquals" ]; then
                     if [ "$extracted" = "$v_notEquals" ]; then
+                        add_validation_result "jsonpath_notEquals" "$jsonpath" "NOT $v_notEquals" "$extracted" "false"
+                        update_log_entry_validations
                         echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected NOT '$v_notEquals')${NC}"
                         exit 1
                     else
+                        add_validation_result "jsonpath_notEquals" "$jsonpath" "NOT $v_notEquals" "$extracted" "true"
                         echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (not '$v_notEquals')"
                     fi
                 fi
@@ -1196,9 +1274,12 @@ execute_step() {
                 if [ -n "$v_greaterThan" ]; then
                     # Use awk for floating point comparison
                     if ! awk -v val="$extracted" -v thresh="$v_greaterThan" 'BEGIN { exit !(val > thresh) }'; then
+                        add_validation_result "jsonpath_greaterThan" "$jsonpath" "> $v_greaterThan" "$extracted" "false"
+                        update_log_entry_validations
                         echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected > $v_greaterThan)${NC}"
                         exit 1
                     else
+                        add_validation_result "jsonpath_greaterThan" "$jsonpath" "> $v_greaterThan" "$extracted" "true"
                         echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (> $v_greaterThan)"
                     fi
                 fi
@@ -1207,9 +1288,12 @@ execute_step() {
                 if [ -n "$v_lessThan" ]; then
                     # Use awk for floating point comparison
                     if ! awk -v val="$extracted" -v thresh="$v_lessThan" 'BEGIN { exit !(val < thresh) }'; then
+                        add_validation_result "jsonpath_lessThan" "$jsonpath" "< $v_lessThan" "$extracted" "false"
+                        update_log_entry_validations
                         echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected < $v_lessThan)${NC}"
                         exit 1
                     else
+                        add_validation_result "jsonpath_lessThan" "$jsonpath" "< $v_lessThan" "$extracted" "true"
                         echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (< $v_lessThan)"
                     fi
                 fi
@@ -1218,9 +1302,12 @@ execute_step() {
                 if [ -n "$v_greaterThanOrEqual" ]; then
                     # Use awk for floating point comparison
                     if ! awk -v val="$extracted" -v thresh="$v_greaterThanOrEqual" 'BEGIN { exit !(val >= thresh) }'; then
+                        add_validation_result "jsonpath_greaterThanOrEqual" "$jsonpath" ">= $v_greaterThanOrEqual" "$extracted" "false"
+                        update_log_entry_validations
                         echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected >= $v_greaterThanOrEqual)${NC}"
                         exit 1
                     else
+                        add_validation_result "jsonpath_greaterThanOrEqual" "$jsonpath" ">= $v_greaterThanOrEqual" "$extracted" "true"
                         echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (>= $v_greaterThanOrEqual)"
                     fi
                 fi
@@ -1229,9 +1316,12 @@ execute_step() {
                 if [ -n "$v_lessThanOrEqual" ]; then
                     # Use awk for floating point comparison
                     if ! awk -v val="$extracted" -v thresh="$v_lessThanOrEqual" 'BEGIN { exit !(val <= thresh) }'; then
+                        add_validation_result "jsonpath_lessThanOrEqual" "$jsonpath" "<= $v_lessThanOrEqual" "$extracted" "false"
+                        update_log_entry_validations
                         echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected <= $v_lessThanOrEqual)${NC}"
                         exit 1
                     else
+                        add_validation_result "jsonpath_lessThanOrEqual" "$jsonpath" "<= $v_lessThanOrEqual" "$extracted" "true"
                         echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (<= $v_lessThanOrEqual)"
                     fi
                 fi
@@ -1241,14 +1331,18 @@ execute_step() {
                    [ -z "$v_greaterThan" ] && [ -z "$v_lessThan" ] && \
                    [ -z "$v_greaterThanOrEqual" ] && [ -z "$v_lessThanOrEqual" ]; then
                     if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
+                        add_validation_result "jsonpath_default_exists" "$jsonpath" "exists" "null" "false"
+                        update_log_entry_validations
                         echo -e "Step $step_num: $method $url ${RED}❌ JSON path '$jsonpath' not found${NC}"
                         echo "Response body: $response_body"
                         exit 1
                     else
+                        add_validation_result "jsonpath_default_exists" "$jsonpath" "exists" "$extracted" "true"
                         echo -e "  ${GREEN}✓${NC} Extracted $jsonpath = ${YELLOW}$extracted${NC}"
                     fi
                 fi
             else
+                update_log_entry_validations
                 echo -e "Step $step_num: $method $url ${RED}❌ Validation $validation_count must have either 'httpStatusCode' or 'jsonpath' field${NC}"
                 exit 1
             fi
@@ -1257,22 +1351,33 @@ execute_step() {
         # If no status validation was found, default to 200
         if [ "$status_validated" = "false" ]; then
             if [ "$status_code" != "200" ]; then
+                add_validation_result "httpStatusCode_default" "status" "200" "$status_code" "false"
+                update_log_entry_validations
                 echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code (expected 200)${NC}"
                 echo "Response body: $response_body"
                 exit 1
+            else
+                add_validation_result "httpStatusCode_default" "status" "200" "$status_code" "true"
             fi
         fi
         fi  # Close the else block for non-empty validations
     else
         # No validations defined, default to checking status 200
         if [ "$status_code" != "200" ]; then
+            add_validation_result "httpStatusCode_default" "status" "200" "$status_code" "false"
+            update_log_entry_validations
             echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code (expected 200)${NC}"
             echo "Response body: $response_body"
             exit 1
+        else
+            add_validation_result "httpStatusCode_default" "status" "200" "$status_code" "true"
         fi
     fi
     local t_after_validations=$(date +%s%3N)
     timing_log "[TIMING] Step $step_num: validations took $((t_after_validations - t_before_validations))ms" >&2
+
+    # Update log entry with validation results (for successful validations)
+    update_log_entry_validations
 
     # Check if step should launch browser
     if echo "$step_json" | jq -e '.launchBrowser' > /dev/null 2>&1; then
