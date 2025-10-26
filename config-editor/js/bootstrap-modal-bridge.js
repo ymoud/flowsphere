@@ -96,11 +96,9 @@ function confirmNewConfig() {
                 renderEditor();
                 updatePreview();
 
-                // Show download and close buttons
-                const downloadBtn = document.getElementById('downloadBtn');
-                const closeBtn = document.getElementById('closeBtn');
-                if (downloadBtn) downloadBtn.style.display = 'inline-block';
-                if (closeBtn) closeBtn.style.display = 'inline-block';
+                // Show file actions dropdown
+                const fileActionsDropdown = document.getElementById('fileActionsDropdown');
+                if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
 
             } catch (err) {
                 alert('Error parsing Postman collection: ' + err.message);
@@ -130,11 +128,9 @@ function confirmNewConfig() {
     renderEditor();
     updatePreview();
 
-    // Show download and close buttons
-    const downloadBtn = document.getElementById('downloadBtn');
-    const closeBtn = document.getElementById('closeBtn');
-    if (downloadBtn) downloadBtn.style.display = 'inline-block';
-    if (closeBtn) closeBtn.style.display = 'inline-block';
+    // Show file actions dropdown
+    const fileActionsDropdown = document.getElementById('fileActionsDropdown');
+    if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
 }
 
 // Export functions to global scope

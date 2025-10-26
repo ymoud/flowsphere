@@ -72,11 +72,9 @@ function closeFile() {
         editorContent.classList.add('empty-state');
         updatePreview();
 
-        // Hide download and close buttons
-        const downloadBtn = document.getElementById('downloadBtn');
-        const closeBtn = document.getElementById('closeBtn');
-        if (downloadBtn) downloadBtn.style.display = 'none';
-        if (closeBtn) closeBtn.style.display = 'none';
+        // Hide file actions dropdown
+        const fileActionsDropdown = document.getElementById('fileActionsDropdown');
+        if (fileActionsDropdown) fileActionsDropdown.style.display = 'none';
 
         // Clear auto-save indicator
         const autoSaveIndicator = document.getElementById('autoSaveIndicator');
@@ -103,6 +101,10 @@ function loadFromLocalStorage() {
             if (typeof scrollJsonPreviewToTop === 'function') {
                 scrollJsonPreviewToTop();
             }
+
+            // Show file actions dropdown
+            const fileActionsDropdown = document.getElementById('fileActionsDropdown');
+            if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
         } catch (err) {
             console.error('Error loading from localStorage:', err);
         }

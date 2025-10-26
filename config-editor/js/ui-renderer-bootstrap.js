@@ -117,25 +117,8 @@ function renderEditor() {
         }
     }, 0);
 
-    // Add collapse event listeners for main sections to scroll JSON preview
-    setTimeout(() => {
-        const sections = [
-            { id: 'generalSettings', sectionName: 'general' },
-            { id: 'globalVariables', sectionName: 'variables' },
-            { id: 'defaultSettings', sectionName: 'defaults' }
-        ];
-
-        sections.forEach(({ id, sectionName }) => {
-            const sectionEl = document.getElementById(id);
-            if (sectionEl) {
-                sectionEl.addEventListener('shown.bs.collapse', () => {
-                    if (typeof scrollToJsonSection === 'function') {
-                        scrollToJsonSection(sectionName);
-                    }
-                });
-            }
-        });
-    }, 0);
+    // Note: Scroll-to-view in JSON preview is only enabled for step/node accordions
+    // General settings, variables, and defaults accordions don't trigger JSON scroll
 }
 
 function renderGlobalVariables() {
@@ -374,6 +357,11 @@ function renderSteps() {
             if (typeof scrollToJsonSection === 'function') {
                 scrollToJsonSection(`step-${index}`);
             }
+            // Initialize body visibility based on current method
+            const methodSelect = document.getElementById(`methodSelect_${index}`);
+            if (methodSelect) {
+                toggleBodyVisibility(index, methodSelect.value);
+            }
         });
         collapseEl.addEventListener('hidden.bs.collapse', () => {
             openStepIndices.delete(index);
@@ -409,6 +397,15 @@ function renderSteps() {
                         attachAutocompleteToInput(input, stepIndex);
                     }
                 });
+
+                // Initialize body visibility for already-open steps
+                const collapseEl = stepItem.querySelector('.accordion-collapse');
+                if (collapseEl && collapseEl.classList.contains('show')) {
+                    const methodSelect = document.getElementById(`methodSelect_${stepIndex}`);
+                    if (methodSelect) {
+                        toggleBodyVisibility(stepIndex, methodSelect.value);
+                    }
+                }
             }
         });
 
@@ -656,7 +653,7 @@ function renderStepForm(step, index) {
             <div class="row g-3 mb-3">
                 <div class="col-md-4">
                     <label class="form-label">HTTP Method</label>
-                    <select class="form-select form-select-sm" onchange="updateStep(${index}, 'method', this.value)">
+                    <select class="form-select form-select-sm" id="methodSelect_${index}" onchange="toggleBodyVisibility(${index}, this.value); updateStepAsync(${index}, 'method', this.value);">
                         <option value="GET" ${step.method === 'GET' ? 'selected' : ''}>GET</option>
                         <option value="POST" ${step.method === 'POST' ? 'selected' : ''}>POST</option>
                         <option value="PUT" ${step.method === 'PUT' ? 'selected' : ''}>PUT</option>
@@ -707,7 +704,7 @@ function renderStepForm(step, index) {
                 </div>
             </div>
 
-            <div class="mb-3">
+            <div class="mb-3" id="bodySection_${index}">
                 <label class="form-label">Request Body (JSON)</label>
                 <textarea class="form-control form-control-sm font-monospace" rows="10"
                           onchange="updateStepJSON(${index}, 'body', this.value)">${JSON.stringify(step.body || {}, null, 2)}</textarea>
@@ -807,6 +804,64 @@ function updateStepDraggableState(index, isDraggable) {
     }
 }
 
+/**
+ * Toggle body section visibility based on HTTP method
+ * Methods that don't support body: GET, HEAD, DELETE
+ * @param {number} index - Step index
+ * @param {string} method - HTTP method
+ */
+function toggleBodyVisibility(index, method) {
+    const bodySection = document.getElementById(`bodySection_${index}`);
+    if (!bodySection) return;
+
+    // Methods that don't support request body
+    const methodsWithoutBody = ['GET', 'HEAD', 'DELETE'];
+    const shouldHide = methodsWithoutBody.includes(method?.toUpperCase());
+
+    bodySection.style.display = shouldHide ? 'none' : 'block';
+}
+
+/**
+ * Update step asynchronously to avoid blocking UI
+ * @param {number} index - Step index
+ * @param {string} field - Field name
+ * @param {*} value - New value
+ */
+function updateStepAsync(index, field, value) {
+    // Update immediately without triggering preview
+    if (!config.steps || !config.steps[index]) return;
+    config.steps[index][field] = value;
+    saveToLocalStorage();
+
+    // Update badge immediately if method changed
+    if (field === 'method') {
+        const stepsAccordion = document.getElementById('stepsAccordion');
+        const stepItem = stepsAccordion?.querySelectorAll('.accordion-item')[index];
+        const badge = stepItem?.querySelector('.badge');
+        if (badge) {
+            // Update badge text
+            badge.textContent = value || 'GET';
+            // Update badge class
+            badge.className = `badge ${getMethodBadgeClass(value)} ms-2`;
+        }
+        // Update step border color class (preserve existing classes)
+        if (stepItem) {
+            // Remove old method class and add new one
+            Array.from(stepItem.classList).forEach(cls => {
+                if (cls.startsWith('step-method-')) {
+                    stepItem.classList.remove(cls);
+                }
+            });
+            stepItem.classList.add(`step-method-${(value || 'GET').toLowerCase()}`);
+        }
+    }
+
+    // Defer preview update to next tick to avoid blocking
+    setTimeout(() => {
+        updatePreview();
+    }, 0);
+}
+
 // Export functions to global scope for onclick handlers
 window.toggleSection = toggleSection;
 window.updateConfig = updateConfig;
@@ -814,3 +869,5 @@ window.updateGlobalVariable = updateGlobalVariable;
 window.addGlobalVariable = addGlobalVariable;
 window.removeGlobalVariable = removeGlobalVariable;
 window.updateStepDraggableState = updateStepDraggableState;
+window.toggleBodyVisibility = toggleBodyVisibility;
+window.updateStepAsync = updateStepAsync;

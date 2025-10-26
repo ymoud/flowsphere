@@ -83,11 +83,9 @@ window.addEventListener('DOMContentLoaded', function() {
                         scrollJsonPreviewToTop();
                     }
 
-                    // Show download and close buttons
-                    const downloadBtn = document.getElementById('downloadBtn');
-                    const closeBtn = document.getElementById('closeBtn');
-                    if (downloadBtn) downloadBtn.style.display = 'inline-block';
-                    if (closeBtn) closeBtn.style.display = 'inline-block';
+                    // Show file actions dropdown
+                    const fileActionsDropdown = document.getElementById('fileActionsDropdown');
+                    if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
 
                     // Clear input to allow re-selecting the same file
                     fileInput.value = '';
@@ -138,8 +136,16 @@ window.addEventListener('DOMContentLoaded', function() {
     // Restore JSON preview collapse state from localStorage
     restoreJsonPreviewState();
 
-    // Load from localStorage
-    loadFromLocalStorage();
+    // Load from localStorage with loader if config exists
+    const savedConfig = localStorage.getItem('apiseq_config');
+    if (savedConfig) {
+        showLoader('Loading configuration...');
+        // Use setTimeout to ensure loader displays before heavy work
+        setTimeout(() => {
+            loadFromLocalStorage();
+            hideLoader();
+        }, 50);
+    }
 });
 
 /**

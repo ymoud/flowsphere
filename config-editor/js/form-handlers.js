@@ -587,9 +587,9 @@ function updatePreview() {
 
     jsonPreview.textContent = JSON.stringify(cleanConfig, null, 2);
 
-    // Show download and close buttons if config exists
-    document.getElementById('downloadBtn').style.display = 'inline-block';
-    document.getElementById('closeBtn').style.display = 'inline-block';
+    // Show file actions dropdown if config exists
+    const fileActionsDropdown = document.getElementById('fileActionsDropdown');
+    if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
 }
 
 function positionTooltip() {
@@ -619,6 +619,7 @@ function scrollJsonPreviewToTop() {
 
 /**
  * Scroll JSON preview to a specific section and highlight it
+ * If the section is already visible, only highlights it without scrolling
  * @param {string} section - Section identifier: 'general', 'variables', 'defaults', or 'step-N'
  */
 function scrollToJsonSection(section) {
@@ -752,18 +753,9 @@ function scrollToJsonSection(section) {
             previewContainer.style.position = 'relative';
         }
 
-        // First, scroll to an approximate position based on character percentage
-        const charPercent = charOffset / jsonText.length;
-        const scrollHeight = jsonPreview.scrollHeight;
-        const approximateScroll = scrollHeight * charPercent - 80;
-
-        previewContainer.scrollTo({
-            top: Math.max(0, approximateScroll),
-            behavior: 'instant' // Instant scroll first
-        });
-
-        // Now use Range API to find the EXACT position after scrolling
-        setTimeout(() => {
+        // Use Range API to find the EXACT position and check visibility
+        // No need for initial approximate scroll
+        requestAnimationFrame(() => {
             const textNode = jsonPreview.firstChild;
             if (textNode && textNode.nodeType === Node.TEXT_NODE) {
                 try {
@@ -778,13 +770,30 @@ function scrollToJsonSection(section) {
                     const absoluteTop = rect.top - containerRect.top + previewContainer.scrollTop;
                     const highlightHeight = rect.height;
 
-                    // Fine-tune scroll position
-                    const finalScroll = Math.max(0, absoluteTop - 80);
-                    if (Math.abs(finalScroll - previewContainer.scrollTop) > 5) {
-                        previewContainer.scrollTo({
-                            top: finalScroll,
-                            behavior: 'smooth'
-                        });
+                    // Check if section is already visible in viewport
+                    const currentScrollTop = previewContainer.scrollTop;
+                    const containerHeight = previewContainer.clientHeight;
+                    const viewportTop = currentScrollTop;
+                    const viewportBottom = currentScrollTop + containerHeight;
+
+                    const sectionTop = absoluteTop;
+                    const sectionBottom = absoluteTop + highlightHeight;
+
+                    // Consider section visible if it's mostly within viewport (with some padding)
+                    const padding = 80;
+                    const isVisible =
+                        (sectionTop >= viewportTop + padding) &&
+                        (sectionBottom <= viewportBottom - padding);
+
+                    // Only scroll if section is not already visible
+                    if (!isVisible) {
+                        const finalScroll = Math.max(0, absoluteTop - 80);
+                        if (Math.abs(finalScroll - currentScrollTop) > 5) {
+                            previewContainer.scrollTo({
+                                top: finalScroll,
+                                behavior: 'smooth'
+                            });
+                        }
                     }
 
                     // Create or update highlight overlay
@@ -817,7 +826,7 @@ function scrollToJsonSection(section) {
                     console.error('[scrollToJsonSection] Range API error:', e);
                 }
             }
-        }, 100); // Wait for scroll to complete
+        });
     }
 }
 

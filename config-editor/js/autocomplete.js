@@ -10,12 +10,28 @@ function initAutocomplete() {
         document.body.appendChild(autocompleteDropdown);
     }
 
-    // Hide dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (autocompleteDropdown && !autocompleteDropdown.contains(e.target) && e.target !== autocompleteTarget) {
+    // Hide dropdown when clicking anywhere outside
+    document.addEventListener('mousedown', (e) => {
+        if (!autocompleteDropdown || !autocompleteDropdown.classList.contains('show')) {
+            return;
+        }
+
+        // Check if click is outside the dropdown and not on the target input
+        const isClickOutside = !autocompleteDropdown.contains(e.target) &&
+                               (!autocompleteTarget || e.target !== autocompleteTarget);
+
+        if (isClickOutside) {
+            // Don't preventDefault on interactive elements (buttons, links, inputs, etc.)
+            const clickedElement = e.target;
+            const isInteractive = clickedElement.closest('button, a, input, select, textarea, [role="button"]');
+
+            if (!isInteractive) {
+                e.preventDefault(); // Prevent input from losing focus (which triggers onchange)
+            }
+
             hideAutocomplete();
         }
-    });
+    }, true); // Use capture phase to ensure we catch it early
 }
 
 function attachAutocompleteToInput(input, stepIndex = null, mode = 'template') {
@@ -442,7 +458,7 @@ function showAutocomplete(input, suggestions, bracePosition) {
 
     autocompleteTarget = input;
     autocompleteSuggestions = suggestions.filter(s => !s.isCategory);
-    autocompleteSelectedIndex = -1;
+    autocompleteSelectedIndex = autocompleteSuggestions.length > 0 ? 0 : -1;
 
     // Build dropdown HTML
     let html = '';
@@ -521,6 +537,9 @@ function showAutocomplete(input, suggestions, bracePosition) {
                 selectAutocompleteSuggestion({ text });
             });
         });
+
+        // Highlight the first item by default
+        updateAutocompleteSelection();
     });
 }
 
@@ -548,11 +567,13 @@ function selectAutocompleteSuggestion(suggestion) {
         const newCursorPos = suggestion.text.length;
         input.setSelectionRange(newCursorPos, newCursorPos);
 
-        // Trigger change event
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-
         hideAutocomplete();
         input.focus();
+
+        // Trigger change event asynchronously to avoid blocking UI
+        setTimeout(() => {
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        }, 0);
         return;
     }
 
@@ -595,14 +616,17 @@ function selectAutocompleteSuggestion(suggestion) {
     const newCursorPos = lastOpenBrace + 2 + suggestion.text.length + trailingSpace.length + closingBrackets.length;
     input.setSelectionRange(newCursorPos, newCursorPos);
 
-    // Trigger change event
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-
     // Always hide autocomplete after selection
     // If user types "." next, the input event will trigger autocomplete again
     hideAutocomplete();
 
     input.focus();
+
+    // Trigger change event asynchronously to avoid blocking UI
+    // This prevents the autocomplete from feeling sluggish
+    setTimeout(() => {
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    }, 0);
 }
 
 function hideAutocomplete() {
