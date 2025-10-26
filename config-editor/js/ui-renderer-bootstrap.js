@@ -295,9 +295,20 @@ function renderSteps() {
                         <button class="btn btn-sm btn-outline-secondary" onclick="moveStep(${index}, 1)" ${index === steps.length - 1 ? 'disabled' : ''} title="Move down">
                             <i class="bi bi-arrow-down"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="removeStep(${index})" title="Delete">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="More actions">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" onclick="cloneStep(${index}); return false;">
+                                    <i class="bi bi-copy me-2"></i>Duplicate
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="removeStep(${index}); return false;">
+                                    <i class="bi bi-trash me-2"></i>Delete
+                                </a></li>
+                            </ul>
+                        </div>
                     </div>
                 </h2>
                 <div id="${collapseId}" class="accordion-collapse collapse${isOpen ? ' show' : ''}" data-bs-parent="#stepsAccordion">

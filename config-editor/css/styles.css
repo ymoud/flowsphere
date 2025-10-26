@@ -17,6 +17,7 @@
     --success: #00C896;
     --warning: #FFC857;
     --error: #E63946;
+    --danger: #E63946; /* Alias for error */
 
     /* HTTP Verb Colors */
     --http-get: #0066CC;
@@ -940,6 +941,100 @@ textarea.form-control {
 .add-node-bottom {
     bottom: 10px;
     margin-top: -48px; /* Negative margin to prevent layout shift */
+}
+
+/* ========================================
+   NODE ACTION DROPDOWN
+   ======================================== */
+
+/* Node action buttons (up/down/more) - all styled the same */
+.accordion-header .btn-outline-secondary,
+.accordion-header .dropdown .btn {
+    padding: 0.375rem 0.5rem;
+    line-height: 1.5;
+    border: 1px solid transparent;
+    background-color: transparent;
+}
+
+.accordion-header .btn-outline-secondary:hover,
+.accordion-header .dropdown .btn:hover {
+    background-color: var(--bg-surface-hover);
+    border-color: var(--border-color);
+}
+
+.accordion-header .btn-outline-secondary:active,
+.accordion-header .btn-outline-secondary:focus,
+.accordion-header .dropdown .btn:active,
+.accordion-header .dropdown .btn.show {
+    background-color: var(--bg-surface-hover);
+    border-color: var(--primary);
+    box-shadow: none;
+}
+
+.accordion-header .btn-outline-secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: transparent;
+    border-color: transparent;
+}
+
+.accordion-header .btn-outline-secondary i,
+.accordion-header .dropdown .btn i {
+    font-size: 1.1rem;
+}
+
+/* Dropdown menu */
+.dropdown-menu {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    border-radius: var(--border-radius);
+    min-width: 150px;
+    padding: 0.5rem 0;
+}
+
+.dropdown-item {
+    color: var(--text-primary);
+    transition: background-color var(--transition-speed) ease;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+}
+
+.dropdown-item:hover {
+    background-color: var(--bg-surface-hover);
+    color: var(--text-primary);
+}
+
+.dropdown-item:active {
+    background-color: var(--primary);
+    color: white;
+}
+
+.dropdown-item i {
+    opacity: 0.7;
+    width: 1.25rem;
+}
+
+.dropdown-item.text-danger {
+    color: var(--danger) !important;
+}
+
+.dropdown-item.text-danger:hover {
+    background-color: rgba(220, 38, 38, 0.1);
+    color: var(--danger) !important;
+}
+
+.dropdown-item.text-danger:active {
+    background-color: var(--danger);
+    color: white !important;
+}
+
+.dropdown-divider {
+    border-color: var(--border-color);
+    opacity: 0.3;
+    margin: 0.5rem 0;
 }
 
 /* ========================================

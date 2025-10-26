@@ -243,6 +243,52 @@ function scrollToStep(stepIndex) {
     }, 10);
 }
 
+function cloneStep(index) {
+    config.steps = config.steps || [];
+
+    if (index < 0 || index >= config.steps.length) {
+        console.error('Invalid step index:', index);
+        return;
+    }
+
+    // Deep clone the step
+    const originalStep = config.steps[index];
+    const clonedStep = JSON.parse(JSON.stringify(originalStep));
+
+    // Modify the name to indicate it's a clone
+    clonedStep.name = (clonedStep.name || 'Unnamed Node') + ' (Copy)';
+
+    // Remove or modify the ID to avoid duplicates
+    if (clonedStep.id) {
+        delete clonedStep.id; // Remove ID, user can set a new one
+    }
+
+    // Insert the cloned step right after the original
+    const insertIndex = index + 1;
+    config.steps.splice(insertIndex, 0, clonedStep);
+
+    // Update open step indices
+    const newOpenIndices = new Set();
+    openStepIndices.forEach(i => {
+        if (i >= insertIndex) {
+            newOpenIndices.add(i + 1);
+        } else {
+            newOpenIndices.add(i);
+        }
+    });
+    openStepIndices = newOpenIndices;
+
+    // Open the cloned step
+    openStepIndices.add(insertIndex);
+
+    saveToLocalStorage();
+    renderSteps();
+    updatePreview();
+
+    // Scroll to the cloned step
+    setTimeout(() => scrollToStep(insertIndex), 100);
+}
+
 function removeStep(index) {
     if (confirm('Are you sure you want to remove this step?')) {
         config.steps.splice(index, 1);
@@ -277,10 +323,10 @@ function moveStep(index, direction) {
         // Add fade-out animation
         stepElement.classList.add('step-fade-out');
 
-        // Wait for fade-out animation to complete, then swap and re-render
+        // Start swap almost immediately to minimize hidden time
         setTimeout(() => {
             performStepSwap(index, newIndex);
-        }, 250); // Match fade-out animation duration
+        }, 50); // Minimal delay for near-instant reappear
     } else {
         // Fallback: swap immediately if element not found
         performStepSwap(index, newIndex);
@@ -321,7 +367,7 @@ function performStepSwap(index, newIndex) {
                 // Remove class after animation completes
                 setTimeout(() => {
                     movedStep.classList.remove('step-fade-in');
-                }, 300); // Match fade-in animation duration
+                }, 150); // Match fade-in animation duration
             }
         }
     }, 0);
@@ -420,6 +466,7 @@ window.addDefaultHeader = addDefaultHeader;
 window.removeDefaultHeader = removeDefaultHeader;
 window.updateDefaultHeader = updateDefaultHeader;
 window.addStep = addStep;
+window.cloneStep = cloneStep;
 window.removeStep = removeStep;
 window.moveStep = moveStep;
 window.updateStep = updateStep;
