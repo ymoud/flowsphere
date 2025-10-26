@@ -734,27 +734,28 @@ generate_uuid() {
     fi
 }
 
-# Function to replace dynamic placeholders (GENERATED_GUID, TIMESTAMP)
+# Function to replace dynamic placeholders ({{$guid}}, {{$timestamp}})
 # This must be called BEFORE substitute_variables to ensure dynamic values are generated first
 replace_dynamic_placeholders() {
     local input="$1"
     local output="$input"
 
-    # Replace all GENERATED_GUID placeholders with actual UUIDs
+    # Replace all {{$guid}} placeholders with actual UUIDs
     # Each occurrence gets a unique UUID
-    while grep -q "GENERATED_GUID" <<< "$output"; do
+    # Use printf %s to avoid variable expansion issues with $
+    while printf '%s' "$output" | grep -q '{{[[:space:]]*\$guid[[:space:]]*}}'; do
         local new_uuid=$(generate_uuid)
-        debug_log "DEBUG: Replacing GENERATED_GUID with $new_uuid"
-        # Use sed for more reliable replacement with special characters
-        output=$(echo "$output" | sed "s/GENERATED_GUID/$new_uuid/")
+        debug_log "DEBUG: Replacing {{\$guid}} with $new_uuid"
+        # Use awk to avoid sed's issues with $ escaping
+        output=$(printf '%s' "$output" | awk '{gsub(/\{\{[[:space:]]*\$guid[[:space:]]*\}\}/, "'"$new_uuid"'"); print}')
     done
 
-    # Replace all TIMESTAMP placeholders with current Unix timestamp
+    # Replace all {{$timestamp}} placeholders with current Unix timestamp
     # Each occurrence gets the same timestamp (called once per function invocation)
     local timestamp=$(date +%s)
-    while grep -q "TIMESTAMP" <<< "$output"; do
-        debug_log "DEBUG: Replacing TIMESTAMP with $timestamp"
-        output=$(echo "$output" | sed "s/TIMESTAMP/$timestamp/")
+    while printf '%s' "$output" | grep -q '{{[[:space:]]*\$timestamp[[:space:]]*}}'; do
+        debug_log "DEBUG: Replacing {{\$timestamp}} with $timestamp"
+        output=$(printf '%s' "$output" | awk '{gsub(/\{\{[[:space:]]*\$timestamp[[:space:]]*\}\}/, "'"$timestamp"'"); print}')
     done
 
     echo "$output"
@@ -966,7 +967,7 @@ execute_step() {
     local url=$(echo "$step_json" | jq -r '.url')
     debug_log "DEBUG: execute_step - extracted url=$url"
 
-    # Replace dynamic placeholders in URL first (GENERATED_GUID, TIMESTAMP)
+    # Replace dynamic placeholders in URL first ({{$guid}}, {{$timestamp}})
     debug_log "DEBUG: execute_step - replacing dynamic placeholders in url"
     url=$(replace_dynamic_placeholders "$url")
     debug_log "DEBUG: execute_step - after dynamic replacement url=$url"
@@ -1000,7 +1001,7 @@ execute_step() {
                 local value=$(echo "$entry" | jq -r '.value')
                 debug_log "DEBUG: Processing header: $key = $value"
 
-                # Replace dynamic placeholders in header value first (GENERATED_GUID, TIMESTAMP)
+                # Replace dynamic placeholders in header value first ({{$guid}}, {{$timestamp}})
                 value=$(replace_dynamic_placeholders "$value")
                 debug_log "DEBUG: After dynamic replacement: $key = $value"
 

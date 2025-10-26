@@ -54,15 +54,15 @@ function generateId(name) {
 function replaceEnvVars(str) {
     if (typeof str !== 'string') return str;
 
-    // Replace environment variables
+    // Replace environment variables (but preserve Postman dynamic variables like {{$guid}})
     let result = str.replace(/\{\{([^}$]+)\}\}/g, (match, varName) => {
         const trimmed = varName.trim();
         return envVars[trimmed] !== undefined ? envVars[trimmed] : match;
     });
 
     // Handle Postman dynamic variables
-    result = result.replace(/\{\{\$guid\}\}/g, 'GENERATED_GUID');
-    result = result.replace(/\{\{\$timestamp\}\}/g, 'TIMESTAMP');
+    // Keep {{$guid}} and {{$timestamp}} as-is (compatible with Postman syntax)
+    // Replace other dynamic variables that don't have direct equivalents
     result = result.replace(/\{\{\$randomInt\}\}/g, '12345');
 
     return result;

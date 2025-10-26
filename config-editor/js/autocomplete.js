@@ -114,6 +114,26 @@ function buildAutocompleteSuggestions(partialText, stepIndex) {
     if (partialText.length <= 3 && dotCount < 2) {
         const basicSuggestions = [];
 
+        // Add dynamic variables ($guid, $timestamp)
+        const guidSyntax = ' $guid';
+        const timestampSyntax = ' $timestamp';
+        if (guidSyntax.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
+            basicSuggestions.push({
+                text: guidSyntax,
+                display: '$guid',
+                hint: 'Generate unique UUID',
+                category: 'Basic Syntax'
+            });
+        }
+        if (timestampSyntax.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
+            basicSuggestions.push({
+                text: timestampSyntax,
+                display: '$timestamp',
+                hint: 'Current Unix timestamp',
+                category: 'Basic Syntax'
+            });
+        }
+
         // Add .vars if there are variables
         if (config.variables && Object.keys(config.variables).length > 0) {
             const varSyntax = ' .vars.';
