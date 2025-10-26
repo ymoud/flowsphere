@@ -233,11 +233,13 @@ function renderDefaultHeaders() {
 
     container.innerHTML = html;
 
-    // Attach autocomplete to header inputs
-    const headerInputs = container.querySelectorAll('input[type="text"]');
-    headerInputs.forEach(input => {
-        attachAutocompleteToInput(input, null);
-    });
+    // Attach autocomplete to header inputs after rendering
+    setTimeout(() => {
+        const headerInputs = container.querySelectorAll('input[type="text"]');
+        headerInputs.forEach(input => {
+            attachAutocompleteToInput(input, null);
+        });
+    }, 0);
 }
 
 function renderSteps() {
