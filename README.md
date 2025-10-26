@@ -1,6 +1,12 @@
-# HTTP Sequence Runner
+# API FlowSphere
+
+**Design in Studio. Execute with CLI.**
+
+---
 
 **Automate multi-step API workflows** — Define once, run anywhere. No coding required.
+
+API FlowSphere is a professional industrial-grade platform for managing and executing API workflows. It combines **FlowSphere Studio** (visual web app) and **FlowSphere CLI** (command-line executor) to give you complete control over complex API sequences.
 
 ## What It Does
 
@@ -21,29 +27,29 @@ Complex API workflows require multiple requests with interdependent data. This t
 
 ## Quick Start
 
-### 1. Run a Workflow
+### 1. Run a Workflow (FlowSphere CLI)
 
 **Try a learning example:**
 ```bash
-./apiseq.sh examples/config-simple.json
+./flowsphere examples/config-simple.json
 ```
 
 **Or run a production scenario:**
 ```bash
-./apiseq.sh scenarios/config-onboarding-sbx.json
+./flowsphere scenarios/config-onboarding-sbx.json
 ```
 
-**That's it.** The script handles everything: making requests, extracting data, passing it forward, and validating responses.
+**That's it.** The CLI handles everything: making requests, extracting data, passing it forward, and validating responses.
 
 **Prerequisites:** bash, curl, jq — all auto-install if missing
 
 **Advanced:**
 ```bash
 # Resume from a specific step (useful for debugging)
-./apiseq.sh examples/config.json 5    # Start from step 6 (0-based index)
+./flowsphere examples/config.json 5    # Start from step 6 (0-based index)
 ```
 
-### 2. Use the Visual Editor (Recommended)
+### 2. Use FlowSphere Studio (Visual Editor)
 
 **No JSON knowledge required.** Open `config-editor/index.html` in any browser.
 
@@ -65,6 +71,7 @@ xdg-open config-editor/index.html     # Linux
 
 | Feature | Description |
 |---------|-------------|
+| **Dynamic Variables** | Generate UUIDs and timestamps: `{{ $guid }}`, `{{ $timestamp }}` |
 | **Smart Data Passing** | Reference any field from previous responses: `{{ .responses.login.token }}` |
 | **Conditional Logic** | Skip/execute steps based on previous results (e.g., premium vs. free user flows) |
 | **Defaults Control** | Merge or skip global defaults per step with `skipDefaultHeaders`/`skipDefaultValidations` |
@@ -97,8 +104,8 @@ See the [`examples/`](examples/) folder for complete, ready-to-run configuration
 
 **Run any example:**
 ```bash
-./apiseq.sh examples/config-simple.json
-./apiseq.sh tests/config-test-skip-defaults.json
+./flowsphere examples/config-simple.json
+./flowsphere tests/config-test-skip-defaults.json
 ```
 
 ---
@@ -109,6 +116,10 @@ See the [`examples/`](examples/) folder for complete, ready-to-run configuration
 
 ```json
 {
+  "variables": {
+    "apiKey": "your-api-key",
+    "userId": "12345"
+  },
   "defaults": {
     "baseUrl": "https://api.example.com",
     "headers": { "Content-Type": "application/json" },
@@ -158,9 +169,25 @@ See the [`examples/`](examples/) folder for complete, ready-to-run configuration
 | `skipDefaultValidations` | | `true` to use only step validations, `false` (default) to concatenate with defaults |
 | `launchBrowser` | | JSONPath to URL for browser launch |
 
-## Response References
+## Variable Substitution
 
-### Named References
+### Dynamic Variables (New!)
+```
+{{ $guid }}        - Generates unique UUID v4 for each occurrence
+{{ $timestamp }}   - Current Unix timestamp (seconds since epoch)
+```
+
+**Note:** This is NOT backwards compatible with the old `GENERATED_GUID` and `TIMESTAMP` syntax.
+
+### Global Variables
+```
+{{ .vars.apiKey }}
+{{ .vars.userId }}
+```
+
+Reference values defined in the `variables` section at config level.
+
+### Named Response References
 ```
 {{ .responses.stepId.field.subfield }}
 ```
@@ -340,7 +367,7 @@ Shows variable substitution, curl commands, and internal state.
 
 ## Performance Timing
 
-For performance profiling and optimization work, enable timing logs by editing `apiseq.sh`:
+For performance profiling and optimization work, enable timing logs by editing `flowsphere`:
 
 ```bash
 # Change line 165 from:
@@ -358,8 +385,8 @@ ENABLE_TIMING=true
 
 **Usage example:**
 ```bash
-# Enable timing in apiseq.sh, then run:
-./apiseq.sh config.json 2>&1 | grep TIMING
+# Enable timing in flowsphere, then run:
+./flowsphere config.json 2>&1 | grep TIMING
 ```
 
 **Sample output:**
@@ -448,10 +475,10 @@ Run the script - missing dependencies trigger auto-install prompt.
 
 ## Best Practices
 
-- **Use the visual editor** to avoid JSON syntax errors
+- **Use FlowSphere Studio** to avoid JSON syntax errors
 - **Set global defaults** (baseUrl, headers) to reduce duplication across steps
 - **Use merge behavior (default)** for most steps — add step-level headers/validations that complement defaults
 - **Use skip defaults** only when a step needs completely different behavior (e.g., file upload with different Content-Type, or status 201 instead of 200)
 - **Use named step IDs** instead of numeric indexes for maintainability
 - **Enable debug mode** when troubleshooting: add `"enableDebug": true` to your config
-- **Test incrementally** — use the resume feature to start from any step: `./apiseq.sh examples/config.json 5`
+- **Test incrementally** — use the resume feature to start from any step: `./flowsphere examples/config.json 5`

@@ -10,7 +10,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 
 **Execute a sequence:**
 ```bash
-./apiseq.sh examples/config-simple.json
+./flowsphere examples/config-simple.json
 ```
 
 **Available config examples (in `examples/` folder):**
@@ -41,7 +41,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 
 ### Core Components
 
-**apiseq.sh** (main script):
+**flowsphere** (main script):
 - Entry point: `main()` function parses config and orchestrates execution
 - `execute_step()`: Executes individual HTTP requests with curl
 - `substitute_variables()`: Template engine that replaces `{{ .responses[N].field }}` and `{{ .input.key }}` placeholders
@@ -231,7 +231,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 
 **Performance Timing Logs:**
 - Optional performance profiling to identify bottlenecks
-- Enable by setting `ENABLE_TIMING=true` at the top of `apiseq.sh` (line 165)
+- Enable by setting `ENABLE_TIMING=true` at the top of `flowsphere` (line 165)
 - Disabled by default for clean output
 - Shows millisecond-level timing for each operation:
   - `merge_with_defaults` - Merging step config with defaults
@@ -245,7 +245,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
   - `TOTAL step time` - Complete step execution time with API vs overhead breakdown
 - Timing output goes to stderr, can be filtered with `grep TIMING`
 - Useful for optimization work and understanding where time is spent
-- Example: `ENABLE_TIMING=true ./apiseq.sh config.json 2>&1 | grep TIMING`
+- Example: `ENABLE_TIMING=true ./flowsphere config.json 2>&1 | grep TIMING`
 
 ## Visual Config Editor
 

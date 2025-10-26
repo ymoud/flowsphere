@@ -15,7 +15,7 @@ This folder contains test configurations used for validating specific features o
 
 ```bash
 # From repository root
-./apiseq.sh tests/config-test-variables.json
+./flowsphere tests/config-test-variables.json
 ```
 
 ## Purpose

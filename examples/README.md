@@ -17,10 +17,10 @@ This folder contains ready-to-run example configurations demonstrating various f
 
 ```bash
 # From repository root
-./apiseq.sh examples/config-simple.json
+./flowsphere examples/config-simple.json
 
 # Start from a specific step (useful for debugging)
-./apiseq.sh examples/config.json 3
+./flowsphere examples/config.json 3
 ```
 
 ## Using the Visual Editor
