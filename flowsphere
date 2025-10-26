@@ -868,6 +868,8 @@ evaluate_condition() {
         # Check for 'equals' condition
         if echo "$condition_json" | jq -e '.equals' > /dev/null 2>&1; then
             local expected_value=$(echo "$condition_json" | jq -r '.equals')
+            # Substitute variables in expected value
+            expected_value=$(substitute_variables "$expected_value")
             local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
 
             if [ "$actual_value" = "$expected_value" ]; then
@@ -880,6 +882,8 @@ evaluate_condition() {
         # Check for 'notEquals' condition
         if echo "$condition_json" | jq -e '.notEquals' > /dev/null 2>&1; then
             local unwanted_value=$(echo "$condition_json" | jq -r '.notEquals')
+            # Substitute variables in unwanted value
+            unwanted_value=$(substitute_variables "$unwanted_value")
             local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
 
             if [ "$actual_value" != "$unwanted_value" ]; then
@@ -1193,6 +1197,14 @@ execute_step() {
             [ "$v_lessThan" = "NULL_PLACEHOLDER" ] && v_lessThan=""
             [ "$v_greaterThanOrEqual" = "NULL_PLACEHOLDER" ] && v_greaterThanOrEqual=""
             [ "$v_lessThanOrEqual" = "NULL_PLACEHOLDER" ] && v_lessThanOrEqual=""
+
+            # Substitute variables in comparison values
+            [ -n "$v_equals" ] && v_equals=$(substitute_variables "$v_equals")
+            [ -n "$v_notEquals" ] && v_notEquals=$(substitute_variables "$v_notEquals")
+            [ -n "$v_greaterThan" ] && v_greaterThan=$(substitute_variables "$v_greaterThan")
+            [ -n "$v_lessThan" ] && v_lessThan=$(substitute_variables "$v_lessThan")
+            [ -n "$v_greaterThanOrEqual" ] && v_greaterThanOrEqual=$(substitute_variables "$v_greaterThanOrEqual")
+            [ -n "$v_lessThanOrEqual" ] && v_lessThanOrEqual=$(substitute_variables "$v_lessThanOrEqual")
 
             # Check if this is a httpStatusCode validation
             if [ -n "$v_httpStatus" ]; then
