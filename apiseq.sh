@@ -53,7 +53,6 @@ trap handle_interrupt SIGINT SIGTERM
 # Cleanup and log prompt on exit
 cleanup_and_prompt() {
     local exit_code=$?
-    rm -rf "$TEMP_DIR"
 
     # Always prompt to save log if there are entries (using /dev/tty for Git Bash compatibility)
     if [ ${#execution_log[@]} -gt 0 ]; then
@@ -86,44 +85,57 @@ cleanup_and_prompt() {
             local default_filename="execution_log_${timestamp}.json"
 
             if [ -e /dev/tty ]; then
-                read -p "Enter filename [$default_filename]: " filename </dev/tty >&2
+                read -p "Enter log filename [$default_filename]: " filename </dev/tty >&2
             else
-                read -p "Enter filename [$default_filename]: " filename >&2
+                read -p "Enter log filename [$default_filename]: " filename >&2
             fi
             filename=${filename:-$default_filename}
+
+            # Strip any path components (only accept basename)
+            filename=$(basename "$filename")
 
             # Append .json extension if user didn't provide any extension
             if [[ ! "$filename" =~ \. ]]; then
                 filename="${filename}.json"
             fi
 
-            # If filename doesn't contain a path (is just a basename), save to logs directory
-            # This works on all OS (Unix/Linux/macOS/Windows)
-            if [[ "$(basename "$filename")" == "$filename" ]]; then
-                filename="logs/${filename}"
-            fi
+            # Always save to logs directory
+            filename="logs/${filename}"
 
             # Build the complete log JSON
-            local steps_json=$(printf '%s\n' "${execution_log[@]}" | jq -s '.')
+            # Use temp file to avoid "Argument list too long" errors with large logs
+            # Create temp file in logs directory (not $TEMP_DIR which may be inaccessible in exit trap)
+            local temp_log_file="logs/.execution_log_temp_$$.json"
 
-            local full_log=$(jq -n \
+            # Write steps array to temp file
+            printf '%s\n' "${execution_log[@]}" | jq -s '.' > "$temp_log_file"
+
+            if [ $? -ne 0 ] || [ ! -s "$temp_log_file" ]; then
+                echo -e "${RED}✗${NC} Failed to create temporary log file" >&2
+                rm -f "$temp_log_file" 2>/dev/null
+                return 1
+            fi
+
+            # Build full log by reading steps from file (avoids command-line length limits)
+            jq -n \
                 --arg config "$CONFIG_FILE_PATH" \
                 --arg status "$status" \
                 --arg timestamp "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
                 --arg skip_steps "$START_STEP" \
-                --argjson steps "$steps_json" \
+                --slurpfile steps "$temp_log_file" \
                 '{
                     metadata: {
                         config_file: $config,
                         execution_status: $status,
                         timestamp: $timestamp,
                         skip_steps: ($skip_steps | tonumber),
-                        executed_steps: ($steps | length)
+                        executed_steps: ($steps[0] | length)
                     },
-                    steps: $steps
-                }')
+                    steps: $steps[0]
+                }' > "$filename"
 
-            echo "$full_log" > "$filename"
+            # Clean up temp file
+            rm -f "$temp_log_file" 2>/dev/null
 
             if [ $? -eq 0 ]; then
                 echo -e "${GREEN}✓${NC} Execution log saved to: $filename" >&2
@@ -132,6 +144,9 @@ cleanup_and_prompt() {
             fi
         fi
     fi
+
+    # Clean up temp directory (done at end so temp files are available for log creation)
+    rm -rf "$TEMP_DIR"
 }
 
 trap cleanup_and_prompt EXIT
