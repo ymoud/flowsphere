@@ -2,6 +2,63 @@
 
 This document tracks potential improvements and feature requests for the HTTP Sequence Runner.
 
+## Config Schema Refinement
+
+Rename config properties for better clarity and consistency with UI terminology.
+
+**Changes:**
+- Rename `steps` → `nodes` (aligns with FlowSphere Studio UI)
+- Rename `prompts` → `userPrompts` (more descriptive and explicit)
+
+**Current Schema:**
+```json
+{
+  "steps": [
+    {
+      "id": "authenticate",
+      "name": "Login",
+      "method": "POST",
+      "url": "/auth/login",
+      "prompts": {
+        "username": "Enter username:",
+        "password": "Enter password:"
+      }
+    }
+  ]
+}
+```
+
+**Proposed Schema:**
+```json
+{
+  "nodes": [
+    {
+      "id": "authenticate",
+      "name": "Login",
+      "method": "POST",
+      "url": "/auth/login",
+      "userPrompts": {
+        "username": "Enter username:",
+        "password": "Enter password:"
+      }
+    }
+  ]
+}
+```
+
+**Benefits:**
+- Consistent terminology between config files and UI
+- More intuitive for new users (FlowSphere Studio uses "nodes" everywhere)
+- `userPrompts` is more descriptive than generic `prompts`
+- Better API design for future JavaScript/Node.js version
+
+**Migration Strategy:**
+- Maintain backward compatibility (support both old and new property names)
+- Add deprecation warnings when old names are detected
+- FlowSphere Studio auto-converts on save (with user confirmation)
+- Provide migration tool: `flowsphere migrate config.json --output config-v2.json`
+- Update all examples and documentation to use new schema
+
 ## JavaScript/Node.js Version & NPM Package
 
 Create a JavaScript/Node.js implementation of FlowSphere and publish it as an npm package.
