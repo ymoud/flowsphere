@@ -229,6 +229,24 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - Shows variable substitution, step execution flow, and internal state
 - Debug output goes to stderr, normal output to stdout
 
+**Performance Timing Logs:**
+- Optional performance profiling to identify bottlenecks
+- Enable by setting `ENABLE_TIMING=true` at the top of `apiseq.sh` (line 165)
+- Disabled by default for clean output
+- Shows millisecond-level timing for each operation:
+  - `merge_with_defaults` - Merging step config with defaults
+  - `extract step details` - Parsing step configuration
+  - `replace_dynamic_placeholders` - Replacing {{$guid}} and {{$timestamp}}
+  - `substitute_variables` - Variable substitution
+  - `process headers` - Header processing and substitution
+  - `process body` - Body processing and substitution
+  - `build log entry` - Building execution log entry
+  - `validations` - Running all validations
+  - `TOTAL step time` - Complete step execution time with API vs overhead breakdown
+- Timing output goes to stderr, can be filtered with `grep TIMING`
+- Useful for optimization work and understanding where time is spent
+- Example: `ENABLE_TIMING=true ./apiseq.sh config.json 2>&1 | grep TIMING`
+
 ## Visual Config Editor
 
 **config-editor/** provides a browser-based GUI for creating and editing configuration files without manually writing JSON.
@@ -329,3 +347,4 @@ node postman-tools/parse-postman.js
 - each time you implement a feature/bug fix dont automatically update documentation. Ask me first
 - you should not create documentation files for bug fixes u make, unless i tell to do so.
 - dont open a browser each time you make a change to the ui, instruct the user to refresh the page and provide them with a lclickable link
+- when i ask you to commit, only commit changes you have made (even in a file) as files might be edited externally. Always be cautious not to commit something you havent written.

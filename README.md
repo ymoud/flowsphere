@@ -338,6 +338,41 @@ Enable detailed logging:
 
 Shows variable substitution, curl commands, and internal state.
 
+## Performance Timing
+
+For performance profiling and optimization work, enable timing logs by editing `apiseq.sh`:
+
+```bash
+# Change line 165 from:
+ENABLE_TIMING=false
+
+# To:
+ENABLE_TIMING=true
+```
+
+**What it shows:**
+- Millisecond-level timing for each operation in every step
+- Breakdown of time spent in: merge, extraction, substitution, headers, body, validations
+- Total step time with API call vs overhead breakdown
+- Identifies performance bottlenecks for optimization
+
+**Usage example:**
+```bash
+# Enable timing in apiseq.sh, then run:
+./apiseq.sh config.json 2>&1 | grep TIMING
+```
+
+**Sample output:**
+```
+[TIMING] Step 1: merge_with_defaults took 60ms
+[TIMING] Step 1: extract step details took 276ms
+[TIMING] Step 1: process headers took 362ms
+[TIMING] Step 1: process body took 570ms
+[TIMING] Step 1: TOTAL step time 2217ms (API: 99ms, Overhead: 2118ms)
+```
+
+Timing logs go to stderr and are disabled by default for clean output.
+
 ## Execution Logging
 
 After every execution (success, failure, or user interruption), you'll be prompted to save a detailed log file:

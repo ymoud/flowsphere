@@ -160,6 +160,10 @@ VARIABLES_JSON="{}"
 # Debug mode (disabled by default)
 ENABLE_DEBUG=false
 
+# Timing mode (disabled by default)
+# When enabled, shows performance timing for each operation to help identify bottlenecks
+ENABLE_TIMING=false
+
 # Function to print usage
 usage() {
     echo "Usage: $0 <config.json> [start_step]"
@@ -179,6 +183,13 @@ usage() {
 # Function to output debug logs (only if debug is enabled)
 debug_log() {
     if [ "$ENABLE_DEBUG" = "true" ]; then
+        echo "$@" >&2
+    fi
+}
+
+# Function to output timing logs (only if timing is enabled)
+timing_log() {
+    if [ "$ENABLE_TIMING" = "true" ]; then
         echo "$@" >&2
     fi
 }
@@ -509,111 +520,70 @@ validate_step_ids() {
 }
 
 # Function to merge defaults with step configuration
+# Optimized: Single jq call instead of 20+ separate process spawns
 merge_with_defaults() {
     local step_json="$1"
-    local merged="$step_json"
 
-    # Get baseUrl from defaults
-    local base_url=$(echo "$DEFAULTS_JSON" | jq -r '.baseUrl // empty')
-    if [ -n "$base_url" ]; then
-        # Replace {baseUrl} placeholder or prepend if URL starts with /
-        local url=$(echo "$step_json" | jq -r '.url // empty')
-        if [ -n "$url" ]; then
-            if [[ "$url" == /* ]]; then
-                merged=$(echo "$merged" | jq --arg baseUrl "$base_url" --arg url "$url" '.url = ($baseUrl + $url)')
+    # Do ALL merging in a single jq invocation
+    jq -n \
+        --argjson defaults "$DEFAULTS_JSON" \
+        --argjson step "$step_json" \
+        '
+        $step as $s |
+        $defaults as $d |
+
+        # Start with step, then apply merges
+        $s |
+
+        # Merge baseUrl into URL
+        if ($d.baseUrl and .url) then
+            if (.url | startswith("/")) then
+                .url = ($d.baseUrl + .url)
             else
-                merged=$(echo "$merged" | jq --arg baseUrl "$base_url" '.url = (.url | gsub("\\{baseUrl\\}"; $baseUrl))')
-            fi
-        fi
-    fi
+                .url = (.url | gsub("\\{baseUrl\\}"; $d.baseUrl))
+            end
+        else . end |
 
-    # Merge default headers with step headers based on skipDefaultHeaders flag
-    local skip_default_headers=$(echo "$step_json" | jq -r '.skipDefaultHeaders // false')
-    if [ "$skip_default_headers" = "true" ]; then
-        # Skip defaults - use only step headers (if any)
-        if echo "$step_json" | jq -e '.headers' > /dev/null 2>&1; then
-            # Step has headers, use them
-            local step_headers=$(echo "$step_json" | jq '.headers')
-            merged=$(echo "$merged" | jq --argjson headers "$step_headers" '.headers = $headers')
+        # Merge headers
+        if (.skipDefaultHeaders == true) then
+            if .headers then . else .headers = {} end
         else
-            # No step headers defined, set empty object (no headers will be sent)
-            merged=$(echo "$merged" | jq '.headers = {}')
-        fi
-    else
-        # Merge behavior (default) - merge step headers with defaults
-        if echo "$step_json" | jq -e '.headers' > /dev/null 2>&1; then
-            # Step has headers - merge with defaults
-            if echo "$DEFAULTS_JSON" | jq -e '.headers' > /dev/null 2>&1; then
-                local default_headers=$(echo "$DEFAULTS_JSON" | jq '.headers')
-                local step_headers=$(echo "$step_json" | jq '.headers')
-                local merged_headers=$(echo "$default_headers $step_headers" | jq -s '.[0] * .[1]')
-                merged=$(echo "$merged" | jq --argjson headers "$merged_headers" '.headers = $headers')
-            else
-                # No defaults, use step headers only
-                local step_headers=$(echo "$step_json" | jq '.headers')
-                merged=$(echo "$merged" | jq --argjson headers "$step_headers" '.headers = $headers')
-            fi
-        elif echo "$DEFAULTS_JSON" | jq -e '.headers' > /dev/null 2>&1; then
-            # No step headers, use defaults
-            local default_headers=$(echo "$DEFAULTS_JSON" | jq '.headers')
-            merged=$(echo "$merged" | jq --argjson headers "$default_headers" '.headers = $headers')
-        fi
-    fi
+            if $d.headers then
+                .headers = (($d.headers // {}) * (.headers // {}))
+            else . end
+        end |
 
-    # Merge default validations with step validations based on skipDefaultValidations flag
-    local skip_default_validations=$(echo "$step_json" | jq -r '.skipDefaultValidations // false')
-    if [ "$skip_default_validations" = "true" ]; then
-        # Skip defaults - use only step validations (if any)
-        if echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
-            # Step has validations, use them
-            local step_validations=$(echo "$step_json" | jq '.validations')
-            merged=$(echo "$merged" | jq --argjson validations "$step_validations" '.validations = $validations')
+        # Merge validations
+        if (.skipDefaultValidations == true) then
+            if .validations then . else .validations = [] end
         else
-            # No step validations defined, set empty array (no validations will be performed)
-            merged=$(echo "$merged" | jq '.validations = []')
-        fi
-    else
-        # Merge behavior (default) - concatenate step validations with defaults
-        if echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
-            # Step has validations - concatenate with defaults
-            if echo "$DEFAULTS_JSON" | jq -e '.validations' > /dev/null 2>&1; then
-                local default_validations=$(echo "$DEFAULTS_JSON" | jq '.validations')
-                local step_validations=$(echo "$step_json" | jq '.validations')
-                local merged_validations=$(echo "$default_validations $step_validations" | jq -s '.[0] + .[1]')
-                merged=$(echo "$merged" | jq --argjson validations "$merged_validations" '.validations = $validations')
-            else
-                # No defaults, use step validations only
-                local step_validations=$(echo "$step_json" | jq '.validations')
-                merged=$(echo "$merged" | jq --argjson validations "$step_validations" '.validations = $validations')
-            fi
-        elif echo "$DEFAULTS_JSON" | jq -e '.validations' > /dev/null 2>&1; then
-            # No step validations, use defaults
-            local default_validations=$(echo "$DEFAULTS_JSON" | jq '.validations')
-            merged=$(echo "$merged" | jq --argjson validations "$default_validations" '.validations = $validations')
-        fi
-    fi
+            if $d.validations then
+                .validations = (($d.validations // []) + (.validations // []))
+            else . end
+        end |
 
-    # Merge default timeout with step timeout (step timeout overrides)
-    if echo "$DEFAULTS_JSON" | jq -e '.timeout' > /dev/null 2>&1; then
-        if ! echo "$step_json" | jq -e '.timeout' > /dev/null 2>&1; then
-            local default_timeout=$(echo "$DEFAULTS_JSON" | jq '.timeout')
-            merged=$(echo "$merged" | jq --argjson timeout "$default_timeout" '.timeout = $timeout')
-        fi
-    fi
-
-    echo "$merged"
+        # Merge timeout (step overrides default)
+        if (.timeout | not) and $d.timeout then
+            .timeout = $d.timeout
+        else . end
+        '
 }
 
-# Function to substitute variables in a string
+# Function to substitute variables in a string (OPTIMIZED)
 # Supports syntax: {{ .vars.key }}, {{ .responses.stepId.field.subfield }}, and {{ .input.key }}
+# Uses simple bash loops with minimal process spawning
 substitute_variables() {
     local input="$1"
     local output="$input"
 
     debug_log "DEBUG: substitute_variables - input=$input"
     debug_log "DEBUG: substitute_variables - responses_json array size=${#responses_json[@]}"
-    debug_log "DEBUG: substitute_variables - user_input_json=$USER_INPUT_JSON"
-    debug_log "DEBUG: substitute_variables - variables_json=$VARIABLES_JSON"
+
+    # Quick check: if no template patterns exist, return immediately
+    if [[ ! "$output" =~ \{\{ ]]; then
+        echo "$output"
+        return
+    fi
 
     # Find all {{ .vars.key }} patterns and replace with global variables
     local vars_iteration=0
@@ -621,24 +591,16 @@ substitute_variables() {
         vars_iteration=$((vars_iteration + 1))
         local var_key="${BASH_REMATCH[1]}"
         local full_match="${BASH_REMATCH[0]}"
-        debug_log "DEBUG: substitute_variables - vars pattern found: key=$var_key, full_match=$full_match"
 
-        # Get the value from VARIABLES_JSON
+        # Get the value from VARIABLES_JSON (single jq call)
         local value=$(echo "$VARIABLES_JSON" | jq -r ".[\"$var_key\"]")
-        debug_log "DEBUG: substitute_variables - extracted variable value=$value"
         if [ "$value" = "null" ] || [ -z "$value" ]; then
             echo "Error: Could not extract global variable value for .vars.$var_key" >&2
             exit 1
         fi
 
-        # Escape glob special characters
-        local escaped_full_match="$full_match"
-        escaped_full_match="${escaped_full_match//\*/\\*}"
-        escaped_full_match="${escaped_full_match//\?/\\?}"
-        escaped_full_match="${escaped_full_match//\[/\\[}"
-        escaped_full_match="${escaped_full_match//\]/\\]}"
-        output="${output//$escaped_full_match/$value}"
-        debug_log "DEBUG: substitute_variables - replaced vars pattern, output=$output"
+        # Simple string replacement (bash built-in)
+        output="${output//$full_match/$value}"
 
         if [ $vars_iteration -gt 10 ]; then
             echo "ERROR: substitute_variables - infinite loop detected in vars substitution" >&2
@@ -652,28 +614,16 @@ substitute_variables() {
         input_iteration=$((input_iteration + 1))
         local input_key="${BASH_REMATCH[1]}"
         local full_match="${BASH_REMATCH[0]}"
-        debug_log "DEBUG: substitute_variables - input pattern found: key=$input_key, full_match=$full_match"
 
-        # Get the value from USER_INPUT_JSON
-        local value=$(echo "$USER_INPUT_JSON" | jq -r ".[\"$input_key\"]")
-        debug_log "DEBUG: substitute_variables - extracted input value=$value"
+        # Get and URL-encode the value (single jq call)
+        local value=$(echo "$USER_INPUT_JSON" | jq -r ".[\"$input_key\"] | @uri")
         if [ "$value" = "null" ] || [ -z "$value" ]; then
             echo "Error: Could not extract user input value for .input.$input_key" >&2
             exit 1
         fi
 
-        # URL-encode the value (user input may contain special characters)
-        local encoded_value=$(printf '%s' "$value" | jq -sRr '@uri')
-        debug_log "DEBUG: substitute_variables - URL-encoded value=$encoded_value"
-
-        # Escape glob special characters in the pattern to match
-        local escaped_full_match="$full_match"
-        escaped_full_match="${escaped_full_match//\*/\\*}"
-        escaped_full_match="${escaped_full_match//\?/\\?}"
-        escaped_full_match="${escaped_full_match//\[/\\[}"
-        escaped_full_match="${escaped_full_match//\]/\\]}"
-        output="${output//$escaped_full_match/$encoded_value}"
-        debug_log "DEBUG: substitute_variables - replaced input pattern, output=$output"
+        # Simple string replacement
+        output="${output//$full_match/$value}"
 
         if [ $input_iteration -gt 10 ]; then
             echo "ERROR: substitute_variables - infinite loop detected in input substitution" >&2
@@ -687,36 +637,24 @@ substitute_variables() {
         named_iteration=$((named_iteration + 1))
         local step_id="${BASH_REMATCH[1]}"
         local jsonpath="${BASH_REMATCH[2]}"
-        # Trim whitespace from jsonpath
-        jsonpath=$(echo "$jsonpath" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        jsonpath="${jsonpath##*([[:space:]])}"  # Trim leading spaces (bash built-in)
+        jsonpath="${jsonpath%%*([[:space:]])}"  # Trim trailing spaces (bash built-in)
         local full_match="${BASH_REMATCH[0]}"
-        debug_log "DEBUG: substitute_variables - named reference found: step_id=$step_id, jsonpath=$jsonpath, full_match=$full_match"
 
         # Look up step ID in response_ids mapping
         if [[ -v response_ids["$step_id"] ]]; then
             local index="${response_ids[$step_id]}"
-            debug_log "DEBUG: substitute_variables - resolved step ID '$step_id' to index $index"
 
-            # Get the value from the stored response
+            # Get the value from the stored response (single jq call)
             if [ "$index" -lt "${#responses_json[@]}" ]; then
-                debug_log "DEBUG: substitute_variables - extracting from responses_json[$index]"
-                debug_log "DEBUG: substitute_variables - response data: ${responses_json[$index]}"
                 local value=$(echo "${responses_json[$index]}" | jq -r ".$jsonpath")
-                debug_log "DEBUG: substitute_variables - extracted value=$value"
                 if [ "$value" = "null" ] || [ -z "$value" ]; then
                     echo "Error: Could not extract value from .responses.$step_id.$jsonpath" >&2
                     exit 1
                 fi
 
-                # Replace the placeholder with the actual value
-                debug_log "DEBUG: substitute_variables - replacing '$full_match' with '$value'"
-                local escaped_full_match="$full_match"
-                escaped_full_match="${escaped_full_match//\*/\\*}"
-                escaped_full_match="${escaped_full_match//\?/\\?}"
-                escaped_full_match="${escaped_full_match//\[/\\[}"
-                escaped_full_match="${escaped_full_match//\]/\\]}"
-                output="${output//$escaped_full_match/$value}"
-                debug_log "DEBUG: substitute_variables - output after replacement=$output"
+                # Simple string replacement
+                output="${output//$full_match/$value}"
             else
                 echo "Error: Response index $index not found (only ${#responses_json[@]} responses stored)" >&2
                 exit 1
@@ -733,7 +671,6 @@ substitute_variables() {
         fi
     done
 
-    debug_log "DEBUG: substitute_variables - returning output=$output"
     echo "$output"
 }
 
@@ -803,44 +740,31 @@ process_body() {
         debug_log "DEBUG: Using form-urlencoded (auto-detected from Content-Type)"
     fi
 
-    # Convert to form-urlencoded if needed
+    # Convert to form-urlencoded if needed (OPTIMIZED: single jq call)
     if [ "$use_form_encoding" = true ]; then
         debug_log "DEBUG: Converting body to form-urlencoded format"
-        local encoded=""
-        local keys=$(echo "$body_str" | jq -r 'keys[]' 2>/dev/null)
 
-        if [ -z "$keys" ]; then
-            echo "Error: Body must be a JSON object for form-urlencoded format" >&2
+        # Do ALL form encoding in a single jq invocation
+        local encoded=$(echo "$body_str" | jq -r '
+            if type != "object" then
+                error("Body must be a JSON object for form-urlencoded format")
+            else
+                to_entries |
+                map(
+                    if (.value | type == "object" or type == "array") then
+                        error("form-urlencoded does not support nested objects or arrays in field '\''" + .key + "'\''")
+                    else
+                        .key + "=" + (.value | tostring | @uri)
+                    end
+                ) |
+                join("&")
+            end
+        ')
+
+        if [ $? -ne 0 ]; then
+            echo "Error: Failed to convert body to form-urlencoded format" >&2
             exit 1
         fi
-
-        while IFS= read -r key; do
-            # Trim any trailing carriage returns or whitespace (Windows line ending issue)
-            key="${key%$'\r'}"
-            key="${key%% }"
-            key="${key## }"
-
-            if [ -n "$key" ]; then
-                local value
-                value=$(echo "$body_str" | jq -r ".\"$key\"")
-
-                # Check for nested objects or arrays
-                if [[ "$value" == "{"* ]] || [[ "$value" == "["* ]]; then
-                    echo "Error: form-urlencoded does not support nested objects or arrays in field '$key'" >&2
-                    exit 1
-                fi
-
-                # URL encode the value using jq's @uri filter
-                local encoded_value=$(printf '%s' "$value" | jq -sRr '@uri')
-
-                # Append to encoded string
-                if [ -n "$encoded" ]; then
-                    encoded+="&"
-                fi
-                encoded+="${key}=${encoded_value}"
-                debug_log "DEBUG: Encoded field: $key=$encoded_value"
-            fi
-        done <<< "$keys"
 
         debug_log "DEBUG: Final form-urlencoded body: $encoded"
         echo "$encoded"
@@ -961,6 +885,7 @@ execute_step() {
     local step_json="$2"
     local step_num=$((step_index + 1))
 
+    local t_step_start=$(date +%s%3N)
     debug_log "DEBUG: execute_step - start, step_num=$step_num"
 
     # Check if step requires user input
@@ -970,26 +895,39 @@ execute_step() {
     fi
 
     # Merge step with defaults
+    local t_before_merge=$(date +%s%3N)
     debug_log "DEBUG: execute_step - calling merge_with_defaults"
     step_json=$(merge_with_defaults "$step_json")
+    local t_after_merge=$(date +%s%3N)
+    timing_log "[TIMING] Step $step_num: merge_with_defaults took $((t_after_merge - t_before_merge))ms" >&2
     debug_log "DEBUG: execute_step - merge completed"
 
-    # Extract step details
+    # Extract step details (single jq call for performance)
+    local t_before_extract=$(date +%s%3N)
     debug_log "DEBUG: execute_step - extracting step details"
-    local step_id=$(echo "$step_json" | jq -r '.id // ""')
-    local name=$(echo "$step_json" | jq -r '.name')
-    local method=$(echo "$step_json" | jq -r '.method')
-    local url=$(echo "$step_json" | jq -r '.url')
+    local step_details=$(echo "$step_json" | jq -r '[(.id // ""), .name, .method, .url] | @tsv')
+    local step_id=$(echo "$step_details" | cut -f1)
+    local name=$(echo "$step_details" | cut -f2)
+    local method=$(echo "$step_details" | cut -f3)
+    local url=$(echo "$step_details" | cut -f4)
+    local t_after_extract=$(date +%s%3N)
+    timing_log "[TIMING] Step $step_num: extract step details took $((t_after_extract - t_before_extract))ms" >&2
     debug_log "DEBUG: execute_step - extracted url=$url"
 
     # Replace dynamic placeholders in URL first ({{$guid}}, {{$timestamp}})
+    local t_before_dynamic=$(date +%s%3N)
     debug_log "DEBUG: execute_step - replacing dynamic placeholders in url"
     url=$(replace_dynamic_placeholders "$url")
+    local t_after_dynamic=$(date +%s%3N)
+    timing_log "[TIMING] Step $step_num: replace_dynamic_placeholders took $((t_after_dynamic - t_before_dynamic))ms" >&2
     debug_log "DEBUG: execute_step - after dynamic replacement url=$url"
 
     # Then substitute variables in URL
+    local t_before_subst=$(date +%s%3N)
     debug_log "DEBUG: execute_step - calling substitute_variables with url=$url"
     url=$(substitute_variables "$url")
+    local t_after_subst=$(date +%s%3N)
+    timing_log "[TIMING] Step $step_num: substitute_variables (URL) took $((t_after_subst - t_before_subst))ms" >&2
     debug_log "DEBUG: execute_step - after substitution url=$url"
 
     # Build curl command
@@ -1001,39 +939,42 @@ execute_step() {
         curl_cmd+=" --max-time $timeout --connect-timeout $timeout"
     fi
 
-    # Add headers if present
+    # Add headers if present (OPTIMIZED: process ALL headers at once)
+    local t_before_headers=$(date +%s%3N)
     local final_headers_json="{}"
+
     if echo "$step_json" | jq -e '.headers' > /dev/null 2>&1; then
         debug_log "DEBUG: Headers found in step_json"
+
+        # Get headers as JSON string
         local headers_json=$(echo "$step_json" | jq -c '.headers')
-        debug_log "DEBUG: step_json headers: $headers_json"
 
-        # Use to_entries to get key-value pairs together
-        local header_entries=$(echo "$headers_json" | jq -r 'to_entries[] | @json')
-        while IFS= read -r entry; do
-            if [ -n "$entry" ]; then
-                local key=$(echo "$entry" | jq -r '.key')
-                local value=$(echo "$entry" | jq -r '.value')
-                debug_log "DEBUG: Processing header: $key = $value"
+        # Process ALL headers at once (massive performance improvement)
+        # 1. Replace dynamic placeholders in entire JSON
+        headers_json=$(replace_dynamic_placeholders "$headers_json")
 
-                # Replace dynamic placeholders in header value first ({{$guid}}, {{$timestamp}})
-                value=$(replace_dynamic_placeholders "$value")
-                debug_log "DEBUG: After dynamic replacement: $key = $value"
+        # 2. Substitute variables in entire JSON
+        headers_json=$(substitute_variables "$headers_json")
 
-                # Then substitute variables in header value
-                value=$(substitute_variables "$value")
-                debug_log "DEBUG: After substitution: $key = $value"
+        # Store final headers for logging
+        final_headers_json="$headers_json"
 
-                # Store final header for logging
-                final_headers_json=$(echo "$final_headers_json" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
+        # 3. Extract headers and build curl command (single jq call)
+        local headers_tsv=$(echo "$headers_json" | jq -r 'to_entries[] | [.key, .value] | @tsv')
 
+        while IFS=$'\t' read -r key value; do
+            if [ -n "$key" ]; then
+                debug_log "DEBUG: Adding header: $key = $value"
                 # Add header to curl command
                 curl_cmd+=" -H '$key: $value'"
             fi
-        done <<< "$header_entries"
+        done <<< "$headers_tsv"
     fi
+    local t_after_headers=$(date +%s%3N)
+    timing_log "[TIMING] Step $step_num: process headers took $((t_after_headers - t_before_headers))ms" >&2
 
     # Add body if present
+    local t_before_body=$(date +%s%3N)
     local final_body=""
     if echo "$step_json" | jq -e '.body' > /dev/null 2>&1; then
         local body=$(echo "$step_json" | jq -c '.body')
@@ -1054,6 +995,8 @@ execute_step() {
         final_body="$body"
         curl_cmd+=" -d '$body'"
     fi
+    local t_after_body=$(date +%s%3N)
+    timing_log "[TIMING] Step $step_num: process body took $((t_after_body - t_before_body))ms" >&2
 
     # Add URL
     curl_cmd+=" '$url'"
@@ -1104,6 +1047,7 @@ execute_step() {
     responses_status+=("$status_code")
 
     # Build execution log entry (BEFORE validations, so failed requests are logged too)
+    local t_before_log=$(date +%s%3N)
     local log_entry=$(jq -n \
         --arg step_num "$step_num" \
         --arg step_id "$step_id" \
@@ -1135,8 +1079,11 @@ execute_step() {
         }')
 
     execution_log+=("$log_entry")
+    local t_after_log=$(date +%s%3N)
+    timing_log "[TIMING] Step $step_num: build log entry took $((t_after_log - t_before_log))ms" >&2
 
     # Process validations (unified status and jsonpath validations)
+    local t_before_validations=$(date +%s%3N)
     if echo "$step_json" | jq -e '.validations' > /dev/null 2>&1; then
         # Check if validations array is explicitly empty (skip all validations)
         local validations_length=$(echo "$step_json" | jq '.validations | length')
@@ -1158,20 +1105,45 @@ execute_step() {
 
             validation_count=$((validation_count + 1))
 
-            # Check if this is a httpStatusCode validation
-            if echo "$validation" | jq -e '.httpStatusCode' > /dev/null 2>&1; then
-                local expect_status=$(echo "$validation" | jq -r '.httpStatusCode')
+            # Extract ALL validation fields in ONE jq call (performance optimization)
+            # Use null as placeholder for missing fields, then convert to string
+            local validation_data=$(echo "$validation" | jq -r '[
+                (.httpStatusCode // null),
+                (.jsonpath // null),
+                (.exists // null),
+                (.equals // null),
+                (.notEquals // null),
+                (.greaterThan // null),
+                (.lessThan // null),
+                (.greaterThanOrEqual // null),
+                (.lessThanOrEqual // null)
+            ] | map(if . == null then "NULL_PLACEHOLDER" else . | tostring end) | @tsv')
 
-                if [ "$status_code" != "$expect_status" ]; then
-                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code (expected $expect_status)${NC}"
+            IFS=$'\t' read -r v_httpStatus v_jsonpath v_exists v_equals v_notEquals v_greaterThan v_lessThan v_greaterThanOrEqual v_lessThanOrEqual <<< "$validation_data"
+
+            # Replace NULL_PLACEHOLDER with empty string
+            [ "$v_httpStatus" = "NULL_PLACEHOLDER" ] && v_httpStatus=""
+            [ "$v_jsonpath" = "NULL_PLACEHOLDER" ] && v_jsonpath=""
+            [ "$v_exists" = "NULL_PLACEHOLDER" ] && v_exists=""
+            [ "$v_equals" = "NULL_PLACEHOLDER" ] && v_equals=""
+            [ "$v_notEquals" = "NULL_PLACEHOLDER" ] && v_notEquals=""
+            [ "$v_greaterThan" = "NULL_PLACEHOLDER" ] && v_greaterThan=""
+            [ "$v_lessThan" = "NULL_PLACEHOLDER" ] && v_lessThan=""
+            [ "$v_greaterThanOrEqual" = "NULL_PLACEHOLDER" ] && v_greaterThanOrEqual=""
+            [ "$v_lessThanOrEqual" = "NULL_PLACEHOLDER" ] && v_lessThanOrEqual=""
+
+            # Check if this is a httpStatusCode validation
+            if [ -n "$v_httpStatus" ]; then
+                if [ "$status_code" != "$v_httpStatus" ]; then
+                    echo -e "Step $step_num: $method $url ${RED}❌ Status $status_code (expected $v_httpStatus)${NC}"
                     echo "Response body: $response_body"
                     exit 1
                 fi
                 status_validated=true
 
             # Check if this is a jsonpath validation
-            elif echo "$validation" | jq -e '.jsonpath' > /dev/null 2>&1; then
-                local jsonpath=$(echo "$validation" | jq -r '.jsonpath')
+            elif [ -n "$v_jsonpath" ]; then
+                local jsonpath="$v_jsonpath"
 
                 if [ "$jsonpath" = "null" ] || [ -z "$jsonpath" ]; then
                     echo -e "Step $step_num: $method $url ${RED}❌ Validation $validation_count has invalid 'jsonpath' field${NC}"
@@ -1181,10 +1153,8 @@ execute_step() {
                 local extracted=$(echo "$response_body" | jq -r "$jsonpath" 2>/dev/null || echo "null")
 
                 # Check for 'exists' expectation
-                if echo "$validation" | jq -e '.exists' > /dev/null 2>&1; then
-                    local should_exist=$(echo "$validation" | jq -r '.exists')
-
-                    if [ "$should_exist" = "true" ]; then
+                if [ -n "$v_exists" ]; then
+                    if [ "$v_exists" = "true" ]; then
                         if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
                             echo -e "Step $step_num: $method $url ${RED}❌ Expected field '$jsonpath' to exist${NC}"
                             echo "Response body: $response_body"
@@ -1203,10 +1173,9 @@ execute_step() {
                 fi
 
                 # Check if equals is specified
-                if echo "$validation" | jq -e '.equals' > /dev/null 2>&1; then
-                    local expected_value=$(echo "$validation" | jq -r '.equals')
-                    if [ "$extracted" != "$expected_value" ]; then
-                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected '$expected_value')${NC}"
+                if [ -n "$v_equals" ]; then
+                    if [ "$extracted" != "$v_equals" ]; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected '$v_equals')${NC}"
                         exit 1
                     else
                         echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC}"
@@ -1214,72 +1183,63 @@ execute_step() {
                 fi
 
                 # Check if notEquals is specified
-                if echo "$validation" | jq -e '.notEquals' > /dev/null 2>&1; then
-                    local unwanted_value=$(echo "$validation" | jq -r '.notEquals')
-                    if [ "$extracted" = "$unwanted_value" ]; then
-                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected NOT '$unwanted_value')${NC}"
+                if [ -n "$v_notEquals" ]; then
+                    if [ "$extracted" = "$v_notEquals" ]; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected NOT '$v_notEquals')${NC}"
                         exit 1
                     else
-                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (not '$unwanted_value')"
+                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (not '$v_notEquals')"
                     fi
                 fi
 
                 # Check if greaterThan is specified
-                if echo "$validation" | jq -e '.greaterThan' > /dev/null 2>&1; then
-                    local threshold=$(echo "$validation" | jq -r '.greaterThan')
+                if [ -n "$v_greaterThan" ]; then
                     # Use awk for floating point comparison
-                    if ! awk -v val="$extracted" -v thresh="$threshold" 'BEGIN { exit !(val > thresh) }'; then
-                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected > $threshold)${NC}"
+                    if ! awk -v val="$extracted" -v thresh="$v_greaterThan" 'BEGIN { exit !(val > thresh) }'; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected > $v_greaterThan)${NC}"
                         exit 1
                     else
-                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (> $threshold)"
+                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (> $v_greaterThan)"
                     fi
                 fi
 
                 # Check if lessThan is specified
-                if echo "$validation" | jq -e '.lessThan' > /dev/null 2>&1; then
-                    local threshold=$(echo "$validation" | jq -r '.lessThan')
+                if [ -n "$v_lessThan" ]; then
                     # Use awk for floating point comparison
-                    if ! awk -v val="$extracted" -v thresh="$threshold" 'BEGIN { exit !(val < thresh) }'; then
-                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected < $threshold)${NC}"
+                    if ! awk -v val="$extracted" -v thresh="$v_lessThan" 'BEGIN { exit !(val < thresh) }'; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected < $v_lessThan)${NC}"
                         exit 1
                     else
-                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (< $threshold)"
+                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (< $v_lessThan)"
                     fi
                 fi
 
                 # Check if greaterThanOrEqual is specified
-                if echo "$validation" | jq -e '.greaterThanOrEqual' > /dev/null 2>&1; then
-                    local threshold=$(echo "$validation" | jq -r '.greaterThanOrEqual')
+                if [ -n "$v_greaterThanOrEqual" ]; then
                     # Use awk for floating point comparison
-                    if ! awk -v val="$extracted" -v thresh="$threshold" 'BEGIN { exit !(val >= thresh) }'; then
-                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected >= $threshold)${NC}"
+                    if ! awk -v val="$extracted" -v thresh="$v_greaterThanOrEqual" 'BEGIN { exit !(val >= thresh) }'; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected >= $v_greaterThanOrEqual)${NC}"
                         exit 1
                     else
-                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (>= $threshold)"
+                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (>= $v_greaterThanOrEqual)"
                     fi
                 fi
 
                 # Check if lessThanOrEqual is specified
-                if echo "$validation" | jq -e '.lessThanOrEqual' > /dev/null 2>&1; then
-                    local threshold=$(echo "$validation" | jq -r '.lessThanOrEqual')
+                if [ -n "$v_lessThanOrEqual" ]; then
                     # Use awk for floating point comparison
-                    if ! awk -v val="$extracted" -v thresh="$threshold" 'BEGIN { exit !(val <= thresh) }'; then
-                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected <= $threshold)${NC}"
+                    if ! awk -v val="$extracted" -v thresh="$v_lessThanOrEqual" 'BEGIN { exit !(val <= thresh) }'; then
+                        echo -e "Step $step_num: $method $url ${RED}❌ '$jsonpath' = '$extracted' (expected <= $v_lessThanOrEqual)${NC}"
                         exit 1
                     else
-                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (<= $threshold)"
+                        echo -e "  ${GREEN}✓${NC} Validated $jsonpath = ${YELLOW}$extracted${NC} (<= $v_lessThanOrEqual)"
                     fi
                 fi
 
                 # If no validation criteria specified, default to 'exists' check
-                if ! echo "$validation" | jq -e '.exists' > /dev/null 2>&1 && \
-                   ! echo "$validation" | jq -e '.equals' > /dev/null 2>&1 && \
-                   ! echo "$validation" | jq -e '.notEquals' > /dev/null 2>&1 && \
-                   ! echo "$validation" | jq -e '.greaterThan' > /dev/null 2>&1 && \
-                   ! echo "$validation" | jq -e '.lessThan' > /dev/null 2>&1 && \
-                   ! echo "$validation" | jq -e '.greaterThanOrEqual' > /dev/null 2>&1 && \
-                   ! echo "$validation" | jq -e '.lessThanOrEqual' > /dev/null 2>&1; then
+                if [ -z "$v_exists" ] && [ -z "$v_equals" ] && [ -z "$v_notEquals" ] && \
+                   [ -z "$v_greaterThan" ] && [ -z "$v_lessThan" ] && \
+                   [ -z "$v_greaterThanOrEqual" ] && [ -z "$v_lessThanOrEqual" ]; then
                     if [ "$extracted" = "null" ] || [ -z "$extracted" ]; then
                         echo -e "Step $step_num: $method $url ${RED}❌ JSON path '$jsonpath' not found${NC}"
                         echo "Response body: $response_body"
@@ -1311,6 +1271,8 @@ execute_step() {
             exit 1
         fi
     fi
+    local t_after_validations=$(date +%s%3N)
+    timing_log "[TIMING] Step $step_num: validations took $((t_after_validations - t_before_validations))ms" >&2
 
     # Check if step should launch browser
     if echo "$step_json" | jq -e '.launchBrowser' > /dev/null 2>&1; then
@@ -1326,6 +1288,11 @@ execute_step() {
 
     # Print success with elapsed time
     echo -e "Step $step_num: $method $url ${GREEN}✅ Status $status_code OK${NC} (${elapsed_s}s)"
+
+    local t_step_end=$(date +%s%3N)
+    local step_overhead=$((t_step_end - t_step_start - elapsed_ms))
+    timing_log "[TIMING] Step $step_num: TOTAL step time $((t_step_end - t_step_start))ms (API: ${elapsed_ms}ms, Overhead: ${step_overhead}ms)" >&2
+
     debug_log "DEBUG: execute_step returning for step $step_num"
 }
 
