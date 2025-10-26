@@ -630,9 +630,6 @@ function scrollToJsonSection(section) {
     let targetLine = 0;
     let targetLineCount = 0; // Number of lines the section spans
 
-    console.log(`[scrollToJsonSection] Section: ${section}`);
-    console.log(`[scrollToJsonSection] Total lines in preview: ${lines.length}`);
-
     // Find the line number and calculate span using a more robust method
     // that works with multi-line string values (like large base64 data)
 
@@ -667,9 +664,6 @@ function scrollToJsonSection(section) {
         const stepIndex = parseInt(section.split('-')[1]);
         const step = config.steps?.[stepIndex];
 
-        console.log(`[scrollToJsonSection] Step index: ${stepIndex}`);
-        console.log(`[scrollToJsonSection] Step found:`, step ? 'yes' : 'no');
-
         if (step) {
             // Find the step by its unique identifier to locate the approximate area
             let searchPattern;
@@ -681,11 +675,8 @@ function scrollToJsonSection(section) {
                 searchPattern = `"method": "${step.method}"`;
             }
 
-            console.log(`[scrollToJsonSection] Search pattern: ${searchPattern}`);
-
             // Find the line with the identifier
             const identifierLine = lines.findIndex(line => line.includes(searchPattern));
-            console.log(`[scrollToJsonSection] Identifier found at line: ${identifierLine}`);
 
             if (identifierLine !== -1) {
                 // Now work backwards to find the opening brace of this step object
@@ -699,8 +690,6 @@ function scrollToJsonSection(section) {
                     }
                 }
 
-                console.log(`[scrollToJsonSection] Opening brace found at line: ${openingBraceLine}`);
-
                 // Start highlight at the first attribute line after opening brace
                 targetLine = openingBraceLine + 1;
 
@@ -708,17 +697,11 @@ function scrollToJsonSection(section) {
                 const stepJSON = JSON.stringify(step, null, 2);
                 const stepLines = stepJSON.split('\n');
                 targetLineCount = stepLines.length - 2; // Exclude opening and closing braces
-
-                console.log(`[scrollToJsonSection] Step JSON lines: ${stepLines.length}`);
-                console.log(`[scrollToJsonSection] Target line: ${targetLine}, count: ${targetLineCount}`);
             }
         }
     }
 
-    console.log(`[scrollToJsonSection] Final targetLine: ${targetLine}, targetLineCount: ${targetLineCount}`);
-
     if (targetLine === -1 || targetLine === 0) {
-        console.log(`[scrollToJsonSection] Target line invalid, returning`);
         return; // Could not find the section
     }
 
@@ -756,9 +739,6 @@ function scrollToJsonSection(section) {
         }
     }
 
-    console.log(`[scrollToJsonSection] Target line: ${targetLine} / ${lines.length}`);
-    console.log(`[scrollToJsonSection] Character offset: ${charOffset} / ${jsonText.length}`);
-
     const previewContainer = jsonPreview.parentElement;
     if (previewContainer) {
         // Ensure container has position relative for absolute positioning of overlay
@@ -770,8 +750,6 @@ function scrollToJsonSection(section) {
         const charPercent = charOffset / jsonText.length;
         const scrollHeight = jsonPreview.scrollHeight;
         const approximateScroll = scrollHeight * charPercent - 80;
-
-        console.log(`[scrollToJsonSection] Approximate scroll: ${charPercent.toFixed(3)} × ${scrollHeight} = ${approximateScroll}`);
 
         previewContainer.scrollTo({
             top: Math.max(0, approximateScroll),
@@ -793,12 +771,6 @@ function scrollToJsonSection(section) {
                     // Calculate absolute position within scrollable content
                     const absoluteTop = rect.top - containerRect.top + previewContainer.scrollTop;
                     const highlightHeight = rect.height;
-
-                    console.log(`[scrollToJsonSection] Range rect top: ${rect.top}`);
-                    console.log(`[scrollToJsonSection] Container rect top: ${containerRect.top}`);
-                    console.log(`[scrollToJsonSection] Current scroll: ${previewContainer.scrollTop}`);
-                    console.log(`[scrollToJsonSection] Calculated absolute top: ${absoluteTop}`);
-                    console.log(`[scrollToJsonSection] Height: ${highlightHeight}`);
 
                     // Fine-tune scroll position
                     const finalScroll = Math.max(0, absoluteTop - 80);
@@ -826,8 +798,6 @@ function scrollToJsonSection(section) {
                     overlay.style.left = `${previewPaddingLeft}px`;
                     overlay.style.right = `${previewPaddingRight}px`;
                     overlay.style.height = `${highlightHeight}px`;
-
-                    console.log(`[scrollToJsonSection] Overlay top: ${absoluteTop}px, height: ${highlightHeight}px`);
 
                     // Trigger animation
                     overlay.classList.remove('active');
@@ -891,3 +861,23 @@ window.updateNodePreview = updateNodePreview;
 window.confirmCreateNode = confirmCreateNode;
 window.scrollToJsonSection = scrollToJsonSection;
 window.scrollJsonPreviewToTop = scrollJsonPreviewToTop;
+
+// Global loader functions
+function showLoader(message = 'Loading...') {
+    const loader = document.getElementById('globalLoader');
+    const loaderText = document.getElementById('loaderText');
+    if (loader) {
+        if (loaderText) loaderText.textContent = message;
+        loader.classList.add('active');
+    }
+}
+
+function hideLoader() {
+    const loader = document.getElementById('globalLoader');
+    if (loader) {
+        loader.classList.remove('active');
+    }
+}
+
+window.showLoader = showLoader;
+window.hideLoader = hideLoader;

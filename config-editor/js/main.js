@@ -20,70 +20,91 @@ window.addEventListener('DOMContentLoaded', function() {
         const file = e.target.files[0];
         if (!file) return;
 
+        // Show loader
+        showLoader('Loading configuration...');
+
         const reader = new FileReader();
 
         reader.onload = function(e) {
-            const jsonText = e.target.result;
-            let parsed;
+            // Use setTimeout to allow loader to render
+            setTimeout(() => {
+                try {
+                    const jsonText = e.target.result;
+                    let parsed;
 
-            // Step 1: Try to parse JSON
-            try {
-                parsed = JSON.parse(jsonText);
-            } catch (parseErr) {
-                console.error('Invalid JSON:', parseErr);
-                alert('Invalid JSON: ' + parseErr.message);
-                fileInput.value = '';
-                return; // STOP - invalid JSON
-            }
+                    // Step 1: Try to parse JSON
+                    try {
+                        parsed = JSON.parse(jsonText);
+                    } catch (parseErr) {
+                        console.error('Invalid JSON:', parseErr);
+                        hideLoader();
+                        alert('Invalid JSON: ' + parseErr.message);
+                        fileInput.value = '';
+                        return; // STOP - invalid JSON
+                    }
 
-            // Step 2: Validate it's a valid config structure
-            if (!parsed || typeof parsed !== 'object') {
-                alert('Invalid config: Root must be an object');
-                fileInput.value = '';
-                return; // STOP - invalid config
-            }
+                    // Step 2: Validate it's a valid config structure
+                    if (!parsed || typeof parsed !== 'object') {
+                        hideLoader();
+                        alert('Invalid config: Root must be an object');
+                        fileInput.value = '';
+                        return; // STOP - invalid config
+                    }
 
-            if (!Array.isArray(parsed.steps)) {
-                alert('Invalid config: Missing or invalid "steps" array');
-                fileInput.value = '';
-                return; // STOP - invalid config
-            }
+                    if (!Array.isArray(parsed.steps)) {
+                        hideLoader();
+                        alert('Invalid config: Missing or invalid "steps" array');
+                        fileInput.value = '';
+                        return; // STOP - invalid config
+                    }
 
-            // Step 3: JSON is valid config - update config
-            config = parsed;
-            fileName = file.name;
+                    // Step 3: JSON is valid config - update config
+                    config = parsed;
+                    fileName = file.name;
 
-            // Step 4: Try to persist to localStorage
-            try {
-                saveToLocalStorage();
-            } catch (storageErr) {
-                console.warn('Cannot persist to localStorage:', storageErr);
-                if (storageErr.name === 'QuotaExceededError') {
-                    alert('Warning: Configuration is too large to persist in localStorage. It will not be saved between page refreshes.');
+                    // Step 4: Try to persist to localStorage
+                    try {
+                        saveToLocalStorage();
+                    } catch (storageErr) {
+                        console.warn('Cannot persist to localStorage:', storageErr);
+                        if (storageErr.name === 'QuotaExceededError') {
+                            hideLoader();
+                            alert('Warning: Configuration is too large to persist in localStorage. It will not be saved between page refreshes.');
+                        }
+                    }
+
+                    // Step 5: Render UI
+                    updateFileNameDisplay();
+                    renderEditor();
+                    updatePreview();
+
+                    // Scroll JSON preview to top when loading a file
+                    if (typeof scrollJsonPreviewToTop === 'function') {
+                        scrollJsonPreviewToTop();
+                    }
+
+                    // Show download and close buttons
+                    const downloadBtn = document.getElementById('downloadBtn');
+                    const closeBtn = document.getElementById('closeBtn');
+                    if (downloadBtn) downloadBtn.style.display = 'inline-block';
+                    if (closeBtn) closeBtn.style.display = 'inline-block';
+
+                    // Clear input to allow re-selecting the same file
+                    fileInput.value = '';
+
+                    // Hide loader
+                    hideLoader();
+                } catch (err) {
+                    hideLoader();
+                    console.error('Error loading file:', err);
+                    alert('Error loading file: ' + err.message);
+                    fileInput.value = '';
                 }
-            }
-
-            // Step 5: Render UI
-            updateFileNameDisplay();
-            renderEditor();
-            updatePreview();
-
-            // Scroll JSON preview to top when loading a file
-            if (typeof scrollJsonPreviewToTop === 'function') {
-                scrollJsonPreviewToTop();
-            }
-
-            // Show download and close buttons
-            const downloadBtn = document.getElementById('downloadBtn');
-            const closeBtn = document.getElementById('closeBtn');
-            if (downloadBtn) downloadBtn.style.display = 'inline-block';
-            if (closeBtn) closeBtn.style.display = 'inline-block';
-
-            // Clear input to allow re-selecting the same file
-            fileInput.value = '';
+            }, 50);
         };
 
         reader.onerror = function() {
+            hideLoader();
             alert('Error reading file');
             fileInput.value = '';
         };

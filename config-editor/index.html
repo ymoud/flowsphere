@@ -22,8 +22,25 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Prevent theme flash: Load saved theme BEFORE page renders -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('flowsphere-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
 </head>
 <body>
+    <!-- Global Loading Overlay -->
+    <div id="globalLoader" class="global-loader">
+        <div class="loader-content">
+            <div class="loader-spinner"></div>
+            <div class="loader-text" id="loaderText">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
     <!-- Header -->
     <header class="app-header">
         <div class="container-fluid px-4">

@@ -960,45 +960,61 @@ if (!window.confirmNewConfig) {
                 return;
             }
 
+            // Close modal first
+            closeNewConfigModal();
+
+            // Show loader
+            showLoader('Parsing Postman collection...');
+
             // Read and parse Postman collection
             const reader = new FileReader();
             reader.onload = function(e) {
-                try {
-                    const collection = JSON.parse(e.target.result);
+                // Use setTimeout to allow loader to render
+                setTimeout(() => {
+                    try {
+                        const collection = JSON.parse(e.target.result);
 
-                    // Use parsePostmanCollection from postman-parser.js
-                    if (typeof parsePostmanCollection !== 'function') {
-                        alert('Postman parser not loaded');
-                        return;
+                        // Use parsePostmanCollection from postman-parser.js
+                        if (typeof parsePostmanCollection !== 'function') {
+                            hideLoader();
+                            alert('Postman parser not loaded');
+                            return;
+                        }
+
+                        const parsedConfig = parsePostmanCollection(collection);
+
+                        // Set config and filename
+                        config = parsedConfig;
+                        fileName = newFileName;
+
+                        // Update UI
+                        updateFileNameDisplay();
+                        saveToLocalStorage();
+                        renderEditor();
+                        updatePreview();
+
+                        // Scroll JSON preview to top when creating new config
+                        if (typeof scrollJsonPreviewToTop === 'function') {
+                            scrollJsonPreviewToTop();
+                        }
+
+                        // Show download and close buttons
+                        const downloadBtn = document.getElementById('downloadBtn');
+                        const closeBtn = document.getElementById('closeBtn');
+                        if (downloadBtn) downloadBtn.style.display = 'inline-block';
+                        if (closeBtn) closeBtn.style.display = 'inline-block';
+
+                        // Hide loader
+                        hideLoader();
+                    } catch (err) {
+                        hideLoader();
+                        alert('Error parsing Postman collection: ' + err.message);
                     }
-
-                    const parsedConfig = parsePostmanCollection(collection);
-
-                    // Set config and filename
-                    config = parsedConfig;
-                    fileName = newFileName;
-
-                    // Update UI
-                    closeNewConfigModal();
-                    updateFileNameDisplay();
-                    saveToLocalStorage();
-                    renderEditor();
-                    updatePreview();
-
-                    // Scroll JSON preview to top when creating new config
-                    if (typeof scrollJsonPreviewToTop === 'function') {
-                        scrollJsonPreviewToTop();
-                    }
-
-                    // Show download and close buttons
-                    const downloadBtn = document.getElementById('downloadBtn');
-                    const closeBtn = document.getElementById('closeBtn');
-                    if (downloadBtn) downloadBtn.style.display = 'inline-block';
-                    if (closeBtn) closeBtn.style.display = 'inline-block';
-
-                } catch (err) {
-                    alert('Error parsing Postman collection: ' + err.message);
-                }
+                }, 50);
+            };
+            reader.onerror = function() {
+                hideLoader();
+                alert('Error reading Postman collection file');
             };
             reader.readAsText(file);
             return;
