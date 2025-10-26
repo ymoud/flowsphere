@@ -223,6 +223,97 @@
         </div>
     </div>
 
+    <!-- Add New Node Modal -->
+    <div class="modal fade" id="addNewNodeModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title">Add New Node</h5>
+                        <p class="text-muted small mb-0">Enter the essential request details</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newNodeMethod" class="form-label">HTTP Method</label>
+                        <select class="form-select" id="newNodeMethod" onchange="updateNodePreview()">
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="PATCH">PATCH</option>
+                            <option value="DELETE">DELETE</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="newNodeUrl" class="form-label">URL</label>
+                        <input type="text" class="form-control" id="newNodeUrl"
+                               placeholder="/api/users"
+                               oninput="updateNodePreview()">
+                        <div class="form-text">Enter the endpoint path (e.g., /api/users/login)</div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="autoGenerateNodeDetails" checked onchange="updateNodePreview()">
+                        <label class="form-check-label" for="autoGenerateNodeDetails">
+                            Auto-generate ID and Name
+                        </label>
+                    </div>
+
+                    <div id="nodePreview" class="alert alert-info" style="display: none;">
+                        <strong>Preview:</strong>
+                        <div class="mt-2">
+                            <div><strong>ID:</strong> <code id="previewId">-</code></div>
+                            <div><strong>Name:</strong> <span id="previewName">-</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Position Selection (only shown when many nodes exist) -->
+                    <div id="nodePositionSection" style="display: none;">
+                        <hr class="my-3">
+                        <label class="form-label fw-semibold">Position</label>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="newNodePosition" id="newNodePositionTop" value="top" checked>
+                            <label class="form-check-label" for="newNodePositionTop">
+                                <strong>At the beginning</strong>
+                                <div class="text-muted small">Insert as the first node</div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="newNodePosition" id="newNodePositionBottom" value="bottom">
+                            <label class="form-check-label" for="newNodePositionBottom">
+                                <strong>At the end</strong>
+                                <div class="text-muted small">Append as the last node</div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="newNodePosition" id="newNodePositionCustom" value="custom">
+                            <label class="form-check-label" for="newNodePositionCustom">
+                                <strong>Custom position</strong>
+                            </label>
+                        </div>
+
+                        <div class="ms-4">
+                            <label for="newNodeCustomPosition" class="form-label small">Position (1 to <span id="newNodeMaxPosition"></span>)</label>
+                            <input type="number" class="form-control form-control-sm" id="newNodeCustomPosition" min="1" value="1"
+                                   onfocus="document.getElementById('newNodePositionCustom').checked = true">
+                            <div class="form-text">Enter the position where you want to insert the node</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmCreateNode()">
+                        Create Node
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Add Node Position Modal -->
     <div class="modal fade" id="addNodePositionModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">

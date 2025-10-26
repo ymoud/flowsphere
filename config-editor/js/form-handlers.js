@@ -93,17 +93,13 @@ function removeDefaultHeader(index) {
     updatePreview();
 }
 
-function addStep(hint = null, skipModal = false) {
+function addStep(hint = null, skipModal = false, nodeDetails = null) {
     config.steps = config.steps || [];
 
-    // Threshold for showing the modal (only show when nodes are hard to manage visually)
-    const MODAL_THRESHOLD = 5;
-
-    // If there are many steps and hint is 'top' or 'bottom', ask user with pre-selected option
-    // For small number of nodes (<=5), just add directly without modal
-    // skipModal flag bypasses this check (used when confirming from modal)
-    if (!skipModal && config.steps.length > MODAL_THRESHOLD && (hint === 'top' || hint === 'bottom')) {
-        showAddNodePositionModal(hint);
+    // If nodeDetails not provided and not skipping modal, show the "Add New Node" modal
+    // The modal now handles both node details AND position selection
+    if (!nodeDetails && !skipModal) {
+        showAddNewNodeModal(hint);
         return;
     }
 
@@ -121,8 +117,15 @@ function addStep(hint = null, skipModal = false) {
         insertIndex = config.steps.length;
     }
 
-    // Create new step
-    const newStep = {
+    // Create new step with provided details or defaults
+    const newStep = nodeDetails ? {
+        name: nodeDetails.name,
+        id: nodeDetails.id,
+        method: nodeDetails.method,
+        url: nodeDetails.url,
+        headers: {},
+        body: {}
+    } : {
         name: "New Node",
         method: "GET",
         url: "",
@@ -155,7 +158,173 @@ function addStep(hint = null, skipModal = false) {
     setTimeout(() => scrollToStep(insertIndex), 100);
 }
 
-function showAddNodePositionModal(hint = 'top') {
+function showAddNewNodeModal(hint = 'bottom') {
+    // Store the hint for later use
+    window._newNodeHint = hint;
+
+    const modal = document.getElementById('addNewNodeModal');
+    if (!modal) {
+        console.error('Add new node modal not found');
+        return;
+    }
+
+    // Reset form
+    document.getElementById('newNodeMethod').value = 'GET';
+    document.getElementById('newNodeUrl').value = '';
+    document.getElementById('autoGenerateNodeDetails').checked = true;
+    document.getElementById('nodePreview').style.display = 'none';
+
+    // Show/hide position section based on number of nodes
+    const MODAL_THRESHOLD = 5;
+    const positionSection = document.getElementById('nodePositionSection');
+
+    if (config.steps && config.steps.length > MODAL_THRESHOLD) {
+        // Show position section
+        positionSection.style.display = 'block';
+
+        // Update max position
+        const maxPos = config.steps.length + 1;
+        document.getElementById('newNodeMaxPosition').textContent = maxPos;
+        document.getElementById('newNodeCustomPosition').setAttribute('max', maxPos);
+        document.getElementById('newNodeCustomPosition').value = maxPos;
+
+        // Pre-select position based on hint
+        if (hint === 'bottom') {
+            document.getElementById('newNodePositionBottom').checked = true;
+        } else {
+            document.getElementById('newNodePositionTop').checked = true;
+        }
+    } else {
+        // Hide position section for small configs
+        positionSection.style.display = 'none';
+    }
+
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+
+    // Focus on URL input
+    setTimeout(() => {
+        document.getElementById('newNodeUrl').focus();
+    }, 300);
+}
+
+function updateNodePreview() {
+    const method = document.getElementById('newNodeMethod').value;
+    const url = document.getElementById('newNodeUrl').value.trim();
+    const autoGenerate = document.getElementById('autoGenerateNodeDetails').checked;
+    const preview = document.getElementById('nodePreview');
+
+    if (!url || !autoGenerate) {
+        preview.style.display = 'none';
+        return;
+    }
+
+    // Auto-generate ID and name
+    const generated = generateNodeDetails(method, url);
+
+    document.getElementById('previewId').textContent = generated.id;
+    document.getElementById('previewName').textContent = generated.name;
+    preview.style.display = 'block';
+}
+
+function generateNodeDetails(method, url) {
+    // Extract meaningful parts from URL
+    let cleanUrl = url;
+
+    // Remove query params
+    cleanUrl = cleanUrl.split('?')[0];
+
+    // Remove leading slash
+    if (cleanUrl.startsWith('/')) {
+        cleanUrl = cleanUrl.substring(1);
+    }
+
+    // Split by slashes and filter out empty parts and path variables
+    const parts = cleanUrl.split('/').filter(p => p && !p.startsWith('{') && !p.startsWith(':'));
+
+    // Generate ID: method + path parts, joined with hyphens, lowercase
+    const pathPart = parts.join('-').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'request';
+    const id = `${method.toLowerCase()}-${pathPart}`;
+
+    // Generate Name: Method + humanized path
+    let nameParts = [...parts];
+    if (nameParts.length === 0) {
+        nameParts = ['Request'];
+    }
+
+    // Capitalize first letter of each part
+    const humanized = nameParts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+    const name = `${method} ${humanized}`;
+
+    return { id, name, method, url };
+}
+
+function confirmCreateNode() {
+    const method = document.getElementById('newNodeMethod').value;
+    const url = document.getElementById('newNodeUrl').value.trim();
+    const autoGenerate = document.getElementById('autoGenerateNodeDetails').checked;
+
+    // If URL is empty, create a default node (same as skip)
+    let nodeDetails = null;
+    if (url) {
+        nodeDetails = autoGenerate
+            ? generateNodeDetails(method, url)
+            : { method, url, id: '', name: 'New Node' };
+    }
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addNewNodeModal'));
+    if (modal) modal.hide();
+
+    // Get position from modal (if position section is visible)
+    const positionSection = document.getElementById('nodePositionSection');
+    let hint = window._newNodeHint || 'bottom';
+
+    if (positionSection.style.display !== 'none') {
+        const selectedPosition = document.querySelector('input[name="newNodePosition"]:checked')?.value;
+        if (selectedPosition === 'custom') {
+            const customPos = parseInt(document.getElementById('newNodeCustomPosition').value);
+            if (!isNaN(customPos) && customPos >= 1 && customPos <= (config.steps?.length || 0) + 1) {
+                hint = customPos - 1; // Convert to 0-based index
+            }
+        } else {
+            hint = selectedPosition; // 'top' or 'bottom'
+        }
+    }
+
+    // Continue with adding the step (skipModal = true since we already handled position)
+    addStep(hint, true, nodeDetails);
+}
+
+function skipNodeCreation() {
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addNewNodeModal'));
+    if (modal) modal.hide();
+
+    // Get position from modal (if position section is visible)
+    const positionSection = document.getElementById('nodePositionSection');
+    let hint = window._newNodeHint || 'bottom';
+
+    if (positionSection.style.display !== 'none') {
+        const selectedPosition = document.querySelector('input[name="newNodePosition"]:checked')?.value;
+        if (selectedPosition === 'custom') {
+            const customPos = parseInt(document.getElementById('newNodeCustomPosition').value);
+            if (!isNaN(customPos) && customPos >= 1 && customPos <= (config.steps?.length || 0) + 1) {
+                hint = customPos - 1; // Convert to 0-based index
+            }
+        } else {
+            hint = selectedPosition; // 'top' or 'bottom'
+        }
+    }
+
+    // Create a default node (nodeDetails = null will create default)
+    addStep(hint, true, null); // skipModal = true to bypass position modal and use defaults
+}
+
+function showAddNodePositionModal(hint = 'top', nodeDetails = null) {
+    // Store nodeDetails for later use
+    window._pendingNodeDetails = nodeDetails;
+
     const modal = document.getElementById('addNodePositionModal');
     if (!modal) {
         console.error('Add node position modal not found');
@@ -190,17 +359,18 @@ function showAddNodePositionModal(hint = 'top') {
 
 function confirmAddNodePosition() {
     const position = document.querySelector('input[name="nodePosition"]:checked')?.value;
+    const nodeDetails = window._pendingNodeDetails;
 
     if (position === 'custom') {
         const customPos = parseInt(document.getElementById('customNodePosition').value);
         if (!isNaN(customPos) && customPos >= 1 && customPos <= (config.steps?.length || 0) + 1) {
-            addStep(customPos - 1, true); // Convert to 0-based index, skip modal
+            addStep(customPos - 1, true, nodeDetails); // Convert to 0-based index, skip modal
         } else {
             alert('Please enter a valid position between 1 and ' + ((config.steps?.length || 0) + 1));
             return;
         }
     } else {
-        addStep(position, true); // Skip modal since we're already in the modal
+        addStep(position, true, nodeDetails); // Skip modal since we're already in the modal
     }
 
     // Close modal
@@ -473,3 +643,5 @@ window.updateStep = updateStep;
 window.updateStepJSON = updateStepJSON;
 window.confirmAddNodePosition = confirmAddNodePosition;
 window.scrollToStep = scrollToStep;
+window.updateNodePreview = updateNodePreview;
+window.confirmCreateNode = confirmCreateNode;
