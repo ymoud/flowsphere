@@ -95,7 +95,6 @@ function handleAccordionDragOver(event) {
 function handleDragOver(event) {
     event.preventDefault(); // Allow drop
     event.stopPropagation(); // Stop event from bubbling to accordion container
-    event.dataTransfer.dropEffect = 'move';
 
     const item = event.currentTarget;
     const targetIndex = parseInt(item.getAttribute('data-step-index'));
@@ -103,6 +102,7 @@ function handleDragOver(event) {
     // Skip if dragging over self
     if (draggedStepIndex === targetIndex) {
         hideDropIndicator();
+        event.dataTransfer.dropEffect = 'none';
         return;
     }
 
@@ -113,6 +113,8 @@ function handleDragOver(event) {
         event.dataTransfer.dropEffect = 'none';
         return;
     }
+
+    event.dataTransfer.dropEffect = 'move';
 
     // Calculate drop position (top or bottom half)
     const rect = item.getBoundingClientRect();
@@ -161,6 +163,16 @@ function handleDrop(event) {
     if (!isDraggable) {
         hideDropIndicator();
         stopAutoScroll();
+        // Trigger dragend manually to provide visual feedback
+        const stepsAccordion = document.getElementById('stepsAccordion');
+        if (stepsAccordion && draggedStepIndex !== null) {
+            const draggedElement = stepsAccordion.querySelectorAll('.accordion-item')[draggedStepIndex];
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+            }
+        }
+        draggedStepIndex = null;
+        removeDropIndicator();
         return;
     }
 
@@ -186,6 +198,11 @@ function handleDrop(event) {
 
     // Perform reorder if position actually changed
     if (draggedStepIndex !== adjustedToIndex) {
+        // IMPORTANT: Capture draggedStepIndex in a local variable
+        // because dragend event will reset it to null before setTimeout fires!
+        const capturedFromIndex = draggedStepIndex;
+        const capturedToIndex = finalIndex;
+
         // Get the dragged element
         const stepsAccordion = document.getElementById('stepsAccordion');
         const draggedElement = stepsAccordion?.querySelectorAll('.accordion-item')[draggedStepIndex];
@@ -197,11 +214,11 @@ function handleDrop(event) {
 
             // Wait for fade-out animation to complete, then reorder
             setTimeout(() => {
-                reorderSteps(draggedStepIndex, finalIndex);
+                reorderSteps(capturedFromIndex, capturedToIndex);
             }, 250); // Match animation duration
         } else {
             // Fallback: reorder immediately if element not found
-            reorderSteps(draggedStepIndex, finalIndex);
+            reorderSteps(capturedFromIndex, capturedToIndex);
         }
     } else {
         // No reorder needed, just clean up dragging class
