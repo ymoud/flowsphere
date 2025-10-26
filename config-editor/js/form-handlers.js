@@ -601,6 +601,250 @@ function positionTooltip() {
     tooltip.style.top = rect.top - tooltip.offsetHeight - 10 + 'px';
 }
 
+/**
+ * Scroll JSON preview to the top
+ */
+function scrollJsonPreviewToTop() {
+    const jsonPreview = document.getElementById('jsonPreview');
+    if (!jsonPreview) return;
+
+    const previewContainer = jsonPreview.parentElement;
+    if (previewContainer) {
+        previewContainer.scrollTo({
+            top: 0,
+            behavior: 'instant' // Use instant for file loading
+        });
+    }
+}
+
+/**
+ * Scroll JSON preview to a specific section and highlight it
+ * @param {string} section - Section identifier: 'general', 'variables', 'defaults', or 'step-N'
+ */
+function scrollToJsonSection(section) {
+    const jsonPreview = document.getElementById('jsonPreview');
+    if (!jsonPreview || !config) return;
+
+    const jsonText = jsonPreview.textContent;
+    const lines = jsonText.split('\n');
+    let targetLine = 0;
+    let targetLineCount = 0; // Number of lines the section spans
+
+    console.log(`[scrollToJsonSection] Section: ${section}`);
+    console.log(`[scrollToJsonSection] Total lines in preview: ${lines.length}`);
+
+    // Find the line number and calculate span using a more robust method
+    // that works with multi-line string values (like large base64 data)
+
+    if (section === 'general') {
+        // Scroll to top (enableDebug)
+        targetLine = lines.findIndex(line => line.includes('"enableDebug"'));
+        targetLineCount = 1; // Single line
+    } else if (section === 'variables') {
+        // Find variables section start
+        const headerLine = lines.findIndex(line => line.includes('"variables"'));
+        if (headerLine !== -1) {
+            // Calculate how many lines the variables section spans
+            const variablesJSON = JSON.stringify(config.variables, null, 2);
+            const variablesLines = variablesJSON.split('\n');
+            // Skip the opening line and brace, start at first content
+            targetLine = headerLine + 1; // Line after "variables": {
+            targetLineCount = variablesLines.length - 2; // Exclude opening and closing braces
+        }
+    } else if (section === 'defaults') {
+        // Find defaults section start
+        const headerLine = lines.findIndex(line => line.includes('"defaults"'));
+        if (headerLine !== -1) {
+            // Calculate how many lines the defaults section spans
+            const defaultsJSON = JSON.stringify(config.defaults, null, 2);
+            const defaultsLines = defaultsJSON.split('\n');
+            // Skip the opening line and brace, start at first content
+            targetLine = headerLine + 1; // Line after "defaults": {
+            targetLineCount = defaultsLines.length - 2; // Exclude opening and closing braces
+        }
+    } else if (section.startsWith('step-')) {
+        // Extract step index from section ID
+        const stepIndex = parseInt(section.split('-')[1]);
+        const step = config.steps?.[stepIndex];
+
+        console.log(`[scrollToJsonSection] Step index: ${stepIndex}`);
+        console.log(`[scrollToJsonSection] Step found:`, step ? 'yes' : 'no');
+
+        if (step) {
+            // Find the step by its unique identifier to locate the approximate area
+            let searchPattern;
+            if (step.id) {
+                searchPattern = `"id": "${step.id}"`;
+            } else if (step.name) {
+                searchPattern = `"name": "${step.name}"`;
+            } else {
+                searchPattern = `"method": "${step.method}"`;
+            }
+
+            console.log(`[scrollToJsonSection] Search pattern: ${searchPattern}`);
+
+            // Find the line with the identifier
+            const identifierLine = lines.findIndex(line => line.includes(searchPattern));
+            console.log(`[scrollToJsonSection] Identifier found at line: ${identifierLine}`);
+
+            if (identifierLine !== -1) {
+                // Now work backwards to find the opening brace of this step object
+                let openingBraceLine = identifierLine;
+                for (let i = identifierLine - 1; i >= 0; i--) {
+                    const trimmed = lines[i].trim();
+                    // Look for a line that is just an opening brace (start of step object)
+                    if (trimmed === '{') {
+                        openingBraceLine = i;
+                        break;
+                    }
+                }
+
+                console.log(`[scrollToJsonSection] Opening brace found at line: ${openingBraceLine}`);
+
+                // Start highlight at the first attribute line after opening brace
+                targetLine = openingBraceLine + 1;
+
+                // Calculate how many lines this step spans
+                const stepJSON = JSON.stringify(step, null, 2);
+                const stepLines = stepJSON.split('\n');
+                targetLineCount = stepLines.length - 2; // Exclude opening and closing braces
+
+                console.log(`[scrollToJsonSection] Step JSON lines: ${stepLines.length}`);
+                console.log(`[scrollToJsonSection] Target line: ${targetLine}, count: ${targetLineCount}`);
+            }
+        }
+    }
+
+    console.log(`[scrollToJsonSection] Final targetLine: ${targetLine}, targetLineCount: ${targetLineCount}`);
+
+    if (targetLine === -1 || targetLine === 0) {
+        console.log(`[scrollToJsonSection] Target line invalid, returning`);
+        return; // Could not find the section
+    }
+
+    if (targetLineCount === 0) {
+        targetLineCount = 1; // At least highlight one line
+    }
+
+    // Calculate scroll position using computed line height
+    const computedStyle = window.getComputedStyle(jsonPreview);
+    const fontSize = parseFloat(computedStyle.fontSize) || 12;
+    const lineHeightStr = computedStyle.lineHeight;
+    let lineHeight;
+
+    if (lineHeightStr === 'normal') {
+        lineHeight = fontSize * 1.5; // Default normal line-height
+    } else if (lineHeightStr.endsWith('px')) {
+        lineHeight = parseFloat(lineHeightStr);
+    } else {
+        // It's a multiplier
+        lineHeight = fontSize * parseFloat(lineHeightStr);
+    }
+
+    // Scroll first to make the content visible, THEN use Range API
+    // Find the character offset where our target line starts
+    let charOffset = 0;
+    for (let i = 0; i < targetLine; i++) {
+        charOffset += lines[i].length + 1; // +1 for newline character
+    }
+
+    // Find how many characters our target section spans
+    let totalChars = 0;
+    for (let i = 0; i < targetLineCount; i++) {
+        if (targetLine + i < lines.length) {
+            totalChars += lines[targetLine + i].length + 1;
+        }
+    }
+
+    console.log(`[scrollToJsonSection] Target line: ${targetLine} / ${lines.length}`);
+    console.log(`[scrollToJsonSection] Character offset: ${charOffset} / ${jsonText.length}`);
+
+    const previewContainer = jsonPreview.parentElement;
+    if (previewContainer) {
+        // Ensure container has position relative for absolute positioning of overlay
+        if (window.getComputedStyle(previewContainer).position === 'static') {
+            previewContainer.style.position = 'relative';
+        }
+
+        // First, scroll to an approximate position based on character percentage
+        const charPercent = charOffset / jsonText.length;
+        const scrollHeight = jsonPreview.scrollHeight;
+        const approximateScroll = scrollHeight * charPercent - 80;
+
+        console.log(`[scrollToJsonSection] Approximate scroll: ${charPercent.toFixed(3)} × ${scrollHeight} = ${approximateScroll}`);
+
+        previewContainer.scrollTo({
+            top: Math.max(0, approximateScroll),
+            behavior: 'instant' // Instant scroll first
+        });
+
+        // Now use Range API to find the EXACT position after scrolling
+        setTimeout(() => {
+            const textNode = jsonPreview.firstChild;
+            if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+                try {
+                    const range = document.createRange();
+                    range.setStart(textNode, Math.min(charOffset, textNode.length));
+                    range.setEnd(textNode, Math.min(charOffset + totalChars, textNode.length));
+
+                    const rect = range.getBoundingClientRect();
+                    const containerRect = previewContainer.getBoundingClientRect();
+
+                    // Calculate absolute position within scrollable content
+                    const absoluteTop = rect.top - containerRect.top + previewContainer.scrollTop;
+                    const highlightHeight = rect.height;
+
+                    console.log(`[scrollToJsonSection] Range rect top: ${rect.top}`);
+                    console.log(`[scrollToJsonSection] Container rect top: ${containerRect.top}`);
+                    console.log(`[scrollToJsonSection] Current scroll: ${previewContainer.scrollTop}`);
+                    console.log(`[scrollToJsonSection] Calculated absolute top: ${absoluteTop}`);
+                    console.log(`[scrollToJsonSection] Height: ${highlightHeight}`);
+
+                    // Fine-tune scroll position
+                    const finalScroll = Math.max(0, absoluteTop - 80);
+                    if (Math.abs(finalScroll - previewContainer.scrollTop) > 5) {
+                        previewContainer.scrollTo({
+                            top: finalScroll,
+                            behavior: 'smooth'
+                        });
+                    }
+
+                    // Create or update highlight overlay
+                    let overlay = document.getElementById('jsonHighlightOverlay');
+                    if (!overlay) {
+                        overlay = document.createElement('div');
+                        overlay.id = 'jsonHighlightOverlay';
+                        overlay.className = 'json-highlight-overlay';
+                        previewContainer.appendChild(overlay);
+                    }
+
+                    const previewPaddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+                    const previewPaddingRight = parseFloat(computedStyle.paddingRight) || 0;
+
+                    // Position overlay at the exact location
+                    overlay.style.top = `${absoluteTop}px`;
+                    overlay.style.left = `${previewPaddingLeft}px`;
+                    overlay.style.right = `${previewPaddingRight}px`;
+                    overlay.style.height = `${highlightHeight}px`;
+
+                    console.log(`[scrollToJsonSection] Overlay top: ${absoluteTop}px, height: ${highlightHeight}px`);
+
+                    // Trigger animation
+                    overlay.classList.remove('active');
+                    setTimeout(() => {
+                        overlay.classList.add('active');
+                        setTimeout(() => {
+                            overlay.classList.remove('active');
+                        }, 2000);
+                    }, 50);
+                } catch (e) {
+                    console.error('[scrollToJsonSection] Range API error:', e);
+                }
+            }
+        }, 100); // Wait for scroll to complete
+    }
+}
+
 function copyJSON() {
     if (!config) {
         alert('No configuration to copy');
@@ -645,3 +889,5 @@ window.confirmAddNodePosition = confirmAddNodePosition;
 window.scrollToStep = scrollToStep;
 window.updateNodePreview = updateNodePreview;
 window.confirmCreateNode = confirmCreateNode;
+window.scrollToJsonSection = scrollToJsonSection;
+window.scrollJsonPreviewToTop = scrollJsonPreviewToTop;

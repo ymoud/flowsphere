@@ -68,6 +68,11 @@ window.addEventListener('DOMContentLoaded', function() {
             renderEditor();
             updatePreview();
 
+            // Scroll JSON preview to top when loading a file
+            if (typeof scrollJsonPreviewToTop === 'function') {
+                scrollJsonPreviewToTop();
+            }
+
             // Show download and close buttons
             const downloadBtn = document.getElementById('downloadBtn');
             const closeBtn = document.getElementById('closeBtn');

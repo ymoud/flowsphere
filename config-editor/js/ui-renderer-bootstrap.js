@@ -116,6 +116,26 @@ function renderEditor() {
             attachAutocompleteToInput(baseUrlInput, null);
         }
     }, 0);
+
+    // Add collapse event listeners for main sections to scroll JSON preview
+    setTimeout(() => {
+        const sections = [
+            { id: 'generalSettings', sectionName: 'general' },
+            { id: 'globalVariables', sectionName: 'variables' },
+            { id: 'defaultSettings', sectionName: 'defaults' }
+        ];
+
+        sections.forEach(({ id, sectionName }) => {
+            const sectionEl = document.getElementById(id);
+            if (sectionEl) {
+                sectionEl.addEventListener('shown.bs.collapse', () => {
+                    if (typeof scrollToJsonSection === 'function') {
+                        scrollToJsonSection(sectionName);
+                    }
+                });
+            }
+        });
+    }, 0);
 }
 
 function renderGlobalVariables() {
@@ -350,6 +370,10 @@ function renderSteps() {
                 const updateFunc = scrollContainer?._scrollListener;
                 if (updateFunc) updateFunc();
             }, 50);
+            // Scroll to corresponding JSON section
+            if (typeof scrollToJsonSection === 'function') {
+                scrollToJsonSection(`step-${index}`);
+            }
         });
         collapseEl.addEventListener('hidden.bs.collapse', () => {
             openStepIndices.delete(index);

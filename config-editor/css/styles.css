@@ -756,6 +756,14 @@ textarea.form-control {
     word-wrap: break-word;
     min-height: 300px;
     transition: background var(--transition-speed) ease, color var(--transition-speed) ease;
+    position: relative;
+    z-index: 1;
+}
+
+/* JSON preview parent container needs position relative for overlay positioning */
+.overflow-auto:has(> #jsonPreview),
+.card-body.overflow-auto {
+    position: relative;
 }
 
 /* JSON Preview scrollbar uses same theme as rest of app */
@@ -776,6 +784,103 @@ textarea.form-control {
 
 #jsonPreview::-webkit-scrollbar-thumb:hover {
     background: var(--secondary-hover);
+}
+
+/* JSON highlight overlay - positioned element that highlights only specific lines */
+.json-highlight-overlay {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    z-index: 10;
+    mix-blend-mode: normal;
+    margin: -2px 0; /* Small visual padding */
+}
+
+.json-highlight-overlay.active {
+    animation: overlayPulse 2s ease-in-out;
+}
+
+@keyframes overlayPulse {
+    0% {
+        opacity: 0;
+        background-color: rgba(0, 86, 210, 0);
+        box-shadow: 0 0 0 0 rgba(0, 86, 210, 0);
+    }
+    10% {
+        opacity: 1;
+        background-color: rgba(0, 86, 210, 0.4);
+        box-shadow: 0 0 20px 10px rgba(0, 86, 210, 0.3);
+    }
+    25% {
+        opacity: 1;
+        background-color: rgba(0, 86, 210, 0);
+        box-shadow: 0 0 0 0 rgba(0, 86, 210, 0);
+    }
+    35% {
+        opacity: 1;
+        background-color: rgba(0, 86, 210, 0.4);
+        box-shadow: 0 0 20px 10px rgba(0, 86, 210, 0.3);
+    }
+    50% {
+        opacity: 1;
+        background-color: rgba(0, 86, 210, 0);
+        box-shadow: 0 0 0 0 rgba(0, 86, 210, 0);
+    }
+    60% {
+        opacity: 1;
+        background-color: rgba(0, 86, 210, 0.35);
+        box-shadow: 0 0 20px 10px rgba(0, 86, 210, 0.25);
+    }
+    100% {
+        opacity: 0;
+        background-color: rgba(0, 86, 210, 0);
+        box-shadow: 0 0 0 0 rgba(0, 86, 210, 0);
+    }
+}
+
+/* Light theme overlay uses appropriate colors for light background */
+[data-theme="light"] .json-highlight-overlay.active {
+    animation: overlayPulseLight 2s ease-in-out;
+}
+
+@keyframes overlayPulseLight {
+    0% {
+        opacity: 0;
+        background-color: rgba(0, 86, 210, 0);
+        box-shadow: 0 0 0 0 rgba(0, 86, 210, 0);
+    }
+    10% {
+        opacity: 1;
+        background-color: rgba(0, 86, 210, 0.3);
+        box-shadow: 0 0 20px 10px rgba(0, 86, 210, 0.2);
+    }
+    25% {
+        opacity: 1;
+        background-color: rgba(0, 86, 210, 0);
+        box-shadow: 0 0 0 0 rgba(0, 86, 210, 0);
+    }
+    35% {
+        opacity: 1;
+        background-color: rgba(0, 86, 210, 0.3);
+        box-shadow: 0 0 20px 10px rgba(0, 86, 210, 0.2);
+    }
+    50% {
+        opacity: 1;
+        background-color: rgba(0, 86, 210, 0);
+        box-shadow: 0 0 0 0 rgba(0, 86, 210, 0);
+    }
+    60% {
+        opacity: 1;
+        background-color: rgba(0, 86, 210, 0.25);
+        box-shadow: 0 0 20px 10px rgba(0, 86, 210, 0.15);
+    }
+    100% {
+        opacity: 0;
+        background-color: rgba(0, 86, 210, 0);
+        box-shadow: 0 0 0 0 rgba(0, 86, 210, 0);
+    }
 }
 
 /* ========================================

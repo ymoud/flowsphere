@@ -985,6 +985,11 @@ if (!window.confirmNewConfig) {
                     renderEditor();
                     updatePreview();
 
+                    // Scroll JSON preview to top when creating new config
+                    if (typeof scrollJsonPreviewToTop === 'function') {
+                        scrollJsonPreviewToTop();
+                    }
+
                     // Show download and close buttons
                     const downloadBtn = document.getElementById('downloadBtn');
                     const closeBtn = document.getElementById('closeBtn');
@@ -1016,6 +1021,11 @@ if (!window.confirmNewConfig) {
         saveToLocalStorage();
         renderEditor();
         updatePreview();
+
+        // Scroll JSON preview to top when creating new config
+        if (typeof scrollJsonPreviewToTop === 'function') {
+            scrollJsonPreviewToTop();
+        }
 
         // Show download and close buttons
         const downloadBtn = document.getElementById('downloadBtn');

@@ -98,6 +98,11 @@ function loadFromLocalStorage() {
             updateFileNameDisplay();
             renderEditor();
             updatePreview();
+
+            // Scroll JSON preview to top when loading from localStorage
+            if (typeof scrollJsonPreviewToTop === 'function') {
+                scrollJsonPreviewToTop();
+            }
         } catch (err) {
             console.error('Error loading from localStorage:', err);
         }
