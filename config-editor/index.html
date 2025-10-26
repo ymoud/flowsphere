@@ -30,6 +30,14 @@
             document.documentElement.setAttribute('data-theme', savedTheme);
         })();
     </script>
+
+    <!-- Prevent JSON preview animation flash: Disable transitions on initial load -->
+    <style id="preloadJsonPreviewState">
+        /* Temporarily disable transitions on initial load to prevent animation flash */
+        #previewPanel, #editorPanel, #previewPanel > .card {
+            transition: none !important;
+        }
+    </style>
 </head>
 <body>
     <!-- Global Loading Overlay -->
@@ -60,9 +68,9 @@
 
     <!-- Main Content -->
     <div class="container-fluid px-4 py-3" style="height: calc(100vh - 100px);">
-        <div class="row h-100">
+        <div class="row h-100" id="mainPanelsRow">
             <!-- Editor Panel -->
-            <div class="col-lg-8 h-100 d-flex flex-column">
+            <div class="col-lg-8 h-100 d-flex flex-column" id="editorPanel">
                 <div class="card shadow-sm h-100 d-flex flex-column">
                     <!-- File Controls -->
                     <div class="card-header bg-white border-bottom sticky-top">
@@ -102,16 +110,24 @@
             </div>
 
             <!-- Preview Panel -->
-            <div class="col-lg-4 h-100">
+            <div class="col-lg-4 h-100" id="previewPanel">
                 <div class="card shadow-sm bg-dark text-white h-100 d-flex flex-column">
+                    <span class="json-preview-vertical-title">JSON Preview</span>
                     <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 small fw-semibold">JSON Preview</h5>
-                        <button class="btn btn-sm btn-outline-light" onclick="copyJSON()" id="copyJsonBtn"
-                                data-bs-toggle="tooltip" data-bs-placement="left" title="Copy JSON to clipboard">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
+                        <h5 class="mb-0 small fw-semibold json-preview-title">JSON Preview</h5>
+                        <div class="d-flex gap-2" id="jsonPreviewButtons">
+                            <button class="btn btn-sm btn-outline-light json-preview-action-btn" onclick="copyJSON()" id="copyJsonBtn"
+                                    data-bs-toggle="tooltip" data-bs-placement="left" title="Copy JSON to clipboard">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-light" id="toggleJsonPreviewBtn"
+                                    onclick="toggleJsonPreview()"
+                                    title="Toggle JSON Preview">
+                                <i class="bi bi-chevron-right" id="jsonPreviewToggleIcon"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="card-body overflow-auto flex-grow-1 p-0">
+                    <div class="card-body overflow-auto flex-grow-1 p-0" id="jsonPreviewBody">
                         <pre id="jsonPreview" class="m-0 p-3 text-light" style="font-size: 12px; line-height: 1.5;">// JSON preview will appear here</pre>
                     </div>
                 </div>

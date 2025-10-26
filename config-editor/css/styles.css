@@ -786,6 +786,106 @@ textarea.form-control {
     background: var(--secondary-hover);
 }
 
+/* JSON Preview Panel Collapse/Expand */
+#previewPanel {
+    position: relative;
+    flex: 0 0 33.333333% !important; /* Default: col-lg-4 */
+    max-width: 33.333333%;
+    margin-left: auto; /* Keep panel aligned to the right during transitions */
+    transition: flex-basis 0.3s ease, max-width 0.3s ease;
+}
+
+#previewPanel > .card {
+    overflow: hidden;
+}
+
+#previewPanel.collapsed {
+    flex: 0 0 65px !important;
+    max-width: 65px !important;
+}
+
+#previewPanel.collapsed .json-preview-title {
+    display: none;
+}
+
+/* Hide JSON content when collapsed to prevent layout calculations */
+#previewPanel.collapsed #jsonPreviewBody {
+    display: none;
+}
+
+/* Vertical title for collapsed state - positioned in the body area */
+.json-preview-vertical-title {
+    display: none;
+}
+
+#previewPanel.collapsed .json-preview-vertical-title {
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center;
+    white-space: nowrap;
+    font-size: 0.875rem; /* Match Bootstrap's 'small' class size */
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    letter-spacing: 0.5px;
+    pointer-events: none;
+}
+
+#previewPanel.collapsed .card {
+    position: relative;
+}
+
+/* Center buttons and stack vertically in collapsed state */
+#previewPanel.collapsed .card-header {
+    justify-content: center !important;
+    padding: 0.5rem 0.25rem;
+}
+
+#previewPanel.collapsed #jsonPreviewButtons {
+    flex-direction: column-reverse !important;
+    gap: 0.5rem !important;
+}
+
+/* Remove borders from JSON preview buttons (both collapsed and expanded) */
+#toggleJsonPreviewBtn,
+#copyJsonBtn {
+    border: none;
+}
+
+#toggleJsonPreviewBtn:hover,
+#copyJsonBtn:hover {
+    border: none;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+#previewPanel.collapsed #toggleJsonPreviewBtn,
+#previewPanel.collapsed #copyJsonBtn {
+    margin: 0;
+}
+
+#editorPanel {
+    flex: 0 0 66.666667% !important; /* Default: col-lg-8 */
+    max-width: 66.666667%;
+    transition: flex-basis 0.3s ease, max-width 0.3s ease;
+}
+
+/* Animate caret icon rotation */
+#jsonPreviewToggleIcon {
+    transition: transform 0.3s ease;
+    display: inline-block;
+}
+
+#previewPanel.collapsed #jsonPreviewToggleIcon {
+    transform: rotate(180deg);
+}
+
+#mainPanelsRow.preview-collapsed #editorPanel {
+    flex: 1 1 0 !important;
+    max-width: none !important;
+}
+
 /* JSON highlight overlay - positioned element that highlights only specific lines */
 .json-highlight-overlay {
     position: absolute;

@@ -135,6 +135,77 @@ window.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Restore JSON preview collapse state from localStorage
+    restoreJsonPreviewState();
+
     // Load from localStorage
     loadFromLocalStorage();
 });
+
+/**
+ * Toggle JSON preview panel collapse/expand
+ */
+function toggleJsonPreview() {
+    const previewPanel = document.getElementById('previewPanel');
+    const mainPanelsRow = document.getElementById('mainPanelsRow');
+    const toggleIcon = document.getElementById('jsonPreviewToggleIcon');
+    const jsonPreviewBody = document.getElementById('jsonPreviewBody');
+
+    if (!previewPanel || !mainPanelsRow || !toggleIcon || !jsonPreviewBody) return;
+
+    const isCollapsed = previewPanel.classList.contains('collapsed');
+
+    if (isCollapsed) {
+        // Expand: Keep content hidden during animation, show after
+        jsonPreviewBody.style.display = 'none';
+
+        // Start expand animation
+        previewPanel.classList.remove('collapsed');
+        mainPanelsRow.classList.remove('preview-collapsed');
+
+        // Save expanded state to localStorage
+        localStorage.setItem('flowsphere-json-preview-collapsed', 'false');
+
+        // Wait for expand animation to complete, then show content
+        setTimeout(() => {
+            jsonPreviewBody.style.display = '';
+        }, 320); // Wait for expand animation to complete (300ms transition)
+    } else {
+        // Collapse: Apply classes immediately for instant collapse
+        previewPanel.classList.add('collapsed');
+        mainPanelsRow.classList.add('preview-collapsed');
+        // Keep the same icon class, rotation will be handled by CSS
+        // toggleIcon.className = 'bi bi-chevron-left'; // Remove this line
+
+        // Save collapsed state to localStorage
+        localStorage.setItem('flowsphere-json-preview-collapsed', 'true');
+    }
+}
+
+/**
+ * Restore JSON preview collapse state from localStorage
+ */
+function restoreJsonPreviewState() {
+    const previewPanel = document.getElementById('previewPanel');
+    const mainPanelsRow = document.getElementById('mainPanelsRow');
+    const toggleIcon = document.getElementById('jsonPreviewToggleIcon');
+
+    if (!previewPanel || !mainPanelsRow || !toggleIcon) return;
+
+    const isCollapsed = localStorage.getItem('flowsphere-json-preview-collapsed') === 'true';
+
+    if (isCollapsed) {
+        // Apply collapsed state immediately without animation
+        previewPanel.classList.add('collapsed');
+        mainPanelsRow.classList.add('preview-collapsed');
+        // Icon rotation handled by CSS based on collapsed class
+    }
+
+    // Re-enable transitions after state is restored
+    setTimeout(() => {
+        const preloadStyle = document.getElementById('preloadJsonPreviewState');
+        if (preloadStyle) {
+            preloadStyle.remove();
+        }
+    }, 50);
+}

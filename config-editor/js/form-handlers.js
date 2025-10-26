@@ -625,6 +625,12 @@ function scrollToJsonSection(section) {
     const jsonPreview = document.getElementById('jsonPreview');
     if (!jsonPreview || !config) return;
 
+    // Check if JSON preview is collapsed - if so, skip scrolling
+    const previewPanel = document.getElementById('previewPanel');
+    if (previewPanel && previewPanel.classList.contains('collapsed')) {
+        return; // Preview is collapsed, don't scroll
+    }
+
     const jsonText = jsonPreview.textContent;
     const lines = jsonText.split('\n');
     let targetLine = 0;
