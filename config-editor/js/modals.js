@@ -1,7 +1,7 @@
 // Condition Builder Functions
 function renderConditionSummary(condition, stepIndex) {
     if (!condition || Object.keys(condition).length === 0) {
-        return '<div class="help-text" style="font-style: italic; color: #6b7280;">No condition defined</div>';
+        return '<div class="help-text" style="font-style: italic;">No condition defined</div>';
     }
 
     const stepName = config.steps[condition.step]?.name || 'Unnamed';
@@ -217,7 +217,7 @@ function renderValidationsList(validations, stepIndex) {
             return '<div class="help-text" style="font-style: italic; color: #dc2626;">No validations will be performed (click + to add)</div>';
         } else {
             // Merge behavior - using defaults
-            return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using default validations (click + to add step-level validations)</div>';
+            return '<div class="help-text" style="font-style: italic;">Using default validations (click + to add step-level validations)</div>';
         }
     }
 
@@ -227,7 +227,7 @@ function renderValidationsList(validations, stepIndex) {
             return '<div class="help-text" style="font-style: italic; color: #dc2626;">No validations will be performed (click + to add)</div>';
         } else {
             // Merge behavior with empty array = just defaults
-            return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using only default validations (click + to add step-level validations)</div>';
+            return '<div class="help-text" style="font-style: italic;">Using only default validations (click + to add step-level validations)</div>';
         }
     }
 
@@ -612,7 +612,7 @@ function renderPromptsList(prompts, stepIndex) {
     const promptKeys = Object.keys(prompts || {});
 
     if (promptKeys.length === 0) {
-        return '<div class="help-text" style="font-style: italic; color: #6b7280;">No prompts defined</div>';
+        return '<div class="help-text" style="font-style: italic;">No prompts defined</div>';
     }
 
     return promptKeys.map((key, promptIndex) => {
@@ -759,7 +759,7 @@ function renderHeadersList(headers, stepIndex) {
             return '<div class="help-text" style="font-style: italic; color: #dc2626;">No headers will be sent (click + to add)</div>';
         } else {
             // Merge behavior - using defaults
-            return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using default headers (merged)</div>';
+            return '<div class="help-text" style="font-style: italic;">Using default headers (merged)</div>';
         }
     }
 
@@ -771,7 +771,7 @@ function renderHeadersList(headers, stepIndex) {
             return '<div class="help-text" style="font-style: italic; color: #dc2626;">No headers will be sent (click + to add)</div>';
         } else {
             // Merge behavior with empty object = just defaults
-            return '<div class="help-text" style="font-style: italic; color: #6b7280;">Using only default headers</div>';
+            return '<div class="help-text" style="font-style: italic;">Using only default headers</div>';
         }
     }
 

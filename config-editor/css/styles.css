@@ -841,6 +841,108 @@ textarea.form-control {
 }
 
 /* ========================================
+   ADD NODE PLACEHOLDERS & FLOATING BUTTONS
+   ======================================== */
+
+/* Add Node Placeholder - compact design with dashed border */
+.add-node-placeholder {
+    background: var(--bg-surface);
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    color: var(--text-secondary);
+}
+
+.add-node-placeholder:hover {
+    border-color: var(--primary);
+    background: var(--bg-surface-hover);
+    color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.add-node-placeholder i {
+    font-size: 1.25rem;
+    transition: transform var(--transition-speed) ease;
+}
+
+.add-node-placeholder:hover i {
+    transform: scale(1.15);
+}
+
+.add-node-placeholder span {
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+/* Floating Add Node Buttons */
+.add-node-floating {
+    position: sticky;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 24px;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    box-shadow: 0 4px 12px rgba(0, 86, 210, 0.4);
+    transition: all var(--transition-speed) ease;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    width: fit-content;
+    margin: 0 auto;
+}
+
+.add-node-floating.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: all;
+}
+
+.add-node-floating:hover {
+    background: var(--primary-hover);
+    transform: translateX(-50%) translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 86, 210, 0.5);
+}
+
+.add-node-floating:active {
+    background: var(--primary-active);
+    transform: translateX(-50%) translateY(0);
+}
+
+.add-node-floating i {
+    font-size: 1.1rem;
+}
+
+/* Top floating button */
+.add-node-top {
+    top: 10px;
+    margin-bottom: -48px; /* Negative margin to prevent layout shift */
+}
+
+/* Bottom floating button */
+.add-node-bottom {
+    bottom: 10px;
+    margin-top: -48px; /* Negative margin to prevent layout shift */
+}
+
+/* ========================================
    DRAG AND DROP
    ======================================== */
 
@@ -951,6 +1053,22 @@ textarea.form-control {
     100% {
         opacity: 1;
         transform: scale(1) translateY(0);
+    }
+}
+
+/* Step highlight animation (for newly added steps) */
+@keyframes stepHighlight {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 86, 210, 0.7);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 20px 10px rgba(0, 86, 210, 0.3);
+        transform: scale(1.02);
+    }
+    100% {
+        box-shadow: 0 2px 8px var(--shadow-color);
+        transform: scale(1);
     }
 }
 

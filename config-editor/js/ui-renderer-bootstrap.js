@@ -93,11 +93,8 @@ function renderEditor() {
                 </button>
             </h2>
             <div id="stepsSection" class="accordion-collapse collapse show">
-                <div class="accordion-body">
+                <div class="accordion-body" id="stepsAccordionBody">
                     <div id="stepsList"></div>
-                    <button class="btn btn-primary btn-sm mt-2" onclick="addStep()">
-                        <i class="bi bi-plus"></i> Add Node
-                    </button>
                 </div>
             </div>
         </div>
@@ -245,12 +242,33 @@ function renderSteps() {
     const container = document.getElementById('stepsList');
 
     if (steps.length === 0) {
-        container.innerHTML = '<div class="text-muted small">No steps defined</div>';
+        container.innerHTML = `
+            <div class="add-node-placeholder" onclick="addStep('bottom')">
+                <i class="bi bi-plus-circle"></i>
+                <span>Add your first node</span>
+            </div>
+        `;
         return;
     }
 
+    const showTopPlaceholder = steps.length > 5; // Only show top placeholder when many nodes
+
     const html = `
-        <div class="accordion" id="stepsAccordion">
+        <!-- Floating Add Node (Top) -->
+        <div class="add-node-floating add-node-top" id="addNodeTop" onclick="addStep('top')">
+            <i class="bi bi-plus-circle"></i>
+            <span>Add Node</span>
+        </div>
+
+        ${showTopPlaceholder ? `
+        <!-- Add Node Placeholder (Top) -->
+        <div class="add-node-placeholder" id="addNodePlaceholderTop" onclick="addStep('top')">
+            <i class="bi bi-plus-circle"></i>
+            <span>Add Node</span>
+        </div>
+        ` : ''}
+
+        <div class="accordion position-relative" id="stepsAccordion">
         ${steps.map((step, index) => {
             const isOpen = openStepIndices.has(index);
             const collapseId = `step_${index}`;
@@ -290,6 +308,18 @@ function renderSteps() {
             </div>
             `;
         }).join('')}
+
+        <!-- Add Node Placeholder (Bottom) -->
+        <div class="add-node-placeholder" id="addNodePlaceholder" onclick="addStep('bottom')">
+            <i class="bi bi-plus-circle"></i>
+            <span>Add Node</span>
+        </div>
+        </div>
+
+        <!-- Floating Add Node (Bottom) -->
+        <div class="add-node-floating add-node-bottom" id="addNodeBottom" onclick="addStep('bottom')">
+            <i class="bi bi-plus-circle"></i>
+            <span>Add Node</span>
         </div>
     `;
 
@@ -302,11 +332,25 @@ function renderSteps() {
             openStepIndices.add(index);
             // Update draggable state when step is opened
             updateStepDraggableState(index, false);
+            // Hide floating buttons when a node is opened
+            setTimeout(() => {
+                const editorContent = document.getElementById('editorContent');
+                const scrollContainer = editorContent?.parentElement;
+                const updateFunc = scrollContainer?._scrollListener;
+                if (updateFunc) updateFunc();
+            }, 50);
         });
         collapseEl.addEventListener('hidden.bs.collapse', () => {
             openStepIndices.delete(index);
             // Update draggable state when step is closed
             updateStepDraggableState(index, true);
+            // Show floating buttons again when node is closed (if applicable)
+            setTimeout(() => {
+                const editorContent = document.getElementById('editorContent');
+                const scrollContainer = editorContent?.parentElement;
+                const updateFunc = scrollContainer?._scrollListener;
+                if (updateFunc) updateFunc();
+            }, 50);
         });
     });
 
@@ -332,7 +376,167 @@ function renderSteps() {
                 });
             }
         });
+
+        // Initialize floating add node buttons scroll behavior
+        initFloatingAddNodeButtons();
+
+        // Force update after everything is initialized to handle initial visibility
+        setTimeout(() => {
+            const editorContent = document.getElementById('editorContent');
+            const scrollContainer = editorContent?.parentElement;
+            const updateFunc = scrollContainer?._scrollListener;
+            if (updateFunc) updateFunc();
+        }, 600);
     }, 0);
+}
+
+/**
+ * Initialize scroll behavior for floating add node buttons
+ * Shows/hides floating buttons based on scroll position and content overflow
+ */
+function initFloatingAddNodeButtons() {
+    const addNodeTop = document.getElementById('addNodeTop');
+    const addNodeBottom = document.getElementById('addNodeBottom');
+
+    if (!addNodeTop || !addNodeBottom) return;
+
+    // Get the main scrollable container (the card body that contains the editor content)
+    const editorContent = document.getElementById('editorContent');
+    if (!editorContent) return;
+
+    const scrollContainer = editorContent.parentElement; // This is the .card-body.overflow-auto
+    if (!scrollContainer) return;
+
+    function updateFloatingButtons() {
+        const hasOverflow = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+
+        if (!hasOverflow) {
+            // No overflow, hide floating buttons
+            addNodeTop.classList.remove('visible');
+            addNodeBottom.classList.remove('visible');
+            return;
+        }
+
+        // Check if any node is currently open/expanded
+        const stepsAccordion = document.getElementById('stepsAccordion');
+        const hasOpenNode = stepsAccordion?.querySelector('.accordion-collapse.show') !== null;
+
+        // If any node is open, hide all floating buttons (user is focused on editing)
+        if (hasOpenNode) {
+            addNodeTop.classList.remove('visible');
+            addNodeBottom.classList.remove('visible');
+            return;
+        }
+
+        const scrollTop = scrollContainer.scrollTop;
+        const scrollHeight = scrollContainer.scrollHeight;
+        const clientHeight = scrollContainer.clientHeight;
+        const scrollBottom = scrollHeight - scrollTop - clientHeight;
+
+        // Check if the bottom placeholder is visible
+        const placeholderBottom = document.getElementById('addNodePlaceholder');
+        let placeholderBottomVisible = false;
+
+        if (placeholderBottom) {
+            const placeholderRect = placeholderBottom.getBoundingClientRect();
+            const containerRect = scrollContainer.getBoundingClientRect();
+
+            // Check if placeholder is in viewport (at least partially)
+            placeholderBottomVisible = (
+                placeholderRect.top < containerRect.bottom &&
+                placeholderRect.bottom > containerRect.top
+            );
+        }
+
+        // Check if the top placeholder is visible
+        const placeholderTop = document.getElementById('addNodePlaceholderTop');
+        let placeholderTopVisible = false;
+
+        if (placeholderTop) {
+            const placeholderRect = placeholderTop.getBoundingClientRect();
+            const containerRect = scrollContainer.getBoundingClientRect();
+
+            // Check if placeholder is in viewport (at least partially)
+            placeholderTopVisible = (
+                placeholderRect.top < containerRect.bottom &&
+                placeholderRect.bottom > containerRect.top
+            );
+        }
+
+        // If bottom placeholder is visible, hide BOTH floating buttons
+        if (placeholderBottomVisible) {
+            addNodeTop.classList.remove('visible');
+            addNodeBottom.classList.remove('visible');
+            return;
+        }
+
+        // If top placeholder is visible, hide BOTH floating buttons
+        if (placeholderTopVisible) {
+            addNodeTop.classList.remove('visible');
+            addNodeBottom.classList.remove('visible');
+            return;
+        }
+
+        // Determine which half of the content we're in
+        const scrollPercentage = scrollTop / (scrollHeight - clientHeight);
+
+        // Show only ONE button at a time based on scroll position
+        // If in top half (0-50%), show bottom button
+        // If in bottom half (50-100%), show top button
+        // Hysteresis zone in the middle to prevent flickering
+        if (scrollPercentage < 0.3) {
+            // In top portion - show bottom button only
+            addNodeTop.classList.remove('visible');
+            if (scrollBottom > 100) {
+                addNodeBottom.classList.add('visible');
+            } else {
+                addNodeBottom.classList.remove('visible');
+            }
+        } else if (scrollPercentage > 0.7) {
+            // In bottom portion - show top button only
+            addNodeBottom.classList.remove('visible');
+            if (scrollTop > 100) {
+                addNodeTop.classList.add('visible');
+            } else {
+                addNodeTop.classList.remove('visible');
+            }
+        } else {
+            // In middle zone - show the button that makes more sense based on direction
+            // If closer to top, show bottom button; if closer to bottom, show top button
+            if (scrollPercentage < 0.5) {
+                addNodeTop.classList.remove('visible');
+                if (scrollBottom > 100) {
+                    addNodeBottom.classList.add('visible');
+                } else {
+                    addNodeBottom.classList.remove('visible');
+                }
+            } else {
+                addNodeBottom.classList.remove('visible');
+                if (scrollTop > 100) {
+                    addNodeTop.classList.add('visible');
+                } else {
+                    addNodeTop.classList.remove('visible');
+                }
+            }
+        }
+    }
+
+    // Remove existing listener if any to prevent duplicates
+    if (scrollContainer._scrollListener) {
+        scrollContainer.removeEventListener('scroll', scrollContainer._scrollListener);
+    }
+
+    // Store reference to listener for cleanup
+    scrollContainer._scrollListener = updateFloatingButtons;
+
+    // Attach scroll listener
+    scrollContainer.addEventListener('scroll', updateFloatingButtons);
+
+    // Initial check (will be followed by another check after full initialization)
+    setTimeout(updateFloatingButtons, 100);
+
+    // Re-check on window resize
+    window.addEventListener('resize', updateFloatingButtons);
 }
 
 function getMethodBorderColor(method) {

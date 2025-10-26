@@ -5,7 +5,7 @@ function renderDefaultValidations() {
     if (!container) return;
 
     if (validations.length === 0) {
-        container.innerHTML = '<div class="help-text" style="font-style: italic; color: #6b7280;">No default validations defined</div>';
+        container.innerHTML = '<div class="help-text" style="font-style: italic;">No default validations defined</div>';
         return;
     }
 
@@ -27,7 +27,7 @@ function renderDefaultValidations() {
         }
 
         return `
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: #f9fafb; border-radius: 4px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 4px;">
                 <div style="flex: 1;">${summary}</div>
                 <button class="btn btn-secondary btn-small" onclick="editDefaultValidation(${index})">Edit</button>
                 <button class="btn btn-danger btn-small" onclick="removeDefaultValidation(${index})">×</button>
@@ -93,22 +93,154 @@ function removeDefaultHeader(index) {
     updatePreview();
 }
 
-function addStep() {
+function addStep(hint = null, skipModal = false) {
     config.steps = config.steps || [];
-    config.steps.push({
-        name: "New Step",
+
+    // Threshold for showing the modal (only show when nodes are hard to manage visually)
+    const MODAL_THRESHOLD = 5;
+
+    // If there are many steps and hint is 'top' or 'bottom', ask user with pre-selected option
+    // For small number of nodes (<=5), just add directly without modal
+    // skipModal flag bypasses this check (used when confirming from modal)
+    if (!skipModal && config.steps.length > MODAL_THRESHOLD && (hint === 'top' || hint === 'bottom')) {
+        showAddNodePositionModal(hint);
+        return;
+    }
+
+    // Determine insert position
+    let insertIndex;
+    let position = hint; // hint can be 'top', 'bottom', or a number
+
+    if (position === 'top') {
+        insertIndex = 0;
+    } else if (position === 'bottom' || position === null) {
+        insertIndex = config.steps.length;
+    } else if (typeof position === 'number') {
+        insertIndex = Math.max(0, Math.min(position, config.steps.length));
+    } else {
+        insertIndex = config.steps.length;
+    }
+
+    // Create new step
+    const newStep = {
+        name: "New Node",
         method: "GET",
         url: "",
         headers: {},
         body: {}
+    };
+
+    // Insert step at position
+    config.steps.splice(insertIndex, 0, newStep);
+
+    // Update open step indices
+    const newOpenIndices = new Set();
+    openStepIndices.forEach(i => {
+        if (i >= insertIndex) {
+            newOpenIndices.add(i + 1);
+        } else {
+            newOpenIndices.add(i);
+        }
     });
+    openStepIndices = newOpenIndices;
 
     // Open the newly added step
-    openStepIndices.add(config.steps.length - 1);
+    openStepIndices.add(insertIndex);
 
     saveToLocalStorage();
     renderSteps();
     updatePreview();
+
+    // Scroll to the newly added step after rendering
+    setTimeout(() => scrollToStep(insertIndex), 100);
+}
+
+function showAddNodePositionModal(hint = 'top') {
+    const modal = document.getElementById('addNodePositionModal');
+    if (!modal) {
+        console.error('Add node position modal not found');
+        return;
+    }
+
+    // Update max position and reset form
+    const maxPos = (config.steps?.length || 0) + 1;
+    const maxPosSpan = document.getElementById('maxNodePosition');
+    const customPosInput = document.getElementById('customNodePosition');
+
+    if (maxPosSpan) maxPosSpan.textContent = maxPos;
+    if (customPosInput) {
+        customPosInput.setAttribute('max', maxPos);
+        customPosInput.value = maxPos; // Default to end position
+    }
+
+    // Pre-select radio based on hint
+    const topRadio = document.getElementById('positionTop');
+    const bottomRadio = document.getElementById('positionBottom');
+
+    if (hint === 'bottom') {
+        if (bottomRadio) bottomRadio.checked = true;
+    } else {
+        // Default to top
+        if (topRadio) topRadio.checked = true;
+    }
+
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+function confirmAddNodePosition() {
+    const position = document.querySelector('input[name="nodePosition"]:checked')?.value;
+
+    if (position === 'custom') {
+        const customPos = parseInt(document.getElementById('customNodePosition').value);
+        if (!isNaN(customPos) && customPos >= 1 && customPos <= (config.steps?.length || 0) + 1) {
+            addStep(customPos - 1, true); // Convert to 0-based index, skip modal
+        } else {
+            alert('Please enter a valid position between 1 and ' + ((config.steps?.length || 0) + 1));
+            return;
+        }
+    } else {
+        addStep(position, true); // Skip modal since we're already in the modal
+    }
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addNodePositionModal'));
+    if (modal) modal.hide();
+}
+
+function scrollToStep(stepIndex) {
+    const stepsAccordion = document.getElementById('stepsAccordion');
+    if (!stepsAccordion) return;
+
+    const stepItems = stepsAccordion.querySelectorAll('.accordion-item');
+    const stepElement = stepItems[stepIndex];
+
+    if (!stepElement) return;
+
+    // Get the main scrollable container
+    const editorContent = document.getElementById('editorContent');
+    const scrollContainer = editorContent?.parentElement;
+
+    if (!scrollContainer) return;
+
+    // Calculate position to scroll to
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const stepRect = stepElement.getBoundingClientRect();
+
+    // Calculate the offset needed to center the step in view
+    const targetScrollTop = scrollContainer.scrollTop + stepRect.top - containerRect.top - 20;
+
+    // Smooth scroll animation
+    scrollContainer.scrollTo({
+        top: targetScrollTop,
+        behavior: 'smooth'
+    });
+
+    // Add a highlight animation
+    stepElement.style.animation = 'none';
+    setTimeout(() => {
+        stepElement.style.animation = 'stepHighlight 1s ease-out';
+    }, 10);
 }
 
 function removeStep(index) {
@@ -292,3 +424,5 @@ window.removeStep = removeStep;
 window.moveStep = moveStep;
 window.updateStep = updateStep;
 window.updateStepJSON = updateStepJSON;
+window.confirmAddNodePosition = confirmAddNodePosition;
+window.scrollToStep = scrollToStep;
