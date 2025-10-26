@@ -89,6 +89,14 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 ### Key Features
 
 **Dynamic Value Substitution:**
+- **Dynamic variables** (Postman-style syntax):
+  - `{{ $guid }}` - Generates a unique UUID v4 for each occurrence
+  - `{{ $timestamp }}` - Inserts current Unix timestamp (seconds since epoch)
+  - Used in: URLs, headers, request bodies
+  - Each `{{ $guid }}` occurrence generates a new unique UUID
+  - All `{{ $timestamp }}` occurrences in the same step get the same timestamp value
+  - Example: `"requestId": "{{ $guid }}"` or `"timestamp": {{ $timestamp }}`
+  - **Note**: This is NOT backwards compatible - the old `GENERATED_GUID` and `TIMESTAMP` syntax no longer works
 - Global variables syntax: `{{ .vars.key }}`
   - References values defined in the `variables` section at config level
   - Useful for API keys, user IDs, common values used across multiple steps
@@ -102,7 +110,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
   - References values collected from `prompts` in the same step
   - Used in: URLs, headers, request bodies
 - Implementation: `substitute_variables()` uses regex matching to find and replace placeholders
-- Substitution order: Variables → User Input → Response References
+- Substitution order: Dynamic Variables ($guid, $timestamp) → Global Variables → User Input → Response References
 
 **Conditional Execution:**
 - Steps can be skipped based on previous response conditions
@@ -247,6 +255,8 @@ The editor includes context-aware autocomplete for the `{{ }}` variable substitu
 - **Trigger**: Type `{{` in any text input or textarea
 - **Suggestions shown**:
   - **Basic Syntax** (when you first type `{{`):
+    - `$guid` - Generate unique UUID
+    - `$timestamp` - Current Unix timestamp
     - `.responses.` - Access response by step ID
     - `.vars.` - Access global variables
     - `.input.` - Access user input prompts
