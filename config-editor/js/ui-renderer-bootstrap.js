@@ -305,13 +305,17 @@ function renderSteps() {
                                 <i class="bi bi-three-dots-vertical"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="#" onclick="cloneStep(${index}); return false;">
-                                    <i class="bi bi-copy me-2"></i>Duplicate
-                                </a></li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="cloneStep(${index}); return false;">
+                                        <i class="bi bi-copy me-2"></i>Duplicate
+                                    </a>
+                                </li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-danger" href="#" onclick="removeStep(${index}); return false;">
-                                    <i class="bi bi-trash me-2"></i>Delete
-                                </a></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="#" onclick="removeStep(${index}); return false;">
+                                        <i class="bi bi-trash me-2"></i>Delete
+                                    </a>
+                                </li>
                             </ul>
                         </div>
                     </div>

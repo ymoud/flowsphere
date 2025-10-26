@@ -1219,6 +1219,11 @@ textarea.form-control {
     align-items: center;
 }
 
+/* Override font inheritance from accordion-header (h2 element uses Roboto Condensed) */
+.accordion-header .dropdown-menu .dropdown-item {
+    font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
 .dropdown-item:hover {
     background-color: var(--bg-surface-hover);
     color: var(--text-primary);
