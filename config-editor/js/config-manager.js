@@ -36,6 +36,56 @@ function updateFileNameDisplay() {
     }
 }
 
+function renameFile() {
+    if (!config) {
+        alert('No file is currently open');
+        return;
+    }
+
+    // Get current name without extension
+    const currentNameWithoutExt = fileName.replace(/\.json$/, '');
+
+    const newName = prompt('Enter new file name:', currentNameWithoutExt);
+
+    if (newName === null) {
+        // User cancelled
+        return;
+    }
+
+    if (!newName || newName.trim() === '') {
+        alert('File name cannot be empty');
+        return;
+    }
+
+    // Clean up the name and ensure .json extension
+    const cleanedName = newName.trim();
+    const newFileName = cleanedName.endsWith('.json') ? cleanedName : cleanedName + '.json';
+
+    // Validate file name (no invalid characters)
+    const invalidChars = /[<>:"/\\|?*]/;
+    if (invalidChars.test(newFileName)) {
+        alert('File name contains invalid characters: < > : " / \\ | ? *');
+        return;
+    }
+
+    // Update the file name
+    fileName = newFileName;
+    updateFileNameDisplay();
+    saveToLocalStorage();
+
+    // Show success feedback
+    const indicator = document.getElementById('autoSaveIndicator');
+    if (indicator) {
+        indicator.style.display = 'inline';
+        indicator.textContent = '✓ Renamed to ' + fileName;
+        indicator.style.color = '#10b981';
+
+        setTimeout(() => {
+            indicator.style.display = 'none';
+        }, 3000);
+    }
+}
+
 function loadFile() {
     document.getElementById('fileInput').click();
 }
