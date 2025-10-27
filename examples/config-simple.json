@@ -8,7 +8,7 @@
       }
     ]
   },
-  "steps": [
+  "nodes": [
     {
       "id": "check-health",
       "name": "Check API health",

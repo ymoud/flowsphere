@@ -165,7 +165,7 @@ function buildAutocompleteSuggestions(partialText, stepIndex) {
         }
 
         // Add .responses if there are previous steps
-        if (config.steps && config.steps.length > 0 && stepIndex !== null && stepIndex > 0) {
+        if (config.nodes && config.nodes.length > 0 && stepIndex !== null && stepIndex > 0) {
             const respNamedSyntax = ' .responses.';
             // Only match if suggestion starts with what user typed
             if (respNamedSyntax.toLowerCase().startsWith(partialText.toLowerCase()) || partialText === '') {
@@ -179,9 +179,9 @@ function buildAutocompleteSuggestions(partialText, stepIndex) {
         }
 
         // Add .input if there are prompts
-        if (stepIndex !== null && config.steps && config.steps[stepIndex]) {
-            const step = config.steps[stepIndex];
-            if (step.prompts && Object.keys(step.prompts).length > 0) {
+        if (stepIndex !== null && config.nodes && config.nodes[stepIndex]) {
+            const step = config.nodes[stepIndex];
+            if (step.userPrompts && Object.keys(step.userPrompts).length > 0) {
                 const inputSyntax = ' .input.';
                 // Only match if suggestion starts with what user typed
                 if (inputSyntax.toLowerCase().startsWith(partialText.toLowerCase()) || partialText === '') {
@@ -222,12 +222,12 @@ function buildAutocompleteSuggestions(partialText, stepIndex) {
     }
 
     // Category: Response References
-    if (config.steps && config.steps.length > 0 && stepIndex !== null) {
+    if (config.nodes && config.nodes.length > 0 && stepIndex !== null) {
         const respSuggestions = [];
 
         // Add named references (by step ID)
-        for (let i = 0; i < Math.min(stepIndex, config.steps.length); i++) {
-            const step = config.steps[i];
+        for (let i = 0; i < Math.min(stepIndex, config.nodes.length); i++) {
+            const step = config.nodes[i];
             if (step.id) {
                 const namedRef = ` .responses.${step.id}`;
 
@@ -249,17 +249,17 @@ function buildAutocompleteSuggestions(partialText, stepIndex) {
     }
 
     // Category: User Input (from current step's prompts)
-    if (stepIndex !== null && config.steps && config.steps[stepIndex]) {
-        const step = config.steps[stepIndex];
-        if (step.prompts && Object.keys(step.prompts).length > 0) {
+    if (stepIndex !== null && config.nodes && config.nodes[stepIndex]) {
+        const step = config.nodes[stepIndex];
+        if (step.userPrompts && Object.keys(step.userPrompts).length > 0) {
             const inputSuggestions = [];
-            for (const key of Object.keys(step.prompts)) {
+            for (const key of Object.keys(step.userPrompts)) {
                 const suggestion = ` .input.${key}`;
                 if (suggestion.toLowerCase().includes(partialText.toLowerCase()) || partialText === '') {
                     inputSuggestions.push({
                         text: suggestion,
                         display: `.input.${key}`,
-                        hint: `User input: ${step.prompts[key]}`,
+                        hint: `User input: ${step.userPrompts[key]}`,
                         category: 'User Input'
                     });
                 }
@@ -668,8 +668,8 @@ function attachAutocompleteToAllInputs() {
     }
 
     // Attach to all step inputs
-    if (config.steps) {
-        config.steps.forEach((step, stepIndex) => {
+    if (config.nodes) {
+        config.nodes.forEach((step, stepIndex) => {
             // Find all inputs and textareas within this step
             const stepInputs = document.querySelectorAll(`#stepsList .step-item:nth-child(${stepIndex + 1}) input[type="text"], #stepsList .step-item:nth-child(${stepIndex + 1}) textarea`);
             stepInputs.forEach(input => {

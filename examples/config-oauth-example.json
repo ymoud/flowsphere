@@ -11,7 +11,7 @@
       }
     ]
   },
-  "steps": [
+  "nodes": [
     {
       "id": "request-oauth-authorization-url",
       "name": "Request OAuth authorization URL",
@@ -35,7 +35,7 @@
       "name": "Exchange code for token (after user approves)",
       "method": "POST",
       "url": "/oauth/token",
-      "prompts": {
+      "userPrompts": {
         "authCode": "Enter the authorization code from the browser:"
       },
       "body": {

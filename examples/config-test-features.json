@@ -9,13 +9,13 @@
       }
     ]
   },
-  "steps": [
+  "nodes": [
     {
       "id": "create-a-post-with-user-input",
       "name": "Create a post with user input",
       "method": "POST",
       "url": "/posts",
-      "prompts": {
+      "userPrompts": {
         "title": "Enter post title:",
         "author": "Enter author name:"
       },

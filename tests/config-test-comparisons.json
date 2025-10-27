@@ -7,7 +7,7 @@
       "Content-Type": "application/json"
     }
   },
-  "steps": [
+  "nodes": [
     {
       "id": "get-user",
       "name": "Get user and test comparison validations",

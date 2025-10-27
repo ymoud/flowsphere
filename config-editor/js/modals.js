@@ -4,7 +4,7 @@ function renderConditionSummary(condition, stepIndex) {
         return '<div class="help-text" style="font-style: italic;">No condition defined</div>';
     }
 
-    const stepName = config.steps[condition.step]?.name || 'Unnamed';
+    const stepName = config.nodes[condition.step]?.name || 'Unnamed';
     let summary = `Skip if step ${condition.step} (${stepName}) `;
 
     if (condition.statusCode) {
@@ -23,7 +23,7 @@ function renderConditionSummary(condition, stepIndex) {
 }
 
 function editCondition(stepIndex) {
-    const condition = config.steps[stepIndex].condition || {};
+    const condition = config.nodes[stepIndex].condition || {};
     showConditionModal(stepIndex, condition);
 }
 
@@ -33,7 +33,7 @@ function showConditionModal(stepIndex, condition) {
                          condition.notEquals !== undefined ? 'notEquals' :
                          condition.exists !== undefined ? 'exists' : 'statusCode';
 
-    const stepOptions = config.steps.slice(0, stepIndex).map((s, i) =>
+    const stepOptions = config.nodes.slice(0, stepIndex).map((s, i) =>
         `<option value="${i}" ${condition.step === i ? 'selected' : ''}>${i}. ${s.name || 'Unnamed'}</option>`
     ).join('');
 
@@ -184,7 +184,7 @@ function saveCondition(stepIndex) {
         condition.exists = document.getElementById('conditionExists').value === 'true';
     }
 
-    config.steps[stepIndex].condition = condition;
+    config.nodes[stepIndex].condition = condition;
     closeConditionModal();
     saveToLocalStorage();
     renderSteps();
@@ -193,7 +193,7 @@ function saveCondition(stepIndex) {
 
 function removeCondition(stepIndex) {
     if (confirm('Remove this condition?')) {
-        delete config.steps[stepIndex].condition;
+        delete config.nodes[stepIndex].condition;
         saveToLocalStorage();
         renderSteps();
         updatePreview();
@@ -207,7 +207,7 @@ function closeConditionModal() {
 
 // Validations Builder Functions
 function renderValidationsList(validations, stepIndex) {
-    const step = config.steps[stepIndex];
+    const step = config.nodes[stepIndex];
     const skipDefaults = step.skipDefaultValidations === true;
 
     // If validations undefined
@@ -266,7 +266,7 @@ function addValidation(stepIndex) {
 }
 
 function editValidation(stepIndex, valIndex) {
-    const validation = config.steps[stepIndex].validations[valIndex];
+    const validation = config.nodes[stepIndex].validations[valIndex];
     showValidationModal(stepIndex, valIndex, validation, false);
 }
 
@@ -547,13 +547,13 @@ function saveValidation(stepIndex, valIndex, isDefault = false) {
         }
         renderDefaultValidations();
     } else {
-        if (!config.steps[stepIndex].validations) {
-            config.steps[stepIndex].validations = [];
+        if (!config.nodes[stepIndex].validations) {
+            config.nodes[stepIndex].validations = [];
         }
         if (valIndex === -1) {
-            config.steps[stepIndex].validations.push(validation);
+            config.nodes[stepIndex].validations.push(validation);
         } else {
-            config.steps[stepIndex].validations[valIndex] = validation;
+            config.nodes[stepIndex].validations[valIndex] = validation;
         }
         renderSteps();
     }
@@ -565,7 +565,7 @@ function saveValidation(stepIndex, valIndex, isDefault = false) {
 
 function removeValidation(stepIndex, valIndex) {
     if (confirm('Remove this validation?')) {
-        config.steps[stepIndex].validations.splice(valIndex, 1);
+        config.nodes[stepIndex].validations.splice(valIndex, 1);
         saveToLocalStorage();
         renderSteps();
         updatePreview();
@@ -575,10 +575,10 @@ function removeValidation(stepIndex, valIndex) {
 function toggleSkipDefaultValidations(stepIndex, skipDefaults) {
     if (skipDefaults) {
         // Set skipDefaultValidations flag to true
-        config.steps[stepIndex].skipDefaultValidations = true;
+        config.nodes[stepIndex].skipDefaultValidations = true;
     } else {
         // Remove skipDefaultValidations flag (defaults to false/merge behavior)
-        delete config.steps[stepIndex].skipDefaultValidations;
+        delete config.nodes[stepIndex].skipDefaultValidations;
     }
 
     // Update UI
@@ -590,10 +590,10 @@ function toggleSkipDefaultValidations(stepIndex, skipDefaults) {
 function toggleSkipDefaultHeaders(stepIndex, skipDefaults) {
     if (skipDefaults) {
         // Set skipDefaultHeaders flag to true
-        config.steps[stepIndex].skipDefaultHeaders = true;
+        config.nodes[stepIndex].skipDefaultHeaders = true;
     } else {
         // Remove skipDefaultHeaders flag (defaults to false/merge behavior)
-        delete config.steps[stepIndex].skipDefaultHeaders;
+        delete config.nodes[stepIndex].skipDefaultHeaders;
     }
 
     // Update UI
@@ -635,7 +635,7 @@ function addPrompt(stepIndex) {
 }
 
 function editPrompt(stepIndex, key) {
-    const prompt = config.steps[stepIndex].prompts[key];
+    const prompt = config.nodes[stepIndex].userPrompts[key];
     showPromptModal(stepIndex, key, prompt);
 }
 
@@ -709,17 +709,17 @@ function savePrompt(stepIndex, existingKey) {
     }
 
     // Initialize prompts object if needed
-    if (!config.steps[stepIndex].prompts) {
-        config.steps[stepIndex].prompts = {};
+    if (!config.nodes[stepIndex].userPrompts) {
+        config.nodes[stepIndex].userPrompts = {};
     }
 
     // If editing and key changed, remove old key
     if (existingKey !== null && existingKey !== key) {
-        delete config.steps[stepIndex].prompts[existingKey];
+        delete config.nodes[stepIndex].userPrompts[existingKey];
     }
 
     // Add/update prompt
-    config.steps[stepIndex].prompts[key] = message;
+    config.nodes[stepIndex].userPrompts[key] = message;
 
     closePromptModal();
     saveToLocalStorage();
@@ -729,11 +729,11 @@ function savePrompt(stepIndex, existingKey) {
 
 function removePrompt(stepIndex, key) {
     if (confirm(`Remove prompt "${key}"?`)) {
-        delete config.steps[stepIndex].prompts[key];
+        delete config.nodes[stepIndex].userPrompts[key];
 
         // Remove prompts object if empty
-        if (Object.keys(config.steps[stepIndex].prompts).length === 0) {
-            delete config.steps[stepIndex].prompts;
+        if (Object.keys(config.nodes[stepIndex].userPrompts).length === 0) {
+            delete config.nodes[stepIndex].userPrompts;
         }
 
         saveToLocalStorage();
@@ -749,7 +749,7 @@ function closePromptModal() {
 
 // Headers Builder Functions
 function renderHeadersList(headers, stepIndex) {
-    const step = config.steps[stepIndex];
+    const step = config.nodes[stepIndex];
     const skipDefaults = step.skipDefaultHeaders === true;
 
     // If headers undefined
@@ -795,7 +795,7 @@ function addHeader(stepIndex) {
 }
 
 function editHeader(stepIndex, key) {
-    const value = config.steps[stepIndex].headers[key];
+    const value = config.nodes[stepIndex].headers[key];
     showHeaderModal(stepIndex, key, value);
 }
 
@@ -863,17 +863,17 @@ function saveHeader(stepIndex, existingKey) {
     }
 
     // Initialize headers object if needed
-    if (!config.steps[stepIndex].headers) {
-        config.steps[stepIndex].headers = {};
+    if (!config.nodes[stepIndex].headers) {
+        config.nodes[stepIndex].headers = {};
     }
 
     // If editing and key changed, remove old key
     if (existingKey !== null && existingKey !== key) {
-        delete config.steps[stepIndex].headers[existingKey];
+        delete config.nodes[stepIndex].headers[existingKey];
     }
 
     // Add/update header
-    config.steps[stepIndex].headers[key] = value;
+    config.nodes[stepIndex].headers[key] = value;
 
     closeHeaderModal();
     saveToLocalStorage();
@@ -883,11 +883,11 @@ function saveHeader(stepIndex, existingKey) {
 
 function removeHeader(stepIndex, key) {
     if (confirm(`Remove header "${key}"?`)) {
-        delete config.steps[stepIndex].headers[key];
+        delete config.nodes[stepIndex].headers[key];
 
         // Remove headers object if empty
-        if (Object.keys(config.steps[stepIndex].headers).length === 0) {
-            delete config.steps[stepIndex].headers;
+        if (Object.keys(config.nodes[stepIndex].headers).length === 0) {
+            delete config.nodes[stepIndex].headers;
         }
 
         saveToLocalStorage();

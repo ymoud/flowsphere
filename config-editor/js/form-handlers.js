@@ -94,7 +94,7 @@ function removeDefaultHeader(index) {
 }
 
 function addStep(hint = null, skipModal = false, nodeDetails = null) {
-    config.steps = config.steps || [];
+    config.nodes = config.nodes || [];
 
     // If nodeDetails not provided and not skipping modal, show the "Add New Node" modal
     // The modal now handles both node details AND position selection
@@ -110,11 +110,11 @@ function addStep(hint = null, skipModal = false, nodeDetails = null) {
     if (position === 'top') {
         insertIndex = 0;
     } else if (position === 'bottom' || position === null) {
-        insertIndex = config.steps.length;
+        insertIndex = config.nodes.length;
     } else if (typeof position === 'number') {
-        insertIndex = Math.max(0, Math.min(position, config.steps.length));
+        insertIndex = Math.max(0, Math.min(position, config.nodes.length));
     } else {
-        insertIndex = config.steps.length;
+        insertIndex = config.nodes.length;
     }
 
     // Create new step with provided details or defaults
@@ -134,7 +134,7 @@ function addStep(hint = null, skipModal = false, nodeDetails = null) {
     };
 
     // Insert step at position
-    config.steps.splice(insertIndex, 0, newStep);
+    config.nodes.splice(insertIndex, 0, newStep);
 
     // Update open step indices
     const newOpenIndices = new Set();
@@ -178,12 +178,12 @@ function showAddNewNodeModal(hint = 'bottom') {
     const MODAL_THRESHOLD = 5;
     const positionSection = document.getElementById('nodePositionSection');
 
-    if (config.steps && config.steps.length > MODAL_THRESHOLD) {
+    if (config.nodes && config.nodes.length > MODAL_THRESHOLD) {
         // Show position section
         positionSection.style.display = 'block';
 
         // Update max position
-        const maxPos = config.steps.length + 1;
+        const maxPos = config.nodes.length + 1;
         document.getElementById('newNodeMaxPosition').textContent = maxPos;
         document.getElementById('newNodeCustomPosition').setAttribute('max', maxPos);
         document.getElementById('newNodeCustomPosition').value = maxPos;
@@ -284,7 +284,7 @@ function confirmCreateNode() {
         const selectedPosition = document.querySelector('input[name="newNodePosition"]:checked')?.value;
         if (selectedPosition === 'custom') {
             const customPos = parseInt(document.getElementById('newNodeCustomPosition').value);
-            if (!isNaN(customPos) && customPos >= 1 && customPos <= (config.steps?.length || 0) + 1) {
+            if (!isNaN(customPos) && customPos >= 1 && customPos <= (config.nodes?.length || 0) + 1) {
                 hint = customPos - 1; // Convert to 0-based index
             }
         } else {
@@ -309,7 +309,7 @@ function skipNodeCreation() {
         const selectedPosition = document.querySelector('input[name="newNodePosition"]:checked')?.value;
         if (selectedPosition === 'custom') {
             const customPos = parseInt(document.getElementById('newNodeCustomPosition').value);
-            if (!isNaN(customPos) && customPos >= 1 && customPos <= (config.steps?.length || 0) + 1) {
+            if (!isNaN(customPos) && customPos >= 1 && customPos <= (config.nodes?.length || 0) + 1) {
                 hint = customPos - 1; // Convert to 0-based index
             }
         } else {
@@ -332,7 +332,7 @@ function showAddNodePositionModal(hint = 'top', nodeDetails = null) {
     }
 
     // Update max position and reset form
-    const maxPos = (config.steps?.length || 0) + 1;
+    const maxPos = (config.nodes?.length || 0) + 1;
     const maxPosSpan = document.getElementById('maxNodePosition');
     const customPosInput = document.getElementById('customNodePosition');
 
@@ -363,10 +363,10 @@ function confirmAddNodePosition() {
 
     if (position === 'custom') {
         const customPos = parseInt(document.getElementById('customNodePosition').value);
-        if (!isNaN(customPos) && customPos >= 1 && customPos <= (config.steps?.length || 0) + 1) {
+        if (!isNaN(customPos) && customPos >= 1 && customPos <= (config.nodes?.length || 0) + 1) {
             addStep(customPos - 1, true, nodeDetails); // Convert to 0-based index, skip modal
         } else {
-            alert('Please enter a valid position between 1 and ' + ((config.steps?.length || 0) + 1));
+            alert('Please enter a valid position between 1 and ' + ((config.nodes?.length || 0) + 1));
             return;
         }
     } else {
@@ -414,15 +414,15 @@ function scrollToStep(stepIndex) {
 }
 
 function cloneStep(index) {
-    config.steps = config.steps || [];
+    config.nodes = config.nodes || [];
 
-    if (index < 0 || index >= config.steps.length) {
+    if (index < 0 || index >= config.nodes.length) {
         console.error('Invalid step index:', index);
         return;
     }
 
     // Deep clone the step
-    const originalStep = config.steps[index];
+    const originalStep = config.nodes[index];
     const clonedStep = JSON.parse(JSON.stringify(originalStep));
 
     // Modify the name to indicate it's a clone
@@ -435,7 +435,7 @@ function cloneStep(index) {
 
     // Insert the cloned step right after the original
     const insertIndex = index + 1;
-    config.steps.splice(insertIndex, 0, clonedStep);
+    config.nodes.splice(insertIndex, 0, clonedStep);
 
     // Update open step indices
     const newOpenIndices = new Set();
@@ -461,7 +461,7 @@ function cloneStep(index) {
 
 function removeStep(index) {
     if (confirm('Are you sure you want to remove this step?')) {
-        config.steps.splice(index, 1);
+        config.nodes.splice(index, 1);
 
         // Update open step indices
         const newOpenIndices = new Set();
@@ -483,7 +483,7 @@ function removeStep(index) {
 
 function moveStep(index, direction) {
     const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= config.steps.length) return;
+    if (newIndex < 0 || newIndex >= config.nodes.length) return;
 
     // Get the step element for animation
     const stepsAccordion = document.getElementById('stepsAccordion');
@@ -504,9 +504,9 @@ function moveStep(index, direction) {
 }
 
 function performStepSwap(index, newIndex) {
-    const temp = config.steps[index];
-    config.steps[index] = config.steps[newIndex];
-    config.steps[newIndex] = temp;
+    const temp = config.nodes[index];
+    config.nodes[index] = config.nodes[newIndex];
+    config.nodes[newIndex] = temp;
 
     // Swap open states
     const indexWasOpen = openStepIndices.has(index);
@@ -545,9 +545,9 @@ function performStepSwap(index, newIndex) {
 
 function updateStep(index, field, value) {
     if (value === undefined || value === '') {
-        delete config.steps[index][field];
+        delete config.nodes[index][field];
     } else {
-        config.steps[index][field] = value;
+        config.nodes[index][field] = value;
     }
 
     // Re-render steps if name or id changed (to update header)
@@ -562,7 +562,7 @@ function updateStep(index, field, value) {
 function updateStepJSON(index, field, value) {
     try {
         const parsed = JSON.parse(value || '{}');
-        config.steps[index][field] = parsed;
+        config.nodes[index][field] = parsed;
         saveToLocalStorage();
         updatePreview();
     } catch (err) {
@@ -669,7 +669,7 @@ function scrollToJsonSection(section) {
     } else if (section.startsWith('step-')) {
         // Extract step index from section ID
         const stepIndex = parseInt(section.split('-')[1]);
-        const step = config.steps?.[stepIndex];
+        const step = config.nodes?.[stepIndex];
 
         if (step) {
             // Find the step by its unique identifier to locate the approximate area

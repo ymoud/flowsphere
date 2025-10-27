@@ -12,7 +12,7 @@
       }
     ]
   },
-  "steps": [
+  "nodes": [
     {
       "id": "get-post",
       "name": "Get a single post with multiple validations",

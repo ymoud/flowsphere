@@ -70,7 +70,7 @@ function renderEditor() {
 
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2>Steps (${config.steps?.length || 0})</h2>
+                <h2>Steps (${config.nodes?.length || 0})</h2>
                 <span class="toggle">▼</span>
             </div>
             <div class="section-content">
@@ -198,7 +198,7 @@ function renderDefaultHeaders() {
 }
 
 function renderSteps() {
-    const steps = config.steps || [];
+    const steps = config.nodes || [];
     const container = document.getElementById('stepsList');
 
     if (steps.length === 0) {
@@ -270,7 +270,7 @@ function renderStepForm(step, index) {
             <div class="form-group">
                 <label>User Input Prompts</label>
                 <div id="promptsList_${index}">
-                    ${renderPromptsList(step.prompts || {}, index)}
+                    ${renderPromptsList(step.userPrompts || {}, index)}
                 </div>
                 <button class="btn btn-secondary btn-small" onclick="addPrompt(${index})" style="margin-top: 10px;">
                     + Add Prompt

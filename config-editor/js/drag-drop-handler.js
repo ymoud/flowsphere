@@ -270,10 +270,10 @@ function reorderSteps(fromIndex, toIndex) {
     const adjustedToIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
 
     // Remove step from old position
-    const [movedStep] = config.steps.splice(fromIndex, 1);
+    const [movedStep] = config.nodes.splice(fromIndex, 1);
 
     // Insert at new position
-    config.steps.splice(adjustedToIndex, 0, movedStep);
+    config.nodes.splice(adjustedToIndex, 0, movedStep);
 
     // Update openStepIndices Set
     updateOpenStepIndices(fromIndex, adjustedToIndex);

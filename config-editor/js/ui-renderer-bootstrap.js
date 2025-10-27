@@ -89,7 +89,7 @@ function renderEditor() {
         <div class="accordion-item mb-3 border rounded">
             <h2 class="accordion-header">
                 <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#stepsSection">
-                    Nodes (${config.steps?.length || 0})
+                    Nodes (${config.nodes?.length || 0})
                 </button>
             </h2>
             <div id="stepsSection" class="accordion-collapse collapse show">
@@ -243,7 +243,7 @@ function renderDefaultHeaders() {
 }
 
 function renderSteps() {
-    const steps = config.steps || [];
+    const steps = config.nodes || [];
     const container = document.getElementById('stepsList');
 
     if (steps.length === 0) {
@@ -643,7 +643,7 @@ function renderStepForm(step, index) {
             <div class="mb-3">
                 <label class="form-label">User Input Prompts</label>
                 <div id="promptsList_${index}">
-                    ${renderPromptsList(step.prompts || {}, index)}
+                    ${renderPromptsList(step.userPrompts || {}, index)}
                 </div>
                 <button class="btn btn-outline-secondary btn-sm mt-2" onclick="addPrompt(${index})">
                     <i class="bi bi-plus"></i> Add Prompt
@@ -835,8 +835,8 @@ function toggleBodyVisibility(index, method) {
  */
 function updateStepAsync(index, field, value) {
     // Update immediately without triggering preview
-    if (!config.steps || !config.steps[index]) return;
-    config.steps[index][field] = value;
+    if (!config.nodes || !config.nodes[index]) return;
+    config.nodes[index][field] = value;
     saveToLocalStorage();
 
     // Update badge immediately if method changed

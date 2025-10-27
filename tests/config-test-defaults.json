@@ -12,7 +12,7 @@
       { "jsonpath": ".id", "exists": true }
     ]
   },
-  "steps": [
+  "nodes": [
     {
       "id": "step1",
       "name": "Step 1 - Inherits defaults (no custom validations/headers)",

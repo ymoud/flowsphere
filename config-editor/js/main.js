@@ -51,9 +51,9 @@ window.addEventListener('DOMContentLoaded', function() {
                         return; // STOP - invalid config
                     }
 
-                    if (!Array.isArray(parsed.steps)) {
+                    if (!Array.isArray(parsed.nodes)) {
                         hideLoader();
-                        alert('Invalid config: Missing or invalid "steps" array');
+                        alert('Invalid config: Missing or invalid "nodes" array');
                         fileInput.value = '';
                         return; // STOP - invalid config
                     }

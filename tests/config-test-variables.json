@@ -17,7 +17,7 @@
       }
     ]
   },
-  "steps": [
+  "nodes": [
     {
       "id": "get-user-posts",
       "name": "Get posts for user (using variable)",

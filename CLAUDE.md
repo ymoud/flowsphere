@@ -68,7 +68,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
       { "httpStatusCode": 200 }
     ]
   },
-  "steps": [
+  "nodes": [
     {
       "id": "step-id",               // Required unique identifier for the step
       "name": "Step description",
@@ -77,7 +77,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
       "timeout": 10,                 // Optional step-level timeout override
       "headers": {},                 // Merged with defaults
       "body": {},                    // Optional request payload
-      "prompts": {},                 // Optional user input prompts
+      "userPrompts": {},                 // Optional user input prompts
       "condition": {},               // Optional conditional execution
       "validations": [],             // Response validations (httpStatusCode + jsonpath)
       "launchBrowser": ".url"        // Optional: launch browser with URL from response
@@ -107,7 +107,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
   - Used in: URLs, headers, request bodies
   - Example: `{{ .responses.authenticate.token }}`
 - User input syntax: `{{ .input.variableName }}`
-  - References values collected from `prompts` in the same step
+  - References values collected from `userPrompts` in the same step
   - Used in: URLs, headers, request bodies
 - Implementation: `substitute_variables()` uses regex matching to find and replace placeholders
 - Substitution order: Dynamic Variables ($guid, $timestamp) → Global Variables → User Input → Response References
@@ -151,7 +151,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
           { "httpStatusCode": 200 }
         ]
       },
-      "steps": [
+      "nodes": [
         {
           "id": "create-user",
           "name": "Create user",
@@ -185,7 +185,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 
 **User Input Prompts:**
 - Collect user input interactively before executing a step
-- Step property: `prompts` - object with key-value pairs (variable name: prompt message)
+- Step property: `userPrompts` - object with key-value pairs (variable name: prompt message)
 - Values accessible via `{{ .input.variableName }}` syntax
 - Example:
   ```json
@@ -193,7 +193,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
     "name": "Login with credentials",
     "method": "POST",
     "url": "/login",
-    "prompts": {
+    "userPrompts": {
       "username": "Enter your username:",
       "password": "Enter your password:"
     },
@@ -203,7 +203,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
     }
   }
   ```
-- User input is reset for each step that uses prompts
+- User input is reset for each step that uses userPrompts
 - Can be combined with response substitution in the same step
 
 **Browser Launch:**

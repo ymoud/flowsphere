@@ -488,7 +488,7 @@ validate_step_ids() {
     local config="$1"
 
     # Extract all step names and IDs in a SINGLE jq call (optimization: 1 call instead of N calls)
-    local all_steps_data=$(echo "$config" | jq -r '.steps | to_entries | .[] | [(.key + 1), (.value.name // "Unknown"), (.value.id // "null")] | @tsv')
+    local all_steps_data=$(echo "$config" | jq -r '.nodes | to_entries | .[] | [(.key + 1), (.value.name // "Unknown"), (.value.id // "null")] | @tsv')
 
     if [ -z "$all_steps_data" ]; then
         return 0  # No steps to validate
@@ -909,8 +909,8 @@ execute_step() {
     debug_log "DEBUG: execute_step - start, step_num=$step_num"
 
     # Check if step requires user input
-    if echo "$step_json" | jq -e '.prompts' > /dev/null 2>&1; then
-        local prompts=$(echo "$step_json" | jq '.prompts')
+    if echo "$step_json" | jq -e '.userPrompts' > /dev/null 2>&1; then
+        local prompts=$(echo "$step_json" | jq '.userPrompts')
         prompt_user_input "$prompts" "$step_num"
     fi
 
@@ -1476,23 +1476,23 @@ main() {
     fi
 
     # Get number of steps
-    local num_steps=$(echo "$config" | jq '.steps | length')
+    local num_steps=$(echo "$config" | jq '.nodes | length')
 
     if [ "$num_steps" -eq 0 ]; then
-        echo "Error: No steps defined in configuration"
+        echo "Error: No nodes defined in configuration"
         exit 1
     fi
 
     # Validate start_step is within bounds
     if [ "$start_step" -ge "$num_steps" ]; then
-        echo "Error: start_step ($start_step) must be less than number of steps ($num_steps)"
+        echo "Error: start_step ($start_step) must be less than number of nodes ($num_steps)"
         exit 1
     fi
 
     if [ "$start_step" -eq 0 ]; then
-        echo "Starting HTTP sequence with $num_steps steps..."
+        echo "Starting HTTP sequence with $num_steps nodes..."
     else
-        echo "Starting HTTP sequence from step $((start_step + 1)) (skipping first $start_step steps)..."
+        echo "Starting HTTP sequence from node $((start_step + 1)) (skipping first $start_step nodes)..."
     fi
     echo ""
 
@@ -1502,7 +1502,7 @@ main() {
 
     # Populate empty responses for skipped initial steps (to maintain indexing)
     for ((i=0; i<start_step; i++)); do
-        local step=$(echo "$config" | jq -c ".steps[$i]")
+        local step=$(echo "$config" | jq -c ".nodes[$i]")
         local step_meta=$(echo "$step" | jq -r '[.name, .id, .method, .url] | @tsv')
         local step_num=$((i + 1))
         local name=$(echo "$step_meta" | cut -f1)
@@ -1531,7 +1531,7 @@ main() {
         debug_log "DEBUG: Loop iteration $i of $num_steps"
         local step_num=$((i + 1))
         # Extract step object once (optimization: 2 calls instead of 5)
-        local step=$(echo "$config" | jq -c ".steps[$i]")
+        local step=$(echo "$config" | jq -c ".nodes[$i]")
         # Extract metadata in single jq call
         local step_meta=$(echo "$step" | jq -r '[.name, .id, .method, .url] | @tsv')
         local name=$(echo "$step_meta" | cut -f1)

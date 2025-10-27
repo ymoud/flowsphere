@@ -12,12 +12,12 @@
       }
     ]
   },
-  "steps": [
+  "nodes": [
     {
       "name": "User login",
       "method": "POST",
       "url": "/auth/login",
-      "prompts": {
+      "userPrompts": {
         "username": "Enter your username:",
         "password": "Enter your password:"
       },

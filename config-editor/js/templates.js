@@ -9,7 +9,7 @@ function getTemplate(templateType) {
                 headers: {},
                 status: 200
             },
-            steps: []
+            nodes: []
         },
         simple: {
             enableDebug: false,
@@ -22,7 +22,7 @@ function getTemplate(templateType) {
                 },
                 status: 200
             },
-            steps: [
+            nodes: [
                 {
                     id: "getUser",
                     name: "Get user data",
@@ -51,7 +51,7 @@ function getTemplate(templateType) {
                 },
                 status: 200
             },
-            steps: [
+            nodes: [
                 {
                     id: "requestAuthUrl",
                     name: "Request authorization URL",
@@ -72,7 +72,7 @@ function getTemplate(templateType) {
                     name: "Exchange code for token",
                     method: "POST",
                     url: "/oauth/token",
-                    prompts: {
+                    userPrompts: {
                         code: "Enter the authorization code from the callback:"
                     },
                     body: {
@@ -107,13 +107,13 @@ function getTemplate(templateType) {
                 },
                 status: 200
             },
-            steps: [
+            nodes: [
                 {
                     id: "login",
                     name: "User login",
                     method: "POST",
                     url: "/auth/login",
-                    prompts: {
+                    userPrompts: {
                         username: "Enter your username:",
                         password: "Enter your password:"
                     },
