@@ -605,6 +605,11 @@ function positionTooltip() {
  * Scroll JSON preview to the top
  */
 function scrollJsonPreviewToTop() {
+    // Check if JSON scroll-sync feature is enabled
+    if (typeof FeatureRegistry !== 'undefined' && !FeatureRegistry.isFeatureEnabled('json-scroll-sync')) {
+        return; // Feature disabled, skip scrolling
+    }
+
     const jsonPreview = document.getElementById('jsonPreview');
     if (!jsonPreview) return;
 
@@ -623,6 +628,11 @@ function scrollJsonPreviewToTop() {
  * @param {string} section - Section identifier: 'general', 'variables', 'defaults', or 'step-N'
  */
 function scrollToJsonSection(section) {
+    // Check if JSON scroll-sync feature is enabled
+    if (typeof FeatureRegistry !== 'undefined' && !FeatureRegistry.isFeatureEnabled('json-scroll-sync')) {
+        return; // Feature disabled, skip scrolling
+    }
+
     const jsonPreview = document.getElementById('jsonPreview');
     if (!jsonPreview || !config) return;
 

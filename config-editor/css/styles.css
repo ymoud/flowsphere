@@ -1591,3 +1591,34 @@ textarea.form-control {
     font-size: 1rem;
     font-weight: 500;
 }
+
+/* ========================================
+   Settings UI Styles
+   ======================================== */
+
+.settings-features .feature-category {
+    margin-bottom: 1.5rem;
+}
+
+.settings-features .card {
+    transition: box-shadow 0.2s ease;
+}
+
+.settings-features .card:hover {
+    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.15);
+}
+
+/* Make the settings gear button consistent with theme toggle */
+.theme-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    border-radius: 0.375rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}

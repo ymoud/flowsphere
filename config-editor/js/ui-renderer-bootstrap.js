@@ -1,6 +1,17 @@
 // Bootstrap-specific UI Renderer
 // Uses Bootstrap 5 classes instead of custom CSS
 
+/**
+ * Safe wrapper for attachAutocompleteToInput
+ * Only attaches autocomplete if the feature is loaded
+ */
+function safeAttachAutocomplete(input, stepIndex = null, mode = 'template') {
+    if (typeof attachAutocompleteToInput === 'function') {
+        attachAutocompleteToInput(input, stepIndex, mode);
+    }
+    // Silently skip if autocomplete not loaded (graceful degradation)
+}
+
 function renderEditor() {
     if (!config) return;
 
@@ -113,7 +124,12 @@ function renderEditor() {
     setTimeout(() => {
         const baseUrlInput = document.getElementById('baseUrl');
         if (baseUrlInput) {
-            attachAutocompleteToInput(baseUrlInput, null);
+            safeAttachAutocomplete(baseUrlInput, null);
+        }
+
+        // Update UI based on loaded features (debounced - will batch with other updates)
+        if (typeof UIAdapter !== 'undefined' && UIAdapter.updateUIForLoadedFeatures) {
+            UIAdapter.updateUIForLoadedFeatures();
         }
     }, 0);
 
@@ -155,7 +171,7 @@ function renderGlobalVariables() {
     // Attach autocomplete to variable inputs
     const varInputs = container.querySelectorAll('input[type="text"]');
     varInputs.forEach(input => {
-        attachAutocompleteToInput(input, null);
+        safeAttachAutocomplete(input, null);
     });
 }
 
@@ -237,7 +253,7 @@ function renderDefaultHeaders() {
     setTimeout(() => {
         const headerInputs = container.querySelectorAll('input[type="text"]');
         headerInputs.forEach(input => {
-            attachAutocompleteToInput(input, null);
+            safeAttachAutocomplete(input, null);
         });
     }, 0);
 }
@@ -277,7 +293,9 @@ function renderSteps() {
         ${steps.map((step, index) => {
             const isOpen = openStepIndices.has(index);
             const collapseId = `step_${index}`;
-            const showDragHandle = steps.length > 1;
+            // Only show drag handle if drag-drop feature is loaded and there are multiple steps
+            const isDragDropEnabled = typeof FeatureRegistry !== 'undefined' && FeatureRegistry.isFeatureLoaded('drag-drop');
+            const showDragHandle = steps.length > 1 && isDragDropEnabled;
             const isDraggable = showDragHandle && !isOpen; // Only collapsed steps can be dragged
             return `
             <div class="accordion-item mb-3 step-method-${(step.method || 'GET').toLowerCase()}"
@@ -400,7 +418,7 @@ function renderSteps() {
                     // Skip inputs that shouldn't have autocomplete
                     const skipPlaceholders = ['Describe this node', 'uniqueNodeId'];
                     if (!skipPlaceholders.includes(input.placeholder)) {
-                        attachAutocompleteToInput(input, stepIndex);
+                        safeAttachAutocomplete(input, stepIndex);
                     }
                 });
 

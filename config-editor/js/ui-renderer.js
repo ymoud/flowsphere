@@ -1,3 +1,14 @@
+/**
+ * Safe wrapper for attachAutocompleteToInput
+ * Only attaches autocomplete if the feature is loaded
+ */
+function safeAttachAutocomplete(input, stepIndex = null, mode = 'template') {
+    if (typeof attachAutocompleteToInput === 'function') {
+        attachAutocompleteToInput(input, stepIndex, mode);
+    }
+    // Silently skip if autocomplete not loaded (graceful degradation)
+}
+
 function renderEditor() {
     if (!config) return;
 
@@ -93,7 +104,7 @@ function renderEditor() {
     setTimeout(() => {
         const baseUrlInput = document.getElementById('baseUrl');
         if (baseUrlInput) {
-            attachAutocompleteToInput(baseUrlInput, null);
+            safeAttachAutocomplete(baseUrlInput, null);
         }
     }, 0);
 }
@@ -122,7 +133,7 @@ function renderGlobalVariables() {
     // Attach autocomplete to variable inputs
     const varInputs = container.querySelectorAll('input[type="text"]');
     varInputs.forEach(input => {
-        attachAutocompleteToInput(input, null);
+        safeAttachAutocomplete(input, null);
     });
 }
 
@@ -193,7 +204,7 @@ function renderDefaultHeaders() {
     // Attach autocomplete to header inputs
     const headerInputs = container.querySelectorAll('input[type="text"]');
     headerInputs.forEach(input => {
-        attachAutocompleteToInput(input, null);
+        safeAttachAutocomplete(input, null);
     });
 }
 

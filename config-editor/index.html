@@ -58,10 +58,16 @@
                     <h1 class="app-title mb-1">FLOWSPHERE STUDIO</h1>
                     <p class="app-subtitle mb-0">Design in Studio. Execute with CLI.</p>
                 </div>
-                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
-                    <i class="bi bi-moon-fill" id="themeIcon"></i>
-                    <span id="themeText">Dark</span>
-                </button>
+                <div class="d-flex gap-2">
+                    <button class="theme-toggle" onclick="showSettings()" title="Settings">
+                        <i class="bi bi-gear-fill"></i>
+                        <span>Settings</span>
+                    </button>
+                    <button class="theme-toggle" onclick="safeToggleTheme()" title="Toggle theme">
+                        <i class="bi bi-moon-fill" id="themeIcon"></i>
+                        <span id="themeText">Dark</span>
+                    </button>
+                </div>
             </div>
         </div>
     </header>
@@ -418,27 +424,141 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title">Settings</h5>
+                        <p class="text-muted small mb-0">Configure FlowSphere Studio features and preferences</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="features-tab" data-bs-toggle="tab"
+                                    data-bs-target="#features" type="button" role="tab">
+                                <i class="bi bi-puzzle me-1"></i> Features
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="about-tab" data-bs-toggle="tab"
+                                    data-bs-target="#about" type="button" role="tab">
+                                <i class="bi bi-info-circle me-1"></i> About
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content">
+                        <!-- Features Tab -->
+                        <div class="tab-pane fade show active" id="features" role="tabpanel">
+                            <div id="featuresTabContent">
+                                <!-- Features will be rendered here by settings-ui.js -->
+                            </div>
+                        </div>
+
+                        <!-- About Tab -->
+                        <div class="tab-pane fade" id="about" role="tabpanel">
+                            <div class="p-3">
+                                <h6 class="fw-bold mb-3">FlowSphere Studio</h6>
+                                <p class="text-muted">
+                                    A visual flow designer for creating and editing API workflow configurations.
+                                    Design complex HTTP sequences with a user-friendly interface and execute them
+                                    with the FlowSphere CLI.
+                                </p>
+
+                                <h6 class="fw-bold mb-2 mt-4">Plug-and-Play Architecture</h6>
+                                <p class="text-muted small">
+                                    FlowSphere Studio uses a modular architecture with optional features.
+                                    The core UI is lightweight and always functional. Optional features can be
+                                    enabled or disabled based on your needs, providing a customizable experience
+                                    with graceful degradation.
+                                </p>
+                                <p class="text-muted small">
+                                    Features marked with <i class="bi bi-info-circle"></i> will automatically reload
+                                    the page when toggled (enabled or disabled). Built-in features take effect immediately without reload.
+                                </p>
+
+                                <h6 class="fw-bold mb-2 mt-4">Core Features</h6>
+                                <ul class="text-muted small">
+                                    <li>Visual config editor with form-based interface</li>
+                                    <li>Auto-save to browser localStorage</li>
+                                    <li>Live JSON preview with copy-to-clipboard</li>
+                                    <li>Collapsible JSON preview panel</li>
+                                    <li>Template-based config creation</li>
+                                </ul>
+
+                                <h6 class="fw-bold mb-2 mt-3">Optional Features (Can Be Disabled)</h6>
+                                <ul class="text-muted small">
+                                    <li>Theme switching (dark/light mode)</li>
+                                    <li>Variable autocomplete for {{ }} syntax</li>
+                                    <li>Drag-and-drop node reordering</li>
+                                    <li>JSON preview auto-scroll (syncs to edited sections)</li>
+                                    <li>Postman collection import</li>
+                                </ul>
+
+                                <div class="mt-4 pt-3 border-top">
+                                    <p class="text-muted small mb-0">
+                                        <i class="bi bi-github me-1"></i>
+                                        <a href="https://github.com/your-repo/flowsphere" target="_blank" class="text-decoration-none">
+                                            View on GitHub
+                                        </a>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Theme Switcher (load early) -->
-    <script src="js/theme-switcher.js"></script>
+    <!-- Core System: Feature Registry (load first) -->
+    <script src="js/core/feature-registry.js"></script>
+    <script src="js/core/settings-ui.js"></script>
+    <script src="js/core/safe-wrappers.js"></script>
+    <script src="js/core/ui-adapter.js"></script>
 
-    <!-- JavaScript Modules -->
+    <!-- Core Modules (always loaded) -->
     <script src="js/state.js"></script>
     <script src="js/templates.js"></script>
-    <script src="js/postman-parser.js"></script>
-
-    <!-- Bootstrap-specific files (must load early for function definitions) -->
     <script src="js/bootstrap-modal-bridge.js"></script>
     <script src="js/ui-renderer-bootstrap.js"></script>
-
-    <!-- Shared files that export functions (load after definitions exist) -->
     <script src="js/form-handlers.js"></script>
     <script src="js/modals.js"></script>
     <script src="js/config-manager.js"></script>
-    <script src="js/autocomplete.js"></script>
-    <script src="js/drag-drop-handler.js"></script>
     <script src="js/main.js"></script>
+
+    <!-- Optional Features Loading System -->
+    <script>
+        // Initialize feature registry and load enabled features
+        document.addEventListener('DOMContentLoaded', function() {
+            FeatureRegistry.init();
+            UIAdapter.init(); // This calls updateUIForLoadedFeaturesNow() immediately
+
+            // Load all enabled features
+            FeatureRegistry.loadEnabledFeatures()
+                .then(() => {
+                    console.log('[FlowSphere] All enabled features loaded successfully');
+                    // Update UI to show/hide features based on what's loaded (debounced)
+                    UIAdapter.updateUIForLoadedFeatures();
+                })
+                .catch(error => {
+                    console.warn('[FlowSphere] Some features failed to load:', error);
+                    // Still update UI even if some features failed (debounced)
+                    UIAdapter.updateUIForLoadedFeatures();
+                });
+        });
+    </script>
 </body>
 </html>

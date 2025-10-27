@@ -1,6 +1,17 @@
-# FlowSphere Studio - Modular Version
+# FlowSphere Studio - Plug-and-Play Architecture
 
-Visual flow designer for creating and editing API workflow configurations.
+Visual flow designer for creating and editing API workflow configurations with optional modular features.
+
+## Architecture Overview
+
+FlowSphere Studio uses a **Plug-and-Play Architecture** with a lightweight core UI and optional features that can be enabled or disabled based on your needs.
+
+**Benefits:**
+- Faster initial load time
+- Better reliability (core UI never breaks from feature issues)
+- Easier maintenance and testing
+- Customizable experience with graceful degradation
+- Users can enable/disable features via Settings
 
 ## Structure
 
@@ -8,78 +19,155 @@ Visual flow designer for creating and editing API workflow configurations.
 config-editor/
 ├── index.html          # Main HTML file
 ├── css/
-│   └── styles.css      # All CSS styles (16KB)
+│   └── styles.css      # All CSS styles
 └── js/
-    ├── state.js        # Global application state
-    ├── config-manager.js      # File operations (load, save, localStorage)
-    ├── templates.js           # Config templates (empty, simple, oauth, user-input)
-    ├── postman-parser.js      # Postman collection import logic
-    ├── form-handlers.js       # Update/add/remove functions for form inputs
-    ├── ui-renderer.js         # Render functions for all UI components
-    ├── modals.js              # Modal dialogs (conditions, validations, prompts, headers)
-    ├── autocomplete.js        # Variable substitution autocomplete
-    └── main.js                # Initialization and event listeners
+    ├── core/           # Core system (always loaded)
+    │   ├── feature-registry.js   # Feature management system
+    │   ├── settings-ui.js        # Settings modal UI
+    │   └── safe-wrappers.js      # Graceful degradation wrappers
+    ├── state.js                  # Global application state
+    ├── config-manager.js         # File operations (load, save, localStorage)
+    ├── templates.js              # Config templates
+    ├── bootstrap-modal-bridge.js # Bootstrap modal integration
+    ├── ui-renderer-bootstrap.js  # Bootstrap UI renderer
+    ├── form-handlers.js          # Form input handlers
+    ├── modals.js                 # Modal dialogs
+    ├── main.js                   # Initialization and event listeners
+    ├── theme-switcher.js         # [OPTIONAL] Dark/light theme toggle
+    ├── autocomplete.js           # [OPTIONAL] Variable autocomplete
+    ├── drag-drop-handler.js      # [OPTIONAL] Drag-and-drop reordering
+    ├── postman-parser.js         # [OPTIONAL] Postman import
+    └── (json-scroll-sync)        # [OPTIONAL] Built into form-handlers.js
 ```
 
 ## Modules
 
-### Core Modules
+### Core System (Always Loaded)
 
-**state.js** (307 bytes)
-- Global variables: `config`, `fileName`, `openNodeIndices`
-- Autocomplete state
+**core/feature-registry.js**
+- Feature management and loading system
+- `FeatureRegistry.init()` - Initialize feature system
+- `FeatureRegistry.enableFeature(id)` / `disableFeature(id)` - Manage features
+- `FeatureRegistry.loadEnabledFeatures()` - Load all enabled features
+- Stores feature preferences in localStorage
 
-**config-manager.js** (3.2KB)
-- `saveToLocalStorage()` - Auto-save config
-- `loadFromLocalStorage()` - Restore on page load
-- `loadFile()` / `downloadFile()` / `closeFile()`
-- `updateFileNameDisplay()`, `updateAutoSaveIndicator()`
+**core/settings-ui.js**
+- Settings modal UI
+- `showSettings()` - Display settings modal
+- Feature toggle interface
+- About tab with architecture info
 
-**templates.js** (4.7KB)
-- `getTemplate(type)` - Returns config templates
-- Templates: empty, simple, oauth, user-input
+**core/safe-wrappers.js**
+- Graceful degradation wrappers
+- `safeToggleTheme()` - Safe theme toggle with fallback
+- `isFeatureAvailable(name)` - Check if feature is loaded
 
-**postman-parser.js** (4.2KB)
-- `parsePostmanCollection(collection)` - Convert Postman to config format
-- `handlePostmanImport()` - Process Postman file upload
+### Core Modules (Always Loaded)
 
-### UI Modules
+**state.js**
+- Global application state: `config`, `fileName`, `openNodeIndices`
 
-**ui-renderer.js** (17KB)
+**config-manager.js**
+- File operations: load, save, localStorage persistence
+- `saveToLocalStorage()`, `loadFromLocalStorage()`
+- `loadFile()`, `downloadFile()`, `closeFile()`
+
+**templates.js**
+- Config templates: empty, simple, oauth, user-input
+- `getTemplate(type)` - Returns template configs
+
+**bootstrap-modal-bridge.js**
+- Bootstrap modal integration
+
+**ui-renderer-bootstrap.js**
+- Main UI renderer using Bootstrap 5
 - `renderEditor()` - Main editor layout
-- `renderGlobalVariables()` - Global variables section
-- `renderDefaultHeaders()` - Default headers section
-- `renderDefaultValidations()` - Default validations section
-- `renderNodes()` - Nodes list
-- `renderNodeForm(node, index)` - Individual node form
-- `updatePreview()` - JSON preview panel
-- `toggleSection()` - Collapsible sections
+- `renderGlobalVariables()`, `renderDefaultHeaders()`, `renderDefaultValidations()`
+- `renderSteps()` - Node list rendering
+- Includes safe autocomplete wrappers for graceful degradation
 
-**modals.js** (30KB)
-- `showConditionModal()` / `saveCondition()` / `closeConditionModal()`
-- `showValidationModal()` / `saveValidation()` / `closeValidationModal()`
-- `showPromptModal()` / `savePrompt()` / `closePromptModal()`
-- `showHeaderModal()` / `saveHeader()` / `closeHeaderModal()`
-- `createNew()` / `selectTemplate()` / `confirmNewConfig()`
+**modals.js**
+- Modal dialogs for conditions, validations, prompts, headers
+- Template selection and new config creation
+- Includes safe autocomplete wrappers
 
-**form-handlers.js** (7.1KB)
-- `updateConfig()` - Update enableDebug, baseUrl, timeout
-- `addGlobalVariable()` / `updateGlobalVariable()` / `removeGlobalVariable()`
-- `addDefaultHeader()` / `updateDefaultHeader()` / `removeDefaultHeader()`
-- `addNode()` / `updateNode()` / `removeNode()` / `moveNode()`
+**form-handlers.js**
+- Form input handlers
+- Add/update/remove operations for variables, headers, nodes
 
-**autocomplete.js** (18KB)
-- `initAutocomplete()` - Initialize autocomplete system
-- `attachAutocompleteToInput(input, nodeIndex)` - Attach to text inputs
-- `buildAutocompleteSuggestions(partialText, nodeIndex)` - Generate suggestions
-- `showAutocomplete()` / `hideAutocomplete()` - Display/hide dropdown
-- `getCaretCoordinates(input)` - Calculate caret position
-- Keyboard navigation (arrow keys, enter, escape)
+**main.js**
+- Application initialization
+- Event listeners and DOMContentLoaded handler
+- Safe initialization of optional features
 
-**main.js** (1.6KB)
-- Event listeners (file input, Postman import)
-- DOMContentLoaded handler
-- Autocomplete initialization
+### Optional Features (Can Be Disabled)
+
+**theme-switcher.js** *(Productivity - Enabled by default)*
+- Dark/light theme toggle
+- `toggleTheme()`, `setTheme(theme, save)`
+- Persists theme preference to localStorage
+- Auto-initializes when loaded
+
+**autocomplete.js** *(Productivity - Enabled by default)*
+- Smart autocomplete for `{{ }}` variable syntax
+- `initAutocomplete()` - Initialize system
+- `attachAutocompleteToInput(input, stepIndex, mode)` - Attach to inputs
+- Context-aware suggestions (global vars, response refs, user input)
+- Keyboard navigation support
+
+**drag-drop-handler.js** *(Productivity - Enabled by default)*
+- Drag-and-drop node reordering
+- Touch and mouse support
+- Visual feedback during drag operations
+
+**json-scroll-sync** *(UI Enhancement - Enabled by default)*
+- Auto-scroll JSON preview to match edited sections
+- Implemented in `form-handlers.js` via feature flag
+- Functions: `scrollJsonPreviewToTop()`, `scrollToJsonSection(section)`
+- Automatically scrolls when opening/editing nodes
+
+**postman-parser.js** *(Import/Export - Enabled by default)*
+- Import Postman collections
+- `parsePostmanCollection(collection)` - Convert to config format
+- Auto-detect dependencies between requests
+
+## Managing Features
+
+### Using the Settings UI
+
+1. Click the **Settings** button in the top-right header
+2. Go to the **Features** tab
+3. Toggle features on/off using the switches
+4. **External script features** (theme-switcher, autocomplete, drag-drop, postman-parser):
+   - Shows info icon (ℹ️) with tooltip: "Toggling this feature will automatically reload the page"
+   - When enabled: Page automatically reloads after 1.5 seconds
+   - When disabled: Page automatically reloads after 1.5 seconds
+   - Toast notification shows: "Reloading... Enabling/Disabling [Feature Name]"
+5. **Built-in features** (json-scroll-sync):
+   - No info icon (no reload needed)
+   - Take effect immediately when toggled
+
+### Feature States
+
+For **external script features** (theme-switcher, autocomplete, drag-drop, postman-parser):
+- **Loaded** (green badge): Feature script is loaded and active
+- **Enabled (reload required)** (yellow badge): Feature is enabled but not yet loaded
+  - Shows inline warning: "Reload required: This feature will be available after reloading the page"
+  - Toggling (enable/disable) triggers automatic page reload after 1.5 seconds
+- **Disabled** (gray badge): Feature is disabled
+
+For **built-in features** (json-scroll-sync):
+- **Enabled** (green badge): Feature is active
+- **Disabled** (gray badge): Feature is disabled
+- Takes effect immediately without requiring a reload
+
+### Graceful Degradation
+
+If a feature is disabled:
+- The core UI continues to work normally
+- Feature-specific functionality is skipped silently
+- No errors are thrown
+- Fallback behavior is provided where applicable (e.g., theme toggle)
 
 ## Usage
 
@@ -109,37 +197,85 @@ npx http-server
 
 ## Features
 
+### Core Features (Always Available)
+
 - **Visual Editing**: Form-based interface for all config options
 - **Auto-save**: Configs automatically saved to localStorage
 - **Live Preview**: Real-time JSON preview with copy-to-clipboard
 - **Templates**: Quick-start templates for common use cases
-- **Postman Import**: Convert Postman collections to config format
-- **Autocomplete**: Intelligent suggestions for variable substitution (`{{ }}`)
+- **JSON Preview Toggle**: Collapsible JSON panel to maximize editor space
+- **Settings Panel**: Manage optional features via intuitive UI
+
+### Optional Features (Can Be Disabled)
+
+- **Theme Switcher**: Toggle between dark and light themes
+- **Variable Autocomplete**: Intelligent suggestions for `{{ }}` syntax
   - Triggers on typing `{{`
   - Context-aware suggestions (global vars, response refs, user input)
   - Keyboard navigation (↑/↓, Enter, Esc)
   - Positioned at text caret
+- **Drag-and-Drop**: Reorder nodes by dragging them
+- **JSON Preview Auto-Scroll**: Automatically scroll JSON preview to match edited sections
+  - Syncs when opening/editing nodes
+  - Can be disabled if auto-scrolling is distracting
+- **Postman Import**: Convert Postman collections to config format
 
 ## Module Dependencies
 
-```
-index.html
-  ├─ css/styles.css
-  └─ js/
-      ├─ state.js                 (no dependencies)
-      ├─ config-manager.js        → state.js, ui-renderer.js
-      ├─ templates.js             (no dependencies)
-      ├─ postman-parser.js        → state.js, config-manager.js
-      ├─ form-handlers.js         → state.js, ui-renderer.js, config-manager.js
-      ├─ ui-renderer.js           → state.js, form-handlers.js, autocomplete.js
-      ├─ modals.js                → state.js, ui-renderer.js, config-manager.js
-      ├─ autocomplete.js          → state.js
-      └─ main.js                  → All modules
+### Load Order (Critical!)
+
+Scripts are loaded in this specific order:
+
+1. **Bootstrap** (external CDN)
+2. **Core System**
+   - `core/feature-registry.js` (no dependencies)
+   - `core/settings-ui.js` → feature-registry.js
+   - `core/safe-wrappers.js` (no dependencies)
+3. **Core Modules**
+   - `state.js` (no dependencies)
+   - `templates.js` (no dependencies)
+   - `bootstrap-modal-bridge.js` → state.js
+   - `ui-renderer-bootstrap.js` → state.js
+   - `form-handlers.js` → state.js, ui-renderer-bootstrap.js
+   - `modals.js` → state.js, ui-renderer-bootstrap.js
+   - `config-manager.js` → state.js, ui-renderer-bootstrap.js
+   - `main.js` → all above modules
+4. **Optional Features** (loaded dynamically by feature registry)
+   - `theme-switcher.js` (self-initializing)
+   - `autocomplete.js` → state.js
+   - `drag-drop-handler.js` → state.js
+   - `postman-parser.js` → state.js
+   - `json-scroll-sync` (built into form-handlers.js, controlled by feature flag)
+
+### Dynamic Loading
+
+Optional features are loaded dynamically by the feature registry system:
+
+```javascript
+FeatureRegistry.init();
+FeatureRegistry.loadEnabledFeatures()
+    .then(() => console.log('Features loaded'))
+    .catch(error => console.warn('Some features failed', error));
 ```
 
-**Load order matters!** Scripts must be loaded in the order shown in `index.html`.
+### Graceful Degradation Pattern
 
-**Global scope exports**: Each module exports functions to `window` object for inline onclick/onchange handlers in HTML. This maintains modular structure while keeping HTML markup simple. Functions are attached at the end of each module file (e.g., `window.createNew = createNew;`).
+All references to optional features use safe wrappers:
+
+```javascript
+// Safe wrapper function
+function safeAttachAutocomplete(input, stepIndex, mode) {
+    if (typeof attachAutocompleteToInput === 'function') {
+        attachAutocompleteToInput(input, stepIndex, mode);
+    }
+    // Silently skip if not loaded
+}
+
+// Usage
+safeAttachAutocomplete(myInput, 0);  // Works whether autocomplete is loaded or not
+```
+
+**Global scope exports**: Each module exports functions to `window` object for inline onclick/onchange handlers in HTML. This maintains modular structure while keeping HTML markup simple.
 
 ## Browser Compatibility
 

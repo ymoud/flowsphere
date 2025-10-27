@@ -1,3 +1,14 @@
+/**
+ * Safe wrapper for attachAutocompleteToInput
+ * Only attaches autocomplete if the feature is loaded
+ */
+function safeAttachAutocomplete(input, stepIndex = null, mode = 'template') {
+    if (typeof attachAutocompleteToInput === 'function') {
+        attachAutocompleteToInput(input, stepIndex, mode);
+    }
+    // Silently skip if autocomplete not loaded (graceful degradation)
+}
+
 // Condition Builder Functions
 function renderConditionsList(conditions, stepIndex) {
     if (!conditions || !Array.isArray(conditions) || conditions.length === 0) {
@@ -167,7 +178,7 @@ function showConditionModal(stepIndex, condIndex, condition) {
         if (modal) {
             const inputs = modal.querySelectorAll('input[type="text"]');
             inputs.forEach(input => {
-                attachAutocompleteToInput(input, stepIndex);
+                safeAttachAutocomplete(input, stepIndex);
             });
         }
     }, 0);
@@ -272,7 +283,7 @@ function updateConditionSourceFields() {
         if (modal) {
             const inputs = modal.querySelectorAll('input[type="text"]');
             inputs.forEach(input => {
-                attachAutocompleteToInput(input, stepIndex);
+                safeAttachAutocomplete(input, stepIndex);
             });
         }
     }, 0);
@@ -367,7 +378,7 @@ function updateConditionTypeFields() {
         if (modal) {
             const inputs = modal.querySelectorAll('#conditionTypeFields input[type="text"]');
             inputs.forEach(input => {
-                attachAutocompleteToInput(input, stepIndex);
+                safeAttachAutocomplete(input, stepIndex);
             });
         }
     }, 0);
@@ -689,13 +700,13 @@ function showValidationModal(stepIndex, valIndex, validation, isDefault = false)
             // Attach jq autocomplete to jsonpath input
             const jsonpathInput = modal.querySelector('#valJsonpath');
             if (jsonpathInput) {
-                attachAutocompleteToInput(jsonpathInput, stepIndex, 'jq');
+                safeAttachAutocomplete(jsonpathInput, stepIndex, 'jq');
             }
 
             // Attach template autocomplete to other text inputs (like equals, notEquals values)
             const otherInputs = modal.querySelectorAll('input[type="text"]:not(#valJsonpath)');
             otherInputs.forEach(input => {
-                attachAutocompleteToInput(input, stepIndex, 'template');
+                safeAttachAutocomplete(input, stepIndex, 'template');
             });
         }
     }, 0);
@@ -963,7 +974,7 @@ function showPromptModal(stepIndex, existingKey, existingMessage = '') {
         if (modal) {
             const inputs = modal.querySelectorAll('input[type="text"]');
             inputs.forEach(input => {
-                attachAutocompleteToInput(input, stepIndex);
+                safeAttachAutocomplete(input, stepIndex);
             });
         }
     }, 0);
@@ -1123,7 +1134,7 @@ function showHeaderModal(stepIndex, existingKey, existingValue = '') {
         if (modal) {
             const inputs = modal.querySelectorAll('input[type="text"]');
             inputs.forEach(input => {
-                attachAutocompleteToInput(input, stepIndex);
+                safeAttachAutocomplete(input, stepIndex);
             });
         }
     }, 0);

@@ -11,8 +11,12 @@ window.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Initialize autocomplete
-    initAutocomplete();
+    // Initialize autocomplete (if feature is loaded)
+    if (typeof initAutocomplete === 'function') {
+        initAutocomplete();
+    } else {
+        console.log('[Main] Autocomplete feature not loaded - skipping initialization');
+    }
 
     // File input event listener
     const fileInput = document.getElementById('fileInput');
