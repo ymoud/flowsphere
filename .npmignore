@@ -1,0 +1,14 @@
+# Exclude from npm package
+.git
+.gitignore
+.claude
+flowsphere
+tests/
+scenarios/
+Postman/
+postman-tools/
+prompts/
+logs/
+*.txt
+.DS_Store
+node_modules/
