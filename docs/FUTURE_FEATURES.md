@@ -2,62 +2,82 @@
 
 This document tracks potential improvements and feature requests for the HTTP Sequence Runner.
 
-## Config Schema Refinement
+## Variable Support in Node Conditions
 
-Rename config properties for better clarity and consistency with UI terminology.
-
-**Changes:**
-- Rename `steps` → `nodes` (aligns with FlowSphere Studio UI)
-- Rename `prompts` → `userPrompts` (more descriptive and explicit)
-
-**Current Schema:**
-```json
-{
-  "steps": [
-    {
-      "id": "authenticate",
-      "name": "Login",
-      "method": "POST",
-      "url": "/auth/login",
-      "prompts": {
-        "username": "Enter username:",
-        "password": "Enter password:"
-      }
-    }
-  ]
-}
-```
-
-**Proposed Schema:**
-```json
-{
-  "nodes": [
-    {
-      "id": "authenticate",
-      "name": "Login",
-      "method": "POST",
-      "url": "/auth/login",
-      "userPrompts": {
-        "username": "Enter username:",
-        "password": "Enter password:"
-      }
-    }
-  ]
-}
-```
+Add support for variable substitution syntax in node condition evaluations.
 
 **Benefits:**
-- Consistent terminology between config files and UI
-- More intuitive for new users (FlowSphere Studio uses "nodes" everywhere)
-- `userPrompts` is more descriptive than generic `prompts`
-- Better API design for future JavaScript/Node.js version
+- More flexible conditional logic based on global variables
+- Dynamic condition evaluation using user input
+- Compare response values against variables instead of hardcoded values
+- Enable reusable configs with externalized condition thresholds
 
-**Migration Strategy:**
-- Maintain backward compatibility (support both old and new property names)
-- Add deprecation warnings when old names are detected
-- FlowSphere Studio auto-converts on save (with user confirmation)
-- Provide migration tool: `flowsphere migrate config.json --output config-v2.json`
-- Update all examples and documentation to use new schema
+**Current Limitation:**
+```json
+{
+  "id": "check-balance",
+  "name": "Check if balance is sufficient",
+  "method": "GET",
+  "url": "/account/balance",
+  "condition": {
+    "stepId": "get-user",
+    "field": ".accountType",
+    "equals": "premium"
+  }
+}
+```
+
+**Proposed Enhancement:**
+```json
+{
+  "variables": {
+    "requiredAccountType": "premium",
+    "minimumBalance": 1000
+  },
+  "steps": [
+    {
+      "id": "check-balance",
+      "name": "Check if balance is sufficient",
+      "method": "GET",
+      "url": "/account/balance",
+      "condition": {
+        "stepId": "get-user",
+        "field": ".accountType",
+        "equals": "{{ .vars.requiredAccountType }}"
+      }
+    },
+    {
+      "id": "premium-action",
+      "name": "Execute premium action",
+      "method": "POST",
+      "url": "/premium/action",
+      "condition": {
+        "stepId": "check-balance",
+        "field": ".balance",
+        "greaterThan": "{{ .vars.minimumBalance }}"
+      }
+    }
+  ]
+}
+```
+
+**Supported Variable Types in Conditions:**
+- `{{ .vars.key }}` - Global variables
+- `{{ .input.key }}` - User input from previous steps
+- `{{ .responses.stepId.field }}` - Values from earlier response fields
+- `{{ $timestamp }}` - Current timestamp (for time-based conditions)
+
+**Use Cases:**
+- Environment-specific conditions (different thresholds for dev/prod)
+- User-driven conditional flows based on input
+- Cross-step comparisons (compare response field A to response field B)
+- Reusable config templates with externalized condition values
+
+**Implementation Notes:**
+- Apply variable substitution before evaluating condition
+- Support all existing condition operators (equals, notEquals, exists, greaterThan, etc.)
+- Maintain backward compatibility (hardcoded values still work)
+- Validate that referenced variables exist before evaluation
 
 ## JavaScript/Node.js Version & NPM Package
 
