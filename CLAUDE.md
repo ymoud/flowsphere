@@ -4,13 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is an HTTP sequence runner tool that executes sequential HTTP requests defined in JSON configuration files. The core script is written in Bash and uses `curl` and `jq` for HTTP operations and JSON processing.
+This is an HTTP sequence runner tool (FlowSphere) that executes sequential HTTP requests defined in JSON configuration files. The tool is implemented in **Node.js** for cross-platform compatibility and npm distribution.
 
 ## Running the Tool
 
 **Execute a sequence:**
 ```bash
-./flowsphere examples/config-simple.json
+# Using Node.js (current implementation)
+node bin/flowsphere.js examples/config-simple.json
+
+# Or if installed globally via npm
+flowsphere examples/config-simple.json
+```
+
+**Legacy Bash version (deprecated):**
+```bash
+./legacy/flowsphere examples/config-simple.json
 ```
 
 **Available config examples (in `examples/` folder):**
@@ -31,26 +40,66 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - `config-onboarding-sbx.json` - NBG onboarding sandbox environment
 
 **Prerequisites:**
-- bash (4.0+)
-- curl
-- jq
+- Node.js 14.17.0 or higher
+- npm (comes with Node.js)
 
-**Note:** The script includes automatic dependency installation. If curl or jq are missing, users will be prompted to auto-install them. The script detects the OS and package manager (apt, yum, dnf, brew, winget, choco, scoop) and attempts installation automatically.
+**Install dependencies:**
+```bash
+npm install
+```
 
 ## Architecture
 
-### Core Components
+### Core Components (Node.js)
 
-**flowsphere** (main script):
-- Entry point: `main()` function parses config and orchestrates execution
-- `execute_step()`: Executes individual HTTP requests with curl
-- `substitute_variables()`: Template engine that replaces `{{ .responses[N].field }}` and `{{ .input.key }}` placeholders
-- `prompt_user_input()`: Collects user input interactively for steps with prompts
-- `launch_browser()`: Opens URLs in default browser (cross-platform support)
-- `evaluate_condition()`: Conditional execution logic (executes step only if all conditions are met)
-- `merge_with_defaults()`: Merges step config with global defaults for baseUrl, headers, timeout, and validations
-- Response storage: Arrays `responses_json[]` and `responses_status[]` maintain state across steps
-- User input storage: `USER_INPUT_JSON` stores prompted values for current step
+**bin/flowsphere.js** (CLI entry point):
+- Parses command-line arguments (--start-step, --version, --help, studio)
+- Routes commands to appropriate handlers
+- Launches Express server for `flowsphere studio` command
+
+**lib/executor.js** (main execution engine):
+- `runSequence()`: Orchestrates the entire sequence execution
+- `executeStep()`: Executes individual HTTP requests
+- `mergeWithDefaults()`: Merges step config with global defaults
+- `promptUserInput()`: Collects user input interactively
+- Response storage: Array `responses[]` maintains state across steps
+
+**lib/substitution.js** (variable substitution engine):
+- `replaceDynamicPlaceholders()`: Replaces `{{ $guid }}` and `{{ $timestamp }}`
+- `substituteVariables()`: Replaces global vars, user input, and response references
+- `substituteInObject()`: Recursively substitutes variables in objects/arrays
+- Substitution order: Dynamic Variables → Global Variables → User Input → Response References
+
+**lib/http-client.js** (HTTP request handling):
+- `executeRequest()`: Executes HTTP requests with axios
+- Timeout support (converts seconds to milliseconds)
+- Automatic JSON parsing of responses
+- Error handling for network issues and timeouts
+
+**lib/validator.js** (response validation):
+- `validateResponse()`: Validates HTTP responses against rules
+- Supports HTTP status code validation
+- Supports JSON path validations with multiple criteria
+- Numeric comparisons (>, <, >=, <=)
+- Existence checks and equality/inequality
+
+**lib/conditions.js** (conditional execution):
+- `evaluateCondition()`: Evaluates single condition
+- `evaluateConditions()`: Evaluates multiple conditions with AND logic
+- Supports node, variable, and input sources
+- Detailed skip reasons with expected vs actual values
+
+**lib/logger.js** (execution logging):
+- `promptSaveLog()`: Interactive log saving prompt
+- `saveLog()`: Saves execution log to JSON file
+- Logs include all step details, responses, and skip reasons
+
+**lib/utils.js** (utilities):
+- `generateUUID()`: UUID v4 generation
+- `getTimestamp()`: Unix timestamp generation
+- `extractValue()`: JSON path extraction (supports arrays with `.[0]` and `. | length`)
+- `colorize()`: Terminal color output
+- `deepMerge()`: Object merging for defaults
 
 **Config File Format:**
 ```json
@@ -196,7 +245,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - Stops execution immediately on validation failure
 
 **Timeout Control:**
-- Request timeout in seconds (uses curl's `--max-time` option)
+- Request timeout in seconds (converted to milliseconds for axios)
 - Can be set globally in `defaults.timeout`
 - Can be overridden per step with step-level `timeout` property
 - Step-level timeout takes precedence over default timeout
@@ -249,35 +298,29 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - Shows variable substitution, step execution flow, and internal state
 - Debug output goes to stderr, normal output to stdout
 
-**Performance Timing Logs:**
-- Optional performance profiling to identify bottlenecks
-- Enable by setting `ENABLE_TIMING=true` at the top of `flowsphere` (line 165)
-- Disabled by default for clean output
-- Shows millisecond-level timing for each operation:
-  - `merge_with_defaults` - Merging step config with defaults
-  - `extract step details` - Parsing step configuration
-  - `replace_dynamic_placeholders` - Replacing {{$guid}} and {{$timestamp}}
-  - `substitute_variables` - Variable substitution
-  - `process headers` - Header processing and substitution
-  - `process body` - Body processing and substitution
-  - `build log entry` - Building execution log entry
-  - `validations` - Running all validations
-  - `TOTAL step time` - Complete step execution time with API vs overhead breakdown
-- Timing output goes to stderr, can be filtered with `grep TIMING`
-- Useful for optimization work and understanding where time is spent
-- Example: `ENABLE_TIMING=true ./flowsphere config.json 2>&1 | grep TIMING`
+**Execution Logging:**
+- Detailed logs saved to `logs/` directory in JSON format
+- Each log file named with timestamp: `execution_log_YYYYMMDD_HHMMSS.json`
+- Includes all request/response details, validations, and skip reasons
+- Automatically prompted after each run (can be declined)
+- Useful for debugging, auditing, and understanding workflow execution
 
-## Visual Config Editor
+## FlowSphere Studio (Visual Config Editor)
 
-**config-editor/** provides a browser-based GUI for creating and editing configuration files without manually writing JSON.
+**studio/** provides a browser-based GUI for creating and editing configuration files without manually writing JSON.
 
-The editor has a modular structure with separate HTML, CSS, and JavaScript files organized by functionality. See `config-editor/README.md` for detailed module documentation.
+The editor has a modular structure with separate HTML, CSS, and JavaScript files organized by functionality. See `studio/README.md` for detailed module documentation.
 
-**IMPORTANT - Backup File:**
-- **config-editor-backup/config-editor.html** contains the old monolithic version
-- **DO NOT update the backup file with new features**
-- The backup exists only for reference/recovery purposes
-- All new development should be done in the modular `config-editor/` folder
+**Launching Studio:**
+```bash
+# Using the Node.js CLI (starts Express server automatically)
+node bin/flowsphere.js studio
+
+# Or if installed globally
+flowsphere studio
+```
+
+This will start a local Express server on a random available port and automatically open your browser.
 
 **Key Features:**
 - Form-based editing with validation
@@ -345,17 +388,30 @@ node postman-tools/parse-postman.js
 - Always wait for the user to test and verify changes before committing
 - Only create commits when the user explicitly asks (e.g., "commit it", "commit this", "commit the changes")
 
-**When modifying the script:**
-- Maintain POSIX compliance for cross-platform compatibility (Windows/macOS/Linux)
-- Always quote variables to handle spaces and special characters
-- Use `set -euo pipefail` for strict error handling
-- Temp files are stored in `$TEMP_DIR` (cleaned up automatically via trap)
+**When modifying Node.js code:**
+- Maintain cross-platform compatibility (use `path.join()` for file paths)
+- Use native Node.js modules when possible (avoid shell commands)
+- Follow the modular architecture (separate concerns into different lib/ files)
+- Test on Windows, macOS, and Linux if making system-level changes
+- All config files must remain 100% compatible with existing format
 
 **Testing changes:**
-- Test with `examples/config-simple.json` (uses public JSONPlaceholder API)
-- Verify conditional execution with steps that have conditions arrays
-- Test variable substitution across multiple steps
-- Check error handling by introducing invalid expectations
+```bash
+# Test basic execution
+node bin/flowsphere.js examples/config-simple.json
+
+# Test conditional execution
+node bin/flowsphere.js tests/config-test-condition-variables.json
+
+# Test validations
+node bin/flowsphere.js tests/config-test-multiple-validations.json
+
+# Test variables
+node bin/flowsphere.js tests/config-test-variables.json
+
+# Test studio command
+node bin/flowsphere.js studio
+```
 
 **Config file design:**
 - Use `defaults` section to reduce duplication (baseUrl, timeout, common headers, default validations)

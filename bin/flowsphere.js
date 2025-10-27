@@ -54,7 +54,7 @@ async function launchStudio() {
   console.log('Launching FlowSphere Studio...\n');
 
   const express = require('express');
-  const open = require('open');
+  const { spawn } = require('child_process');
 
   const app = express();
   const studioPath = path.join(__dirname, '../studio');
@@ -69,16 +69,37 @@ async function launchStudio() {
   app.use(express.static(studioPath));
 
   // Use port 0 to get a random available port
-  const server = app.listen(0, async () => {
+  const server = app.listen(0, () => {
     const port = server.address().port;
     const url = `http://localhost:${port}`;
 
     console.log(`🎨 FlowSphere Studio running at: ${url}`);
     console.log('Press Ctrl+C to stop\n');
 
-    // Open browser
+    // Open browser using platform-specific command
+    const platform = process.platform;
+    let command, args;
+
+    if (platform === 'win32') {
+      // Windows
+      command = 'cmd';
+      args = ['/c', 'start', url];
+    } else if (platform === 'darwin') {
+      // macOS
+      command = 'open';
+      args = [url];
+    } else {
+      // Linux and others
+      command = 'xdg-open';
+      args = [url];
+    }
+
     try {
-      await open(url);
+      const child = spawn(command, args, {
+        detached: true,
+        stdio: 'ignore'
+      });
+      child.unref();
     } catch (error) {
       console.error('Could not open browser automatically. Please open the URL manually.');
     }

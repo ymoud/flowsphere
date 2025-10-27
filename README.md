@@ -15,7 +15,7 @@ Executes API call sequences where each step uses data from previous responses. P
 **Example:** Login → Get user profile → Create resource → Verify creation
 - Each step automatically passes tokens, IDs, and data to the next
 - Visual config editor included (no JSON editing needed)
-- Works on Windows, macOS, and Linux
+- Works on Windows, macOS, and Linux (truly cross-platform with Node.js)
 
 ## Why It Exists
 
@@ -25,47 +25,100 @@ Complex API workflows require multiple requests with interdependent data. This t
 - **Built-in validation** to catch failures immediately
 - **Visual editing** with autocomplete for non-developers
 
+## Installation
+
+### NPM (Recommended)
+
+```bash
+# Install globally
+npm install -g flowsphere
+
+# Verify installation
+flowsphere --version
+```
+
+### Local Development
+
+```bash
+# Clone repository
+git clone <your-repo-url>
+cd flowsphere
+
+# Install dependencies
+npm install
+
+# Run locally
+node bin/flowsphere.js config.json
+```
+
 ## Quick Start
 
 ### 1. Run a Workflow (FlowSphere CLI)
 
 **Try a learning example:**
 ```bash
-./flowsphere examples/config-simple.json
+flowsphere examples/config-simple.json
 ```
 
 **Or run a production scenario:**
 ```bash
-./flowsphere scenarios/config-onboarding-sbx.json
+flowsphere scenarios/config-onboarding-sbx.json
 ```
 
 **That's it.** The CLI handles everything: making requests, extracting data, passing it forward, and validating responses.
 
-**Prerequisites:** bash, curl, jq — all auto-install if missing
+**Prerequisites:** Node.js 14.17.0 or higher
 
 **Advanced:**
 ```bash
 # Resume from a specific step (useful for debugging)
-./flowsphere examples/config.json 5    # Start from step 6 (0-based index)
+flowsphere examples/config.json --start-step 6
+
+# Display version
+flowsphere --version
+
+# Show help
+flowsphere --help
 ```
 
 ### 2. Use FlowSphere Studio (Visual Editor)
 
-**No JSON knowledge required.** Open `config-editor/index.html` in any browser.
+**No JSON knowledge required.** Launch the visual editor with a single command:
 
 ```bash
-start config-editor/index.html        # Windows
-open config-editor/index.html         # macOS
-xdg-open config-editor/index.html     # Linux
+flowsphere studio
 ```
+
+This will:
+- Start a local server on a random port
+- Automatically open your browser
+- Give you access to the full visual config editor
 
 **Key features:**
 - Form-based editing with templates (OAuth flow, user input, etc.)
 - **Smart autocomplete** — type `{{` to see available variables, responses, inputs
-- **Skip defaults controls** — checkboxes to override global headers/validations per step
 - **Import from Postman** — convert existing Postman collections automatically
 - Auto-save to browser (never lose work)
 - Live preview with one-click export to JSON
+
+### 3. Programmatic API
+
+Use FlowSphere as a library in your Node.js projects:
+
+```javascript
+const FlowSphere = require('flowsphere');
+
+// Run a config file
+const result = await FlowSphere.run('config.json');
+console.log(`Executed: ${result.stepsExecuted}, Skipped: ${result.stepsSkipped}`);
+
+// Run with options
+await FlowSphere.run('config.json', {
+  startStep: 5,
+  enableDebug: true,
+  saveLog: true
+});
+```
 
 ## Core Capabilities
 
@@ -73,13 +126,13 @@ xdg-open config-editor/index.html     # Linux
 |---------|-------------|
 | **Dynamic Variables** | Generate UUIDs and timestamps: `{{ $guid }}`, `{{ $timestamp }}` |
 | **Smart Data Passing** | Reference any field from previous responses: `{{ .responses.login.token }}` |
-| **Conditional Logic** | Skip/execute steps based on previous results (e.g., premium vs. free user flows) |
-| **Defaults Control** | Merge or skip global defaults per step with `skipDefaultHeaders`/`skipDefaultValidations` |
+| **Conditional Logic** | Execute steps based on previous results with AND logic (e.g., premium vs. free user flows) |
 | **User Interaction** | Prompt for input (passwords, codes) or auto-launch browser (OAuth flows) |
 | **Validation** | Verify status codes and response fields; fail fast on errors |
 | **Flexible Formats** | JSON and form-urlencoded bodies supported |
 | **Visual Feedback** | Clear status indicators: ✅ success / ❌ failed / ⊘ skipped |
 | **Execution Logging** | Save detailed logs of all requests/responses for debugging and audit trails |
+| **Cross-Platform** | Native Windows, macOS, Linux support (no WSL needed) |
 
 ## Examples
 
@@ -91,21 +144,20 @@ See the [`examples/`](examples/) folder for complete, ready-to-run configuration
 | [`config-oauth-example.json`](examples/config-oauth-example.json) | OAuth authentication flow with browser launch |
 | [`config-test-features.json`](examples/config-test-features.json) | User input prompts and interactive workflows |
 | [`config.json`](examples/config.json) | Full-featured example with authentication and validation |
-| [`config-ids-token.json`](examples/config-ids-token.json) | NBG token acquisition with form-urlencoded body |
 
 **Test configurations** (in [`tests/`](tests/) folder):
 
 | File | Description |
 |------|-------------|
-| [`config-test-skip-defaults.json`](tests/config-test-skip-defaults.json) | Comprehensive test of `skipDefaultHeaders` and `skipDefaultValidations` flags |
-| [`config-test-defaults.json`](tests/config-test-defaults.json) | Tests defaults merging behavior |
+| [`config-test-condition-variables.json`](tests/config-test-condition-variables.json) | Comprehensive conditional execution tests |
 | [`config-test-variables.json`](tests/config-test-variables.json) | Demonstrates global variables feature |
+| [`config-test-multiple-validations.json`](tests/config-test-multiple-validations.json) | Tests all validation types |
 | [`config-test-comparisons.json`](tests/config-test-comparisons.json) | Tests numeric comparison validations |
 
 **Run any example:**
 ```bash
-./flowsphere examples/config-simple.json
-./flowsphere tests/config-test-skip-defaults.json
+flowsphere examples/config-simple.json
+flowsphere tests/config-test-condition-variables.json
 ```
 
 ---
@@ -128,7 +180,7 @@ See the [`examples/`](examples/) folder for complete, ready-to-run configuration
       { "httpStatusCode": 200 }
     ]
   },
-  "steps": [
+  "nodes": [
     {
       "id": "login",
       "name": "Authenticate",
@@ -150,7 +202,7 @@ See the [`examples/`](examples/) folder for complete, ready-to-run configuration
 }
 ```
 
-## Step Fields
+### Node Fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -158,28 +210,23 @@ See the [`examples/`](examples/) folder for complete, ready-to-run configuration
 | `name` | ✓ | Human-readable description |
 | `method` | ✓ | HTTP method (GET, POST, PUT, DELETE, PATCH) |
 | `url` | ✓ | Full URL or relative path (with baseUrl) |
-| `headers` | | HTTP headers (merged with defaults unless `skipDefaultHeaders: true`) |
-| `skipDefaultHeaders` | | `true` to use only step headers, `false` (default) to merge with defaults |
-| `body` | | Request body (JSON or form-urlencoded) |
-| `bodyFormat` | | `"json"` (default) or `"form-urlencoded"` |
+| `headers` | | HTTP headers (merged with defaults) |
+| `body` | | Request body (JSON object) |
 | `timeout` | | Request timeout in seconds (overrides defaults) |
-| `prompts` | | User input prompts: `{"key": "Prompt text"}` |
-| `condition` | | Conditional execution rules |
-| `validations` | | Array of validation rules (concatenated with defaults unless `skipDefaultValidations: true`) |
-| `skipDefaultValidations` | | `true` to use only step validations, `false` (default) to concatenate with defaults |
+| `userPrompts` | | User input prompts: `{"key": "Prompt text"}` |
+| `conditions` | | Array of conditional execution rules (AND logic) |
+| `validations` | | Array of validation rules (overrides defaults) |
 | `launchBrowser` | | JSONPath to URL for browser launch |
 
-## Variable Substitution
+### Variable Substitution
 
-### Dynamic Variables (New!)
+#### Dynamic Variables
 ```
 {{ $guid }}        - Generates unique UUID v4 for each occurrence
 {{ $timestamp }}   - Current Unix timestamp (seconds since epoch)
 ```
 
-**Note:** This is NOT backwards compatible with the old `GENERATED_GUID` and `TIMESTAMP` syntax.
-
-### Global Variables
+#### Global Variables
 ```
 {{ .vars.apiKey }}
 {{ .vars.userId }}
@@ -187,34 +234,62 @@ See the [`examples/`](examples/) folder for complete, ready-to-run configuration
 
 Reference values defined in the `variables` section at config level.
 
-### Named Response References
+#### Named Response References
 ```
-{{ .responses.stepId.field.subfield }}
+{{ .responses.nodeId.field.subfield }}
+{{ .responses.login.token }}
+{{ .responses.getUser.id }}
 ```
 
-Reference responses from previous steps using their step ID.
+Reference responses from previous nodes using their node ID.
 
-### User Input
+#### User Input
 ```
 {{ .input.variableName }}
+{{ .input.username }}
+{{ .input.password }}
 ```
 
-## Conditional Execution
+### Conditional Execution
 
-Execute steps conditionally based on previous responses:
+Execute nodes conditionally based on previous responses. Uses **AND logic** — node executes only if ALL conditions are met.
 
 ```json
 {
-  "condition": {
-    "step": "login",              // Step ID (or "response": 0 for index)
-    "statusCode": 200,            // Check status code
-    "field": ".isPremium",        // Check field value
-    "equals": "true",             // Must equal (or "notEquals", "exists")
-  }
+  "conditions": [
+    {
+      "source": "node",
+      "node": "login",
+      "httpStatusCode": 200
+    },
+    {
+      "source": "node",
+      "node": "getUser",
+      "field": ".isPremium",
+      "equals": "true"
+    },
+    {
+      "source": "variable",
+      "variable": "apiKey",
+      "exists": true
+    }
+  ]
 }
 ```
 
-## Validation
+**Condition Types:**
+- `httpStatusCode` - Check HTTP status (node source only)
+- `equals` / `notEquals` - Value comparison
+- `exists` - Field existence check
+- `greaterThan` / `lessThan` - Numeric comparisons
+- `greaterThanOrEqual` / `lessThanOrEqual` - Numeric comparisons with equality
+
+**Condition Sources:**
+- `node` - Check response from previous node
+- `variable` - Check global variable
+- `input` - Check user input value
+
+### Validation
 
 Validations are specified as an array. Each validation can check HTTP status code or JSON path criteria:
 
@@ -223,6 +298,8 @@ Validations are specified as an array. Each validation can check HTTP status cod
   "validations": [
     { "httpStatusCode": 201 },                            // HTTP status code
     { "jsonpath": ".id", "exists": true },               // Field must exist
+    { "jsonpath": ".[0].userId", "exists": true },       // Array element field
+    { "jsonpath": ". | length", "greaterThan": 0 },      // Array length
     { "jsonpath": ".name", "equals": "John" },           // Field value equals
     { "jsonpath": ".error", "notEquals": "failed" },     // Field value not equals
     { "jsonpath": ".count", "greaterThan": 0 },          // Numeric comparison
@@ -231,254 +308,79 @@ Validations are specified as an array. Each validation can check HTTP status cod
 }
 ```
 
-**Default validations:** Set in `defaults.validations` to apply to all steps. Step validations are concatenated with defaults unless `skipDefaultValidations: true` is set.
+**Default validations:** If no `validations` array is specified, defaults to `httpStatusCode: 200`. Set in `defaults.validations` to apply defaults to all nodes.
 
-## Defaults Merging vs. Skipping
+### Array Operations
 
-Control how step-level settings interact with global defaults:
-
-### Headers Behavior
-
-**Merge (default):** Step headers are merged with default headers. Step headers override conflicting keys.
-```json
-{
-  "defaults": { "headers": { "Content-Type": "application/json", "User-Agent": "App/1.0" } },
-  "steps": [{
-    "headers": { "Authorization": "Bearer token" }
-    // Result: All three headers are sent
-  }]
-}
-```
-
-**Skip defaults:** Use only step headers, ignore all defaults.
-```json
-{
-  "steps": [{
-    "skipDefaultHeaders": true,
-    "headers": { "Authorization": "Bearer token" }
-    // Result: Only Authorization header is sent
-  }]
-}
-```
-
-**No headers:** Skip defaults without defining step headers.
-```json
-{
-  "steps": [{
-    "skipDefaultHeaders": true
-    // Result: No headers sent at all
-  }]
-}
-```
-
-### Validations Behavior
-
-**Concatenate (default):** Step validations are added to default validations.
-```json
-{
-  "defaults": { "validations": [{ "httpStatusCode": 200 }, { "jsonpath": ".id", "exists": true }] },
-  "steps": [{
-    "validations": [{ "jsonpath": ".name", "exists": true }]
-    // Result: All 3 validations are checked (httpStatusCode 200, .id exists, .name exists)
-  }]
-}
-```
-
-**Skip defaults:** Use only step validations, ignore all defaults.
-```json
-{
-  "steps": [{
-    "skipDefaultValidations": true,
-    "validations": [{ "httpStatusCode": 201 }]
-    // Result: Only httpStatusCode 201 is validated
-  }]
-}
-```
-
-**No validations:** Skip defaults without defining step validations.
-```json
-{
-  "steps": [{
-    "skipDefaultValidations": true
-    // Result: No validations performed (accepts any response)
-  }]
-}
-```
-
-### Common Use Cases
-
-**When to use merge behavior (default):**
-- Most API calls in a sequence share common headers (Authorization, Content-Type)
-- You want consistent validation across all steps (httpStatusCode 200 + common field checks)
-- Step-level settings add to or override specific defaults
-
-**When to use skip defaults:**
-- File upload step needs `Content-Type: multipart/form-data` (completely different from JSON default)
-- Create endpoint expects httpStatusCode 201 instead of 200 (different validation)
-- Public endpoint doesn't need authentication headers (no headers at all)
-- Testing error scenarios where you expect failures (no validation checks)
-
-## Form-Urlencoded Bodies
-
-**Auto-detect via Content-Type:**
-```json
-{
-  "headers": { "Content-Type": "application/x-www-form-urlencoded" },
-  "body": { "username": "john", "password": "secret" }
-}
-```
-
-**Explicit format:**
-```json
-{
-  "bodyFormat": "form-urlencoded",
-  "body": { "grant_type": "client_credentials", "client_id": "xyz" }
-}
-```
-
-Automatically URL-encodes values. Does not support nested objects/arrays.
-
-## User Input
+FlowSphere supports advanced array operations in JSON paths:
 
 ```json
 {
-  "prompts": {
-    "username": "Enter username:",
-    "password": "Enter password:"
-  },
-  "body": {
-    "user": "{{ .input.username }}",
-    "pass": "{{ .input.password }}"
-  }
+  "jsonpath": ".[0].userId",           // Access first element field
+  "jsonpath": ".users[2].name",        // Access specific array index
+  "jsonpath": ". | length",            // Get array length
+  "jsonpath": ".data.items | length"   // Get nested array length
 }
 ```
 
-## Debug Mode
+## Performance
 
-Enable detailed logging:
-```json
-{
-  "enableDebug": true,
-  "steps": [...]
-}
+**FlowSphere Node.js is significantly faster than shell scripts:**
+- **2-10x faster execution** (0.010-0.084s vs 0.128-0.198s per step)
+- Efficient async HTTP operations
+- Optimized variable substitution
+- Native JSON parsing
+
+## Architecture
+
+```
+flowsphere/
+├── bin/
+│   └── flowsphere.js          # CLI entry point
+├── lib/
+│   ├── executor.js            # Core execution engine
+│   ├── substitution.js        # Variable substitution
+│   ├── http-client.js         # HTTP request handling
+│   ├── validator.js           # Response validation
+│   ├── conditions.js          # Conditional logic
+│   ├── logger.js              # Execution logging
+│   └── utils.js               # Utilities
+├── studio/                    # Visual config editor
+│   ├── index.html
+│   ├── css/
+│   └── js/
+├── examples/                  # Example configs
+├── tests/                     # Test configs
+└── package.json
 ```
 
-Shows variable substitution, curl commands, and internal state.
+## Postman Integration
 
-## Performance Timing
-
-For performance profiling and optimization work, enable timing logs by editing `flowsphere`:
+Convert Postman collections to FlowSphere configs:
 
 ```bash
-# Change line 165 from:
-ENABLE_TIMING=false
-
-# To:
-ENABLE_TIMING=true
+node postman-tools/parse-postman.js
 ```
 
-**What it shows:**
-- Millisecond-level timing for each operation in every step
-- Breakdown of time spent in: merge, extraction, substitution, headers, body, validations
-- Total step time with API call vs overhead breakdown
-- Identifies performance bottlenecks for optimization
+Reads from `Postman/` folder and generates optimized configs in `scenarios/`.
 
-**Usage example:**
-```bash
-# Enable timing in flowsphere, then run:
-./flowsphere config.json 2>&1 | grep TIMING
-```
+## Contributing
 
-**Sample output:**
-```
-[TIMING] Step 1: merge_with_defaults took 60ms
-[TIMING] Step 1: extract step details took 276ms
-[TIMING] Step 1: process headers took 362ms
-[TIMING] Step 1: process body took 570ms
-[TIMING] Step 1: TOTAL step time 2217ms (API: 99ms, Overhead: 2118ms)
-```
+We welcome contributions! FlowSphere is designed to be:
+- **Extensible:** Add new validation types, condition sources, or output formats
+- **Maintainable:** Modular architecture with clear separation of concerns
+- **Well-tested:** Comprehensive test suite in `tests/` folder
 
-Timing logs go to stderr and are disabled by default for clean output.
+## Legacy Bash Version
 
-## Execution Logging
+The original Bash implementation is archived in [`legacy/`](legacy/) folder for reference. It is no longer maintained. All existing configs are 100% compatible with the Node.js version.
 
-After every execution (success, failure, or user interruption), you'll be prompted to save a detailed log file:
+## License
 
-```
-Would you like to save an execution log? (y/n): y
-Enter filename [execution_log_20250125_143022.json]: mytest
-```
-
-**Features:**
-- **Automatic directory management** — Logs saved to `logs/` directory (created automatically)
-- **Auto .json extension** — Just enter a name, `.json` is added automatically
-- **Custom paths supported** — Provide full path to save elsewhere: `/tmp/mylog.json`
-- **Cross-platform** — Works on Windows, macOS, and Linux
-- **Captures all executions** — Successful runs, validation failures, and user interruptions (Ctrl+C)
-
-**Log File Format:**
-```json
-{
-  "metadata": {
-    "config_file": "scenarios/config-onboarding-sbx.json",
-    "execution_status": "success",           // "success", "failure", or "interrupted_by_user"
-    "timestamp": "2025-01-25T12:30:45Z",
-    "skip_steps": 15,                        // Number of steps skipped (from start_step parameter)
-    "executed_steps": 3                      // Number of steps that were executed
-  },
-  "steps": [
-    {
-      "step": 16,
-      "id": "save-app-data",
-      "name": "Save application data",
-      "method": "POST",
-      "url": "http://localhost:5000/egov/saveApplicationData",
-      "request": {
-        "headers": { "Content-Type": "application/json", "Authorization": "Bearer xyz" },
-        "body": "{\"data\":\"value\"}"
-      },
-      "response": {
-        "status": 200,
-        "body": "{\"success\":true,\"id\":12345}"
-      },
-      "timing": {
-        "elapsed_ms": 1234                   // Request duration in milliseconds
-      }
-    }
-  ]
-}
-```
-
-**Use cases:**
-- **Debugging** — Inspect exact requests/responses when troubleshooting failures
-- **Audit trails** — Keep records of production API executions
-- **Performance analysis** — Review timing data to identify slow endpoints
-- **Test documentation** — Share logs with team members for issue reproduction
-
-**Execution status values:**
-- `success` — All steps completed successfully
-- `failure` — Step failed validation, timeout, or network error
-- `interrupted_by_user` — User pressed Ctrl+C during execution
+MIT
 
 ---
 
-## Installation
+**Built with ❤️ for API developers and testers**
 
-### Automatic (Recommended)
-Run the script - missing dependencies trigger auto-install prompt.
-
-### Manual
-**macOS:** `brew install curl jq`
-**Ubuntu/Debian:** `sudo apt-get install curl jq`
-**RHEL/CentOS:** `sudo yum install curl jq`
-**Windows:** Install Git Bash, then `choco install jq` or `winget install jqlang.jq`
-
-## Best Practices
-
-- **Use FlowSphere Studio** to avoid JSON syntax errors
-- **Set global defaults** (baseUrl, headers) to reduce duplication across steps
-- **Use merge behavior (default)** for most steps — add step-level headers/validations that complement defaults
-- **Use skip defaults** only when a step needs completely different behavior (e.g., file upload with different Content-Type, or status 201 instead of 200)
-- **Use named step IDs** instead of numeric indexes for maintainability
-- **Enable debug mode** when troubleshooting: add `"enableDebug": true` to your config
-- **Test incrementally** — use the resume feature to start from any step: `./flowsphere examples/config.json 5`
+Need help? Check the [examples](examples/) or open an issue!

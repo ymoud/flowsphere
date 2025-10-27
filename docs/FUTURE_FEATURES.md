@@ -4,6 +4,305 @@ This document tracks potential improvements and feature requests for the HTTP Se
 
 ## FlowSphere Studio Enhancements
 
+### Test Execution with Proxy (Bypass CORS)
+
+Add a proxy endpoint to the FlowSphere Studio Express server to enable direct API testing from the browser without CORS restrictions.
+
+**Current Problem:**
+- Studio runs in browser (client-side only)
+- Direct API calls from browser hit CORS restrictions
+- Can't test sequences live without running CLI separately
+
+**Solution:**
+Now that Studio is served via Express (Node.js), add an `/api/execute` endpoint that:
+1. Receives config from browser
+2. Uses the **existing `lib/executor.js`** module (same code as CLI)
+3. Returns execution results with full logs
+4. **Zero code duplication** - same logic for CLI and Studio
+
+**Benefits:**
+- ✅ **Zero code duplication** - Studio uses the exact same execution engine as CLI
+- ✅ Test API sequences directly in Studio UI without leaving browser
+- ✅ Bypass CORS restrictions (browser → localhost → external API)
+- ✅ See real responses while building configs
+- ✅ Validate configs immediately without running CLI
+- ✅ Debug API issues faster with live feedback
+- ✅ No need to switch between Studio and terminal
+- ✅ Changes to executor/validator/conditions automatically work in both CLI and Studio
+- ✅ Identical output format for CLI and Studio (execution logs)
+
+**Proposed UI:**
+```
+[Config Editor]
+  Node 1: Login
+  Node 2: Get Profile
+  Node 3: Create Resource
+
+[▶ Run Sequence] [⏸ Pause] [⏹ Stop] [Clear Results]
+
+[Live Results Panel]
+Step 1: Login ✅ (200 OK) - 234ms
+  Response: { "token": "eyJ..." }
+
+Step 2: Get Profile ✅ (200 OK) - 156ms
+  Response: { "id": 123, "name": "John" }
+
+Step 3: Create Resource ⏳ Running...
+```
+
+**Express API Implementation (Reuses Existing Code):**
+
+```javascript
+// In bin/flowsphere.js - launchStudio() function
+const { runSequence } = require('../lib/executor'); // REUSE existing executor
+
+app.use(express.json()); // Parse JSON bodies
+
+// Execute endpoint - runs config using the SAME code as CLI
+app.post('/api/execute', async (req, res) => {
+  const { config, options } = req.body;
+
+  try {
+    // Write config to temp file (executor expects file path)
+    const tempConfigPath = path.join(os.tmpdir(), `flowsphere-${Date.now()}.json`);
+    fs.writeFileSync(tempConfigPath, JSON.stringify(config));
+
+    // Use the EXACT SAME executor as CLI
+    const result = await runSequence(tempConfigPath, {
+      startStep: options?.startStep || 0,
+      enableDebug: options?.enableDebug || false
+    });
+
+    // Clean up temp file
+    fs.unlinkSync(tempConfigPath);
+
+    // Return execution log (same format as CLI log files)
+    res.json({
+      success: result.success,
+      stepsExecuted: result.stepsExecuted,
+      stepsSkipped: result.stepsSkipped,
+      executionLog: result.executionLog,
+      error: result.error
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Optional: Stream results step-by-step using Server-Sent Events (SSE)
+app.get('/api/execute-stream', (req, res) => {
+  const configPath = req.query.configPath; // Or receive via POST body
+
+  // SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  // Executor enhancement needed: Add event emitter support
+  // executor.on('step:start', (step) => res.write(`data: ${JSON.stringify({event: 'start', step})}\n\n`));
+  // executor.on('step:complete', (result) => res.write(`data: ${JSON.stringify({event: 'complete', result})}\n\n`));
+  // executor.on('step:error', (error) => res.write(`data: ${JSON.stringify({event: 'error', error})}\n\n`));
+
+  // For now, fallback to batch execution
+  // Future: Add EventEmitter to lib/executor.js for streaming
+});
+```
+
+**Note:** Current `lib/executor.js` returns results after full sequence completion. For real-time streaming, we'd need to add event emitters to the executor. This is optional - the basic `/api/execute` endpoint works perfectly fine for most use cases.
+
+**Key Advantage:** Any changes to `lib/executor.js`, `lib/validator.js`, `lib/conditions.js`, etc. automatically work in both CLI and Studio. No duplicate code!
+
+**Studio Client-Side Usage (Simple API Call):**
+
+```javascript
+// In studio/js/test-runner.js (NEW MODULE)
+
+async function runSequence(config, options = {}) {
+  // Show loading indicator
+  showLoadingIndicator();
+
+  try {
+    // Call the API endpoint (uses existing executor)
+    const response = await fetch('/api/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config, options })
+    });
+
+    const result = await response.json();
+
+    // Display results
+    displayExecutionResults(result);
+
+    return result;
+  } catch (error) {
+    displayError(error);
+  } finally {
+    hideLoadingIndicator();
+  }
+}
+
+function displayExecutionResults(result) {
+  const resultsPanel = document.getElementById('results-panel');
+  resultsPanel.innerHTML = '';
+
+  // Show summary
+  const summary = `
+    <div class="execution-summary">
+      <span class="${result.success ? 'success' : 'error'}">
+        ${result.success ? '✅' : '❌'}
+        ${result.stepsExecuted} executed, ${result.stepsSkipped} skipped
+      </span>
+    </div>
+  `;
+  resultsPanel.innerHTML += summary;
+
+  // Show each step from execution log (same format as CLI logs)
+  result.executionLog.steps.forEach(step => {
+    const stepHtml = `
+      <div class="step-result ${step.status}">
+        <h4>${step.name}</h4>
+        <div class="step-details">
+          <span>Status: ${step.status}</span>
+          <span>Duration: ${step.duration}s</span>
+          <pre>${JSON.stringify(step.response?.body, null, 2)}</pre>
+        </div>
+      </div>
+    `;
+    resultsPanel.innerHTML += stepHtml;
+  });
+}
+
+// Button handler
+document.getElementById('run-sequence-btn').addEventListener('click', async () => {
+  const config = getCurrentConfig(); // Get config from editor
+  await runSequence(config);
+});
+```
+
+**That's it!** No need to reimplement:
+- ❌ Variable substitution
+- ❌ Condition evaluation
+- ❌ Validation logic
+- ❌ HTTP request handling
+- ❌ Timeout management
+- ❌ User input prompts
+- ❌ Browser launching
+
+Everything is handled by the existing `lib/executor.js` module.
+
+**UI Controls:**
+
+1. **Run Button:**
+   - Executes entire sequence from start
+   - Shows progress with status indicators
+   - Displays results in collapsible panels
+
+2. **Step-by-Step Mode:**
+   - Execute one step at a time
+   - Inspect response before continuing
+   - Useful for debugging
+
+3. **Results Panel:**
+   - Shows request/response for each step
+   - Highlights validation failures
+   - Displays timing information
+   - Collapsible/expandable sections
+
+4. **User Input Prompts:**
+   - Modal dialogs for `userPrompts`
+   - Pre-filled with values from config
+   - Save input for re-runs
+
+**Security Considerations:**
+
+- ⚠️ Only allow proxy when running localhost (not production)
+- Rate limiting on proxy endpoint (prevent abuse)
+- Timeout limits (max 120 seconds)
+- URL validation (no file:// or internal network access)
+- Optional: Whitelist allowed domains in config
+
+**Example Security Implementation:**
+
+```javascript
+// Proxy middleware with security
+app.post('/api/proxy', async (req, res) => {
+  const { url, method } = req.body;
+
+  // Security checks
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return res.status(400).json({ error: 'Invalid URL scheme' });
+  }
+
+  // Block internal network access
+  const hostname = new URL(url).hostname;
+  if (hostname === 'localhost' || hostname.startsWith('127.') || hostname.startsWith('192.168.')) {
+    return res.status(403).json({ error: 'Access to internal networks not allowed' });
+  }
+
+  // Continue with proxy...
+});
+```
+
+**User Workflow:**
+
+1. Open Studio: `flowsphere studio`
+2. Create or load config
+3. Click **"Run Sequence"** button
+4. Watch steps execute in real-time
+5. View responses and validations
+6. Fix any issues and re-run
+7. Download final config when satisfied
+
+**Advanced Features:**
+
+- **Save Execution Results:** Export results as JSON for sharing/debugging
+- **Compare Runs:** Side-by-side comparison of multiple runs
+- **Request History:** Keep history of last N executions
+- **Variable Inspector:** See all available variables at each step
+- **Breakpoints:** Pause execution at specific steps
+
+**Implementation Phases:**
+
+**Phase 1 - API Endpoint (Backend):**
+- Add `/api/execute` endpoint to `bin/flowsphere.js`
+- Wire up existing `lib/executor.js` module
+- Handle temp file creation/cleanup
+- Return execution log in JSON format
+- Test with curl/Postman
+
+**Phase 2 - Studio Integration (Frontend):**
+- Add "Run Sequence" button to Studio UI
+- Create `studio/js/test-runner.js` module
+- Call `/api/execute` API
+- Display results in simple alert/console
+- Test end-to-end
+
+**Phase 3 - Results UI:**
+- Build collapsible results panel
+- Show request/response for each step
+- Highlight validations and errors
+- Display timing information
+- Match CLI output format
+
+**Phase 4 - Advanced Execution:**
+- Add step-by-step execution mode (--start-step option)
+- Real-time progress updates (SSE/WebSockets)
+- Handle user input prompts (modals)
+- Support browser launch callback
+- Save/export results
+
+**Phase 5 - Polish & Features:**
+- Execution history browser
+- Variable inspector panel
+- Comparison view (multiple runs)
+- Security hardening (if exposing publicly)
+- Performance metrics
+
 ### Swagger/OpenAPI Import
 
 Add Swagger/OpenAPI file import capability to FlowSphere Studio for automatic config generation from API specifications.
