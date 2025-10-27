@@ -255,15 +255,12 @@ function renderStepForm(step, index) {
 
             ${index > 0 ? `
             <div class="form-group">
-                <label>Condition (Skip step based on previous response)</label>
-                <div id="conditionSummary_${index}">
-                    ${renderConditionSummary(step.condition || {}, index)}
+                <label>Conditions</label>
+                <div id="conditionsList_${index}">
+                    ${renderConditionsList(step.conditions || [], index)}
                 </div>
-                <button class="btn btn-secondary btn-small" onclick="editCondition(${index})" style="margin-top: 10px;">
-                    ${step.condition && Object.keys(step.condition).length > 0 ? 'Edit' : 'Add'} Condition
-                </button>
-                ${step.condition && Object.keys(step.condition).length > 0 ? `<button class="btn btn-danger btn-small" onclick="removeCondition(${index})" style="margin-top: 10px; margin-left: 5px;">Remove</button>` : ''}
-                <div class="help-text">Skip this step if a condition on a previous response is met</div>
+                <button class="btn btn-secondary btn-small" onclick="addCondition(${index})" style="margin-top: 10px;">+ Add Condition</button>
+                <div class="help-text">Execute this step only if ALL conditions are met (AND logic). Conditions can check step responses, variables, or user input.</div>
             </div>
             ` : ''}
 

@@ -47,7 +47,7 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - `substitute_variables()`: Template engine that replaces `{{ .responses[N].field }}` and `{{ .input.key }}` placeholders
 - `prompt_user_input()`: Collects user input interactively for steps with prompts
 - `launch_browser()`: Opens URLs in default browser (cross-platform support)
-- `evaluate_condition()`: Conditional execution logic (skip steps based on previous response status/fields)
+- `evaluate_condition()`: Conditional execution logic (executes step only if all conditions are met)
 - `merge_with_defaults()`: Merges step config with global defaults for baseUrl, headers, timeout, and validations
 - Response storage: Arrays `responses_json[]` and `responses_status[]` maintain state across steps
 - User input storage: `USER_INPUT_JSON` stores prompted values for current step
@@ -77,8 +77,8 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
       "timeout": 10,                 // Optional step-level timeout override
       "headers": {},                 // Merged with defaults
       "body": {},                    // Optional request payload
-      "userPrompts": {},                 // Optional user input prompts
-      "condition": {},               // Optional conditional execution
+      "userPrompts": {},             // Optional user input prompts
+      "conditions": [],              // Optional conditional execution (AND logic)
       "validations": [],             // Response validations (httpStatusCode + jsonpath)
       "launchBrowser": ".url"        // Optional: launch browser with URL from response
     }
@@ -113,19 +113,31 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
 - Substitution order: Dynamic Variables ($guid, $timestamp) → Global Variables → User Input → Response References
 
 **Conditional Execution:**
-- Steps can be skipped based on previous response conditions
-- Condition types:
-  - `statusCode`: Check HTTP status of previous response
-  - `field` + `equals`/`notEquals`: Check JSON field values
-  - `field` + `exists`: Check if field exists in response
-  - `field` + `greaterThan`/`lessThan`: Numeric comparisons (supports integers and floats)
-  - `field` + `greaterThanOrEqual`/`lessThanOrEqual`: Numeric comparisons with equality
+- Steps execute only if ALL conditions are met (AND logic)
+- Each step can have multiple conditions in the `conditions` array
+- **Condition sources**:
+  - `step`: Check response from a previous node (by node ID) - **use `"node"` field**
+  - `variable`: Check a global variable value
+  - `input`: Check a user input value
+- **Condition types**:
+  - `statusCode`: Check HTTP status of previous response (step source only)
+  - `equals`/`notEquals`: Check for equality/inequality
+  - `exists`: Check if field exists
+  - `greaterThan`/`lessThan`: Numeric comparisons (supports integers and floats)
+  - `greaterThanOrEqual`/`lessThanOrEqual`: Numeric comparisons with equality
 - **Variable substitution in conditions**: All condition values support variable substitution
   - Global variables: `{{ .vars.key }}`
   - User input: `{{ .input.key }}`
-  - Response references: `{{ .responses.stepId.field }}`
+  - Response references: `{{ .responses.nodeId.field }}`
   - Dynamic placeholders: `{{ $timestamp }}`, `{{ $guid }}`
   - Example: `"equals": "{{ .vars.expectedValue }}"`
+- **Example**: Execute step only if user ID equals 1 AND user is active:
+  ```json
+  "conditions": [
+    {"node": "get-user", "field": ".id", "equals": "1"},
+    {"node": "get-user", "field": ".active", "equals": "true"}
+  ]
+  ```
 - Skipped steps maintain array indexing (stored as empty responses)
 
 **Validation:**
@@ -294,7 +306,7 @@ The editor includes context-aware autocomplete for the `{{ }}` variable substitu
   - Filters suggestions as you type
   - Keyboard navigation: Arrow keys, Enter/Tab to select, Escape to close
   - Mouse selection: Click any suggestion
-  - Works in all text fields: URLs, headers, body, conditions, validations, modals
+  - Works in all text fields: URLs, headers, body, conditions array, validations, modals
 
 **Implementation details:**
 - Uses mirror div technique for accurate caret positioning in textareas
@@ -341,7 +353,7 @@ node postman-tools/parse-postman.js
 
 **Testing changes:**
 - Test with `examples/config-simple.json` (uses public JSONPlaceholder API)
-- Verify conditional execution with steps that have condition blocks
+- Verify conditional execution with steps that have conditions arrays
 - Test variable substitution across multiple steps
 - Check error handling by introducing invalid expectations
 

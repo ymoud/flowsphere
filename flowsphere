@@ -173,6 +173,9 @@ DEFAULTS_JSON="{}"
 # Global variables
 VARIABLES_JSON="{}"
 
+# Condition evaluation state
+CONDITION_FAIL_REASON=""  # Stores detailed reason when condition fails
+
 # Debug mode (disabled by default)
 ENABLE_DEBUG=false
 
@@ -796,167 +799,300 @@ evaluate_condition() {
     local condition_json="$1"
     local step_num="$2"
 
-    # Extract condition parameters - support both "step" (ID-based) and "response" (index-based)
-    local response_index=""
+    # Determine source type: "variable", "input", or "node" (default)
+    local source_type=$(echo "$condition_json" | jq -r '.source // "node"')
 
-    # Check for "step" field first (named reference)
-    if echo "$condition_json" | jq -e '.step' > /dev/null 2>&1; then
-        local step_id=$(echo "$condition_json" | jq -r '.step')
+    # Get the actual value based on source type
+    local actual_value=""
 
-        # Look up step ID in response_ids mapping
-        if [[ -v response_ids["$step_id"] ]]; then
-            response_index="${response_ids[$step_id]}"
-            debug_log "DEBUG: evaluate_condition - resolved step ID '$step_id' to index $response_index"
-        else
-            echo "Error: Step $step_num condition references step '$step_id' which was not found or not yet executed" >&2
-            echo "Available step IDs: ${!response_ids[@]}" >&2
+    if [ "$source_type" = "variable" ]; then
+        # Check global variable
+        local var_name=$(echo "$condition_json" | jq -r '.variable // empty')
+        if [ -z "$var_name" ]; then
+            echo "Error: Step $step_num condition with source 'variable' must have 'variable' field" >&2
             exit 1
         fi
+
+        actual_value=$(echo "$VARIABLES_JSON" | jq -r ".[\"$var_name\"]")
+        if [ "$actual_value" = "null" ]; then
+            echo "Error: Step $step_num condition references variable '$var_name' which does not exist" >&2
+            exit 1
+        fi
+        debug_log "DEBUG: evaluate_condition - variable '$var_name' = '$actual_value'"
+
+    elif [ "$source_type" = "input" ]; then
+        # Check user input
+        local input_name=$(echo "$condition_json" | jq -r '.input // empty')
+        if [ -z "$input_name" ]; then
+            echo "Error: Step $step_num condition with source 'input' must have 'input' field" >&2
+            exit 1
+        fi
+
+        actual_value=$(echo "$USER_INPUT_JSON" | jq -r ".[\"$input_name\"]")
+        if [ "$actual_value" = "null" ]; then
+            echo "Error: Step $step_num condition references user input '$input_name' which was not provided" >&2
+            exit 1
+        fi
+        debug_log "DEBUG: evaluate_condition - user input '$input_name' = '$actual_value'"
+
     else
-        # Fall back to "response" field (index-based, for backward compatibility)
-        response_index=$(echo "$condition_json" | jq -r '.response // empty')
+        # Source type is "node" - get value from previous node response
+        local response_index=""
 
-        if [ -z "$response_index" ]; then
-            echo "Error: Step $step_num condition must have either 'step' (ID) or 'response' (index) field" >&2
+        # Check for "node" field (named reference)
+        if echo "$condition_json" | jq -e '.node' > /dev/null 2>&1; then
+            local node_id=$(echo "$condition_json" | jq -r '.node')
+
+            # Look up node ID in response_ids mapping
+            if [[ -v response_ids["$node_id"] ]]; then
+                response_index="${response_ids[$node_id]}"
+                debug_log "DEBUG: evaluate_condition - resolved node ID '$node_id' to index $response_index"
+            else
+                echo "Error: Step $step_num condition references node '$node_id' which was not found or not yet executed" >&2
+                echo "Available node IDs: ${!response_ids[@]}" >&2
+                exit 1
+            fi
+        else
+            echo "Error: Step $step_num condition with source 'node' must have 'node' field" >&2
+            exit 1
+        fi
+
+        # Validate response index
+        if [ "$response_index" -ge "${#responses_json[@]}" ]; then
+            echo "Error: Step $step_num condition references response[$response_index] but only ${#responses_json[@]} responses available" >&2
+            exit 1
+        fi
+
+        # Check for httpStatusCode condition (only valid for node source)
+        if echo "$condition_json" | jq -e '.httpStatusCode' > /dev/null 2>&1; then
+            local expected_status=$(echo "$condition_json" | jq -r '.httpStatusCode')
+            local actual_status="${responses_status[$response_index]}"
+
+            if [ "$actual_status" = "$expected_status" ]; then
+                return 0  # Condition passes
+            else
+                CONDITION_FAIL_REASON="node '$node_id' HTTP status: expected $expected_status, got $actual_status"
+                return 1  # Condition fails
+            fi
+        fi
+
+        # Get field value from response
+        if echo "$condition_json" | jq -e '.field' > /dev/null 2>&1; then
+            local field=$(echo "$condition_json" | jq -r '.field')
+            local response_body="${responses_json[$response_index]}"
+            actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+        else
+            echo "Error: Step $step_num condition with source 'node' must have 'field' field when not checking httpStatusCode" >&2
             exit 1
         fi
     fi
 
-    # Validate response index
-    if [ "$response_index" -ge "${#responses_json[@]}" ]; then
-        echo "Error: Step $step_num condition references response[$response_index] but only ${#responses_json[@]} responses available" >&2
-        exit 1
-    fi
+    # Now apply comparison operators to actual_value
 
-    # Check for statusCode condition
-    if echo "$condition_json" | jq -e '.statusCode' > /dev/null 2>&1; then
-        local expected_status=$(echo "$condition_json" | jq -r '.statusCode')
-        local actual_status="${responses_status[$response_index]}"
+    # Check for 'exists' condition
+    if echo "$condition_json" | jq -e '.exists' > /dev/null 2>&1; then
+        local should_exist=$(echo "$condition_json" | jq -r '.exists')
 
-        if [ "$actual_status" = "$expected_status" ]; then
-            return 0  # Condition passes
+        # Build source description
+        local src_desc=""
+        if [ "$source_type" = "variable" ]; then
+            local var_name=$(echo "$condition_json" | jq -r '.variable')
+            src_desc="variable '$var_name'"
+        elif [ "$source_type" = "input" ]; then
+            local input_name=$(echo "$condition_json" | jq -r '.input')
+            src_desc="user input '$input_name'"
         else
-            return 1  # Condition fails
+            local node_id=$(echo "$condition_json" | jq -r '.node')
+            local field=$(echo "$condition_json" | jq -r '.field')
+            src_desc="node '$node_id' field $field"
+        fi
+
+        if [ "$should_exist" = "true" ]; then
+            if [ "$actual_value" != "null" ] && [ -n "$actual_value" ]; then
+                return 0  # Value exists
+            else
+                CONDITION_FAIL_REASON="$src_desc: expected to exist, but it doesn't"
+                return 1  # Value doesn't exist
+            fi
+        else
+            if [ "$actual_value" = "null" ] || [ -z "$actual_value" ]; then
+                return 0  # Value doesn't exist (as expected)
+            else
+                CONDITION_FAIL_REASON="$src_desc: expected to not exist, but got '$actual_value'"
+                return 1  # Value exists (but shouldn't)
+            fi
         fi
     fi
 
-    # Check for field-based conditions
-    if echo "$condition_json" | jq -e '.field' > /dev/null 2>&1; then
-        local field=$(echo "$condition_json" | jq -r '.field')
-        local response_body="${responses_json[$response_index]}"
+    # Check for 'equals' condition
+    if echo "$condition_json" | jq -e '.equals' > /dev/null 2>&1; then
+        local expected_value=$(echo "$condition_json" | jq -r '.equals')
+        # Replace dynamic placeholders and substitute variables in expected value
+        expected_value=$(replace_dynamic_placeholders "$expected_value")
+        expected_value=$(substitute_variables "$expected_value")
 
-        # Check for 'exists' condition
-        if echo "$condition_json" | jq -e '.exists' > /dev/null 2>&1; then
-            local should_exist=$(echo "$condition_json" | jq -r '.exists')
-            local value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
-
-            if [ "$should_exist" = "true" ]; then
-                if [ "$value" != "null" ] && [ -n "$value" ]; then
-                    return 0  # Field exists
-                else
-                    return 1  # Field doesn't exist
-                fi
+        if [ "$actual_value" = "$expected_value" ]; then
+            return 0  # Values match
+        else
+            # Build source description
+            local src_desc=""
+            if [ "$source_type" = "variable" ]; then
+                local var_name=$(echo "$condition_json" | jq -r '.variable')
+                src_desc="variable '$var_name'"
+            elif [ "$source_type" = "input" ]; then
+                local input_name=$(echo "$condition_json" | jq -r '.input')
+                src_desc="user input '$input_name'"
             else
-                if [ "$value" = "null" ] || [ -z "$value" ]; then
-                    return 0  # Field doesn't exist (as expected)
-                else
-                    return 1  # Field exists (but shouldn't)
-                fi
+                local node_id=$(echo "$condition_json" | jq -r '.node')
+                local field=$(echo "$condition_json" | jq -r '.field')
+                src_desc="node '$node_id' field $field"
             fi
+            CONDITION_FAIL_REASON="$src_desc: expected '$expected_value', got '$actual_value'"
+            return 1  # Values don't match
         fi
+    fi
 
-        # Check for 'equals' condition
-        if echo "$condition_json" | jq -e '.equals' > /dev/null 2>&1; then
-            local expected_value=$(echo "$condition_json" | jq -r '.equals')
-            # Replace dynamic placeholders and substitute variables in expected value
-            expected_value=$(replace_dynamic_placeholders "$expected_value")
-            expected_value=$(substitute_variables "$expected_value")
-            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+    # Check for 'notEquals' condition
+    if echo "$condition_json" | jq -e '.notEquals' > /dev/null 2>&1; then
+        local unwanted_value=$(echo "$condition_json" | jq -r '.notEquals')
+        # Replace dynamic placeholders and substitute variables in unwanted value
+        unwanted_value=$(replace_dynamic_placeholders "$unwanted_value")
+        unwanted_value=$(substitute_variables "$unwanted_value")
 
-            if [ "$actual_value" = "$expected_value" ]; then
-                return 0  # Values match
+        if [ "$actual_value" != "$unwanted_value" ]; then
+            return 0  # Values don't match (as expected)
+        else
+            # Build source description
+            local src_desc=""
+            if [ "$source_type" = "variable" ]; then
+                local var_name=$(echo "$condition_json" | jq -r '.variable')
+                src_desc="variable '$var_name'"
+            elif [ "$source_type" = "input" ]; then
+                local input_name=$(echo "$condition_json" | jq -r '.input')
+                src_desc="user input '$input_name'"
             else
-                return 1  # Values don't match
+                local node_id=$(echo "$condition_json" | jq -r '.node')
+                local field=$(echo "$condition_json" | jq -r '.field')
+                src_desc="node '$node_id' field $field"
             fi
+            CONDITION_FAIL_REASON="$src_desc: should not equal '$unwanted_value', but it does"
+            return 1  # Values match (but shouldn't)
         fi
+    fi
 
-        # Check for 'notEquals' condition
-        if echo "$condition_json" | jq -e '.notEquals' > /dev/null 2>&1; then
-            local unwanted_value=$(echo "$condition_json" | jq -r '.notEquals')
-            # Replace dynamic placeholders and substitute variables in unwanted value
-            unwanted_value=$(replace_dynamic_placeholders "$unwanted_value")
-            unwanted_value=$(substitute_variables "$unwanted_value")
-            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+    # Check for 'greaterThan' condition
+    if echo "$condition_json" | jq -e '.greaterThan' > /dev/null 2>&1; then
+        local threshold=$(echo "$condition_json" | jq -r '.greaterThan')
+        # Replace dynamic placeholders and substitute variables in threshold
+        threshold=$(replace_dynamic_placeholders "$threshold")
+        threshold=$(substitute_variables "$threshold")
 
-            if [ "$actual_value" != "$unwanted_value" ]; then
-                return 0  # Values don't match (as expected)
+        # Use awk for floating point comparison
+        if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val > thresh) }'; then
+            return 0  # Value is greater than threshold
+        else
+            # Build source description
+            local src_desc=""
+            if [ "$source_type" = "variable" ]; then
+                local var_name=$(echo "$condition_json" | jq -r '.variable')
+                src_desc="variable '$var_name'"
+            elif [ "$source_type" = "input" ]; then
+                local input_name=$(echo "$condition_json" | jq -r '.input')
+                src_desc="user input '$input_name'"
             else
-                return 1  # Values match (but shouldn't)
+                local node_id=$(echo "$condition_json" | jq -r '.node')
+                local field=$(echo "$condition_json" | jq -r '.field')
+                src_desc="node '$node_id' field $field"
             fi
+            CONDITION_FAIL_REASON="$src_desc: expected > $threshold, got $actual_value"
+            return 1  # Value is not greater than threshold
         fi
+    fi
 
-        # Check for 'greaterThan' condition
-        if echo "$condition_json" | jq -e '.greaterThan' > /dev/null 2>&1; then
-            local threshold=$(echo "$condition_json" | jq -r '.greaterThan')
-            # Replace dynamic placeholders and substitute variables in threshold
-            threshold=$(replace_dynamic_placeholders "$threshold")
-            threshold=$(substitute_variables "$threshold")
-            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+    # Check for 'lessThan' condition
+    if echo "$condition_json" | jq -e '.lessThan' > /dev/null 2>&1; then
+        local threshold=$(echo "$condition_json" | jq -r '.lessThan')
+        # Replace dynamic placeholders and substitute variables in threshold
+        threshold=$(replace_dynamic_placeholders "$threshold")
+        threshold=$(substitute_variables "$threshold")
 
-            # Use awk for floating point comparison
-            if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val > thresh) }'; then
-                return 0  # Value is greater than threshold
+        # Use awk for floating point comparison
+        if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val < thresh) }'; then
+            return 0  # Value is less than threshold
+        else
+            # Build source description
+            local src_desc=""
+            if [ "$source_type" = "variable" ]; then
+                local var_name=$(echo "$condition_json" | jq -r '.variable')
+                src_desc="variable '$var_name'"
+            elif [ "$source_type" = "input" ]; then
+                local input_name=$(echo "$condition_json" | jq -r '.input')
+                src_desc="user input '$input_name'"
             else
-                return 1  # Value is not greater than threshold
+                local node_id=$(echo "$condition_json" | jq -r '.node')
+                local field=$(echo "$condition_json" | jq -r '.field')
+                src_desc="node '$node_id' field $field"
             fi
+            CONDITION_FAIL_REASON="$src_desc: expected < $threshold, got $actual_value"
+            return 1  # Value is not less than threshold
         fi
+    fi
 
-        # Check for 'lessThan' condition
-        if echo "$condition_json" | jq -e '.lessThan' > /dev/null 2>&1; then
-            local threshold=$(echo "$condition_json" | jq -r '.lessThan')
-            # Replace dynamic placeholders and substitute variables in threshold
-            threshold=$(replace_dynamic_placeholders "$threshold")
-            threshold=$(substitute_variables "$threshold")
-            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+    # Check for 'greaterThanOrEqual' condition
+    if echo "$condition_json" | jq -e '.greaterThanOrEqual' > /dev/null 2>&1; then
+        local threshold=$(echo "$condition_json" | jq -r '.greaterThanOrEqual')
+        # Replace dynamic placeholders and substitute variables in threshold
+        threshold=$(replace_dynamic_placeholders "$threshold")
+        threshold=$(substitute_variables "$threshold")
 
-            # Use awk for floating point comparison
-            if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val < thresh) }'; then
-                return 0  # Value is less than threshold
+        # Use awk for floating point comparison
+        if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val >= thresh) }'; then
+            return 0  # Value is >= threshold
+        else
+            # Build source description
+            local src_desc=""
+            if [ "$source_type" = "variable" ]; then
+                local var_name=$(echo "$condition_json" | jq -r '.variable')
+                src_desc="variable '$var_name'"
+            elif [ "$source_type" = "input" ]; then
+                local input_name=$(echo "$condition_json" | jq -r '.input')
+                src_desc="user input '$input_name'"
             else
-                return 1  # Value is not less than threshold
+                local node_id=$(echo "$condition_json" | jq -r '.node')
+                local field=$(echo "$condition_json" | jq -r '.field')
+                src_desc="node '$node_id' field $field"
             fi
+            CONDITION_FAIL_REASON="$src_desc: expected >= $threshold, got $actual_value"
+            return 1  # Value is not >= threshold
         fi
+    fi
 
-        # Check for 'greaterThanOrEqual' condition
-        if echo "$condition_json" | jq -e '.greaterThanOrEqual' > /dev/null 2>&1; then
-            local threshold=$(echo "$condition_json" | jq -r '.greaterThanOrEqual')
-            # Replace dynamic placeholders and substitute variables in threshold
-            threshold=$(replace_dynamic_placeholders "$threshold")
-            threshold=$(substitute_variables "$threshold")
-            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+    # Check for 'lessThanOrEqual' condition
+    if echo "$condition_json" | jq -e '.lessThanOrEqual' > /dev/null 2>&1; then
+        local threshold=$(echo "$condition_json" | jq -r '.lessThanOrEqual')
+        # Replace dynamic placeholders and substitute variables in threshold
+        threshold=$(replace_dynamic_placeholders "$threshold")
+        threshold=$(substitute_variables "$threshold")
 
-            # Use awk for floating point comparison
-            if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val >= thresh) }'; then
-                return 0  # Value is >= threshold
+        # Use awk for floating point comparison
+        if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val <= thresh) }'; then
+            return 0  # Value is <= threshold
+        else
+            # Build source description
+            local src_desc=""
+            if [ "$source_type" = "variable" ]; then
+                local var_name=$(echo "$condition_json" | jq -r '.variable')
+                src_desc="variable '$var_name'"
+            elif [ "$source_type" = "input" ]; then
+                local input_name=$(echo "$condition_json" | jq -r '.input')
+                src_desc="user input '$input_name'"
             else
-                return 1  # Value is not >= threshold
+                local node_id=$(echo "$condition_json" | jq -r '.node')
+                local field=$(echo "$condition_json" | jq -r '.field')
+                src_desc="node '$node_id' field $field"
             fi
-        fi
-
-        # Check for 'lessThanOrEqual' condition
-        if echo "$condition_json" | jq -e '.lessThanOrEqual' > /dev/null 2>&1; then
-            local threshold=$(echo "$condition_json" | jq -r '.lessThanOrEqual')
-            # Replace dynamic placeholders and substitute variables in threshold
-            threshold=$(replace_dynamic_placeholders "$threshold")
-            threshold=$(substitute_variables "$threshold")
-            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
-
-            # Use awk for floating point comparison
-            if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val <= thresh) }'; then
-                return 0  # Value is <= threshold
-            else
-                return 1  # Value is not <= threshold
-            fi
+            CONDITION_FAIL_REASON="$src_desc: expected <= $threshold, got $actual_value"
+            return 1  # Value is not <= threshold
         fi
     fi
 
@@ -1584,7 +1720,28 @@ main() {
         responses_status+=("0")
         steps_skipped=$((steps_skipped + 1))
 
-        echo -e "Step $step_num: $method $url ${YELLOW}⊘ SKIPPED${NC} (starting from step $((start_step + 1)))"
+        local skip_reason="--start-step: execution begins at step $((start_step + 1))"
+        echo -e "Step $step_num: $method $url ${YELLOW}⊘ SKIPPED${NC} ($skip_reason)"
+
+        # Create log entry for skipped step
+        local skip_log_entry=$(jq -n \
+            --arg step_num "$step_num" \
+            --arg step_id "$id" \
+            --arg name "$name" \
+            --arg method "$method" \
+            --arg url "$url" \
+            --arg skip_reason "$skip_reason" \
+            '{
+                step: ($step_num | tonumber),
+                id: $step_id,
+                name: $name,
+                method: $method,
+                url: $url,
+                status: "skipped",
+                skip_reason: $skip_reason
+            }')
+        execution_log+=("$skip_log_entry")
+
         debug_log "DEBUG: Skipped initial step $step_num (id=$id)"
     done
 
@@ -1610,27 +1767,66 @@ main() {
         response_ids["$id"]=$i
         debug_log "DEBUG: Mapped response_ids[$id]=$i"
 
-        # Check if step has a condition
-        if echo "$step" | jq -e '.condition' > /dev/null 2>&1; then
-            local condition=$(echo "$step" | jq '.condition')
+        # Check if step has conditions
+        if echo "$step" | jq -e '.conditions' > /dev/null 2>&1; then
+            local conditions=$(echo "$step" | jq '.conditions')
+            local num_conditions=$(echo "$conditions" | jq 'length')
 
-            # Evaluate the condition
-            if evaluate_condition "$condition" "$step_num"; then
-                # Condition passed, execute step
+            # Evaluate all conditions (AND logic - execute only if ALL conditions are TRUE)
+            local all_conditions_met=true
+            local skip_reason=""
+            for ((c=0; c<num_conditions; c++)); do
+                local condition=$(echo "$conditions" | jq ".[$c]")
+
+                CONDITION_FAIL_REASON=""  # Reset before evaluation
+                if ! evaluate_condition "$condition" "$step_num"; then
+                    # At least one condition is false, don't execute
+                    all_conditions_met=false
+                    skip_reason="$CONDITION_FAIL_REASON"
+                    break
+                fi
+            done
+
+            if [ "$all_conditions_met" = true ]; then
+                # All conditions were true, execute step
                 execute_step "$i" "$step"
                 steps_executed=$((steps_executed + 1))
             else
-                # Condition failed, skip step
-                echo -e "Step $step_num: $method $url ${BLUE}⊘ SKIPPED${NC} (condition not met)"
+                # At least one condition was false, skip step
+                if [ -n "$skip_reason" ]; then
+                    echo -e "Step $step_num: $method $url ${BLUE}⊘ SKIPPED${NC} ($skip_reason)"
+                else
+                    echo -e "Step $step_num: $method $url ${BLUE}⊘ SKIPPED${NC} (condition not met)"
+                    skip_reason="condition not met"
+                fi
                 steps_skipped=$((steps_skipped + 1))
+
+                # Create log entry for skipped step
+                local skip_log_entry=$(jq -n \
+                    --arg step_num "$step_num" \
+                    --arg step_id "$id" \
+                    --arg name "$name" \
+                    --arg method "$method" \
+                    --arg url "$url" \
+                    --arg skip_reason "$skip_reason" \
+                    '{
+                        step: ($step_num | tonumber),
+                        id: $step_id,
+                        name: $name,
+                        method: $method,
+                        url: $url,
+                        status: "skipped",
+                        skip_reason: $skip_reason
+                    }')
+                execution_log+=("$skip_log_entry")
 
                 # Store empty response and status for skipped steps to maintain indexing
                 responses_json+=("{}")
                 responses_status+=("0")
             fi
         else
-            # No condition, execute step normally
-            debug_log "DEBUG: About to execute step $step_num (no condition)"
+            # No conditions, execute step normally
+            debug_log "DEBUG: About to execute step $step_num (no conditions)"
             execute_step "$i" "$step"
             debug_log "DEBUG: Completed executing step $step_num"
             steps_executed=$((steps_executed + 1))

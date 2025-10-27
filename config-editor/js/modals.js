@@ -1,75 +1,151 @@
 // Condition Builder Functions
-function renderConditionSummary(condition, stepIndex) {
-    if (!condition || Object.keys(condition).length === 0) {
-        return '<div class="help-text" style="font-style: italic;">No condition defined</div>';
+function renderConditionsList(conditions, stepIndex) {
+    if (!conditions || !Array.isArray(conditions) || conditions.length === 0) {
+        return '<div class="help-text" style="font-style: italic;">No conditions defined</div>';
     }
 
-    const stepName = config.nodes[condition.step]?.name || 'Unnamed';
-    let summary = `Skip if step ${condition.step} (${stepName}) `;
+    return conditions.map((condition, condIndex) => {
+        const sourceType = condition.source || 'node';
+        let sourceName = '';
 
-    if (condition.statusCode) {
-        summary += `has status code ${condition.statusCode}`;
-    } else if (condition.field) {
-        if (condition.equals !== undefined) {
-            summary += `field "${condition.field}" equals "${condition.equals}"`;
-        } else if (condition.notEquals !== undefined) {
-            summary += `field "${condition.field}" not equals "${condition.notEquals}"`;
-        } else if (condition.exists !== undefined) {
-            summary += `field "${condition.field}" ${condition.exists ? 'exists' : 'does not exist'}`;
+        if (sourceType === 'node') {
+            // Find node by ID
+            const referencedNode = config.nodes.find(s => s.id === condition.node);
+            const nodeName = referencedNode?.name || 'Unnamed';
+            sourceName = `<strong>node "${condition.node}"</strong> (${nodeName})`;
+            if (condition.field) {
+                sourceName += ` <strong>${condition.field}</strong>`;
+            }
+        } else if (sourceType === 'variable') {
+            sourceName = `<strong>variable</strong> "${condition.variable}"`;
+        } else if (sourceType === 'input') {
+            sourceName = `<strong>user input</strong> "${condition.input}"`;
         }
+
+        let summary = `Execute if ${sourceName} `;
+
+        if (condition.httpStatusCode) {
+            // Find node for status code display
+            const referencedNode = config.nodes.find(s => s.id === condition.node);
+            const nodeName = referencedNode?.name || 'Unnamed';
+            summary = `Execute if <strong>node "${condition.node}"</strong> (${nodeName}) has HTTP status code <strong>${condition.httpStatusCode}</strong>`;
+        } else if (condition.equals !== undefined) {
+            summary += `= "${condition.equals}"`;
+        } else if (condition.notEquals !== undefined) {
+            summary += `≠ "${condition.notEquals}"`;
+        } else if (condition.greaterThan !== undefined) {
+            summary += `> ${condition.greaterThan}`;
+        } else if (condition.lessThan !== undefined) {
+            summary += `< ${condition.lessThan}`;
+        } else if (condition.greaterThanOrEqual !== undefined) {
+            summary += `≥ ${condition.greaterThanOrEqual}`;
+        } else if (condition.lessThanOrEqual !== undefined) {
+            summary += `≤ ${condition.lessThanOrEqual}`;
+        } else if (condition.exists !== undefined) {
+            summary += condition.exists ? 'exists' : 'does not exist';
+        }
+
+        return `
+            <div class="builder-summary" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div>${summary}</div>
+                <div>
+                    <button class="btn btn-secondary btn-small" onclick="editCondition(${stepIndex}, ${condIndex})" style="margin-left: 5px;">Edit</button>
+                    <button class="btn btn-danger btn-small" onclick="removeCondition(${stepIndex}, ${condIndex})" style="margin-left: 5px;">×</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function addCondition(stepIndex) {
+    showConditionModal(stepIndex, -1, {});
+}
+
+function editCondition(stepIndex, condIndex) {
+    const condition = config.nodes[stepIndex].conditions[condIndex];
+    showConditionModal(stepIndex, condIndex, condition);
+}
+
+function renderConditionTypeOptions(sourceType, selectedType) {
+    const commonOptions = `
+        <option value="equals" ${selectedType === 'equals' ? 'selected' : ''}>Equals Value</option>
+        <option value="notEquals" ${selectedType === 'notEquals' ? 'selected' : ''}>Not Equals Value</option>
+        <option value="greaterThan" ${selectedType === 'greaterThan' ? 'selected' : ''}>Greater Than</option>
+        <option value="lessThan" ${selectedType === 'lessThan' ? 'selected' : ''}>Less Than</option>
+        <option value="greaterThanOrEqual" ${selectedType === 'greaterThanOrEqual' ? 'selected' : ''}>Greater Than or Equal</option>
+        <option value="lessThanOrEqual" ${selectedType === 'lessThanOrEqual' ? 'selected' : ''}>Less Than or Equal</option>
+        <option value="exists" ${selectedType === 'exists' ? 'selected' : ''}>Exists</option>
+    `;
+
+    // HTTP Status Code option only available for 'node' source
+    if (sourceType === 'node') {
+        return `
+            <option value="httpStatusCode" ${selectedType === 'httpStatusCode' ? 'selected' : ''}>HTTP Status Code</option>
+            ${commonOptions}
+        `;
     }
 
-    return `<div class="builder-summary">${summary}</div>`;
+    return commonOptions;
 }
 
-function editCondition(stepIndex) {
-    const condition = config.nodes[stepIndex].condition || {};
-    showConditionModal(stepIndex, condition);
-}
-
-function showConditionModal(stepIndex, condition) {
-    const conditionType = condition.statusCode !== undefined ? 'statusCode' :
+function showConditionModal(stepIndex, condIndex, condition) {
+    const isNew = condIndex === -1;
+    const conditionType = condition.httpStatusCode !== undefined ? 'httpStatusCode' :
                          condition.equals !== undefined ? 'equals' :
                          condition.notEquals !== undefined ? 'notEquals' :
-                         condition.exists !== undefined ? 'exists' : 'statusCode';
+                         condition.exists !== undefined ? 'exists' :
+                         condition.greaterThan !== undefined ? 'greaterThan' :
+                         condition.lessThan !== undefined ? 'lessThan' :
+                         condition.greaterThanOrEqual !== undefined ? 'greaterThanOrEqual' :
+                         condition.lessThanOrEqual !== undefined ? 'lessThanOrEqual' : 'httpStatusCode';
 
-    const stepOptions = config.nodes.slice(0, stepIndex).map((s, i) =>
-        `<option value="${i}" ${condition.step === i ? 'selected' : ''}>${i}. ${s.name || 'Unnamed'}</option>`
-    ).join('');
+    // Determine source type
+    const sourceType = condition.source ||
+                      (condition.variable !== undefined ? 'variable' :
+                       condition.input !== undefined ? 'input' : 'node');
+
+    const stepOptions = config.nodes.slice(0, stepIndex).map((s, i) => {
+        const nodeId = s.id || `node-${i}`;
+        const isSelected = condition.node === nodeId;
+        return `<option value="${nodeId}" ${isSelected ? 'selected' : ''}>${i}. ${s.name || 'Unnamed'}${s.id ? ` [${s.id}]` : ''}</option>`;
+    }).join('');
 
     const modalHtml = `
         <div class="modal active" id="conditionModal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>${Object.keys(condition).length > 0 ? 'Edit' : 'Add'} Condition</h2>
-                    <p>Define when this step should be skipped based on a previous response</p>
+                    <h2>${isNew ? 'Add' : 'Edit'} Condition</h2>
+                    <p>Define when this step should be executed (step runs only if ALL conditions are met)</p>
                 </div>
 
                 <div class="form-group">
-                    <label>Reference Step *</label>
-                    <select id="conditionStep">
-                        ${stepOptions || '<option value="">No previous steps</option>'}
+                    <label>Source *</label>
+                    <select id="conditionSource" onchange="updateConditionSourceFields()">
+                        <option value="node" ${sourceType === 'node' ? 'selected' : ''}>Response from Node</option>
+                        <option value="variable" ${sourceType === 'variable' ? 'selected' : ''}>Global Variable</option>
+                        <option value="input" ${sourceType === 'input' ? 'selected' : ''}>User Input</option>
                     </select>
-                    <div class="help-text">Check the response from this previous step</div>
+                    <div class="help-text">What to evaluate in this condition</div>
+                </div>
+
+                <div id="conditionSourceFields">
+                    ${renderConditionSourceFields(sourceType, condition, stepOptions, stepIndex)}
                 </div>
 
                 <div class="form-group">
                     <label>Condition Type *</label>
                     <select id="conditionType" onchange="updateConditionTypeFields()">
-                        <option value="statusCode" ${conditionType === 'statusCode' ? 'selected' : ''}>Status Code</option>
-                        <option value="equals" ${conditionType === 'equals' ? 'selected' : ''}>Field Equals Value</option>
-                        <option value="notEquals" ${conditionType === 'notEquals' ? 'selected' : ''}>Field Not Equals Value</option>
-                        <option value="exists" ${conditionType === 'exists' ? 'selected' : ''}>Field Exists</option>
+                        ${renderConditionTypeOptions(sourceType, conditionType)}
                     </select>
                 </div>
 
                 <div id="conditionTypeFields">
-                    ${renderConditionTypeFields(conditionType, condition)}
+                    ${renderConditionTypeFields(conditionType, condition, sourceType)}
                 </div>
 
                 <div class="modal-footer">
                     <button class="btn btn-secondary" onclick="closeConditionModal()">Cancel</button>
-                    <button class="btn btn-primary" onclick="saveCondition(${stepIndex})">Save</button>
+                    <button class="btn btn-primary" onclick="saveCondition(${stepIndex}, ${condIndex})">Save</button>
                 </div>
             </div>
         </div>
@@ -81,6 +157,9 @@ function showConditionModal(stepIndex, condition) {
 
     // Add new modal
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Store stepIndex for updateConditionSourceFields
+    document.getElementById('conditionModal').dataset.stepIndex = stepIndex;
 
     // Attach autocomplete to modal inputs
     setTimeout(() => {
@@ -94,35 +173,173 @@ function showConditionModal(stepIndex, condition) {
     }, 0);
 }
 
-function renderConditionTypeFields(type, condition) {
-    if (type === 'statusCode') {
+function renderConditionSourceFields(sourceType, condition, stepOptions, stepIndex) {
+    if (sourceType === 'node') {
         return `
             <div class="form-group">
-                <label>Expected Status Code *</label>
-                <input type="number" id="conditionStatusCode" value="${condition.statusCode || 200}" placeholder="200">
-                <div class="help-text">Skip this step if the previous response has this status code</div>
+                <label>Reference Node *</label>
+                <select id="conditionNode">
+                    ${stepOptions || '<option value="">No previous nodes</option>'}
+                </select>
+                <div class="help-text">Check the response from this previous node</div>
+            </div>
+        `;
+    } else if (sourceType === 'variable') {
+        // Build variable options from config.variables
+        const variables = config.variables || {};
+        const variableKeys = Object.keys(variables);
+
+        let variableOptions = '';
+        if (variableKeys.length === 0) {
+            variableOptions = '<option value="">No variables defined</option>';
+        } else {
+            variableOptions = variableKeys.map(key =>
+                `<option value="${key}" ${condition.variable === key ? 'selected' : ''}>${key}</option>`
+            ).join('');
+        }
+
+        return `
+            <div class="form-group">
+                <label>Variable Name *</label>
+                <select id="conditionVariable">
+                    ${variableOptions}
+                </select>
+                <div class="help-text">Global variable defined in the config</div>
+            </div>
+        `;
+    } else if (sourceType === 'input') {
+        // Build user input options from previous steps' userPrompts
+        const userInputKeys = [];
+        const seenKeys = new Set();
+
+        for (let i = 0; i <= stepIndex; i++) {
+            const step = config.nodes[i];
+            if (step.userPrompts) {
+                Object.keys(step.userPrompts).forEach(key => {
+                    if (!seenKeys.has(key)) {
+                        seenKeys.add(key);
+                        userInputKeys.push({ key, stepName: step.name || `Step ${i}` });
+                    }
+                });
+            }
+        }
+
+        let inputOptions = '';
+        if (userInputKeys.length === 0) {
+            inputOptions = '<option value="">No user inputs available</option>';
+        } else {
+            inputOptions = userInputKeys.map(({ key, stepName }) =>
+                `<option value="${key}" ${condition.input === key ? 'selected' : ''}>${key} (from ${stepName})</option>`
+            ).join('');
+        }
+
+        return `
+            <div class="form-group">
+                <label>User Input Key *</label>
+                <select id="conditionInput">
+                    ${inputOptions}
+                </select>
+                <div class="help-text">User input prompt from this or a previous step</div>
+            </div>
+        `;
+    }
+}
+
+function updateConditionSourceFields() {
+    const sourceType = document.getElementById('conditionSource').value;
+    const stepIndex = parseInt(document.getElementById('conditionModal').dataset.stepIndex);
+    const stepOptions = config.nodes.slice(0, stepIndex).map((s, i) => {
+        const nodeId = s.id || `node-${i}`;
+        return `<option value="${nodeId}">${i}. ${s.name || 'Unnamed'}${s.id ? ` [${s.id}]` : ''}</option>`;
+    }).join('');
+
+    // Update source-specific fields
+    document.getElementById('conditionSourceFields').innerHTML = renderConditionSourceFields(sourceType, {}, stepOptions, stepIndex);
+
+    // Update condition type options (hide status code for non-node sources)
+    const currentType = document.getElementById('conditionType').value;
+    const newType = (sourceType !== 'node' && currentType === 'httpStatusCode') ? 'equals' : currentType;
+    document.getElementById('conditionType').innerHTML = renderConditionTypeOptions(sourceType, newType);
+
+    // Update condition type fields if type changed
+    if (newType !== currentType) {
+        updateConditionTypeFields();
+    }
+
+    // Re-attach autocomplete to new inputs
+    setTimeout(() => {
+        const modal = document.getElementById('conditionModal');
+        if (modal) {
+            const inputs = modal.querySelectorAll('input[type="text"]');
+            inputs.forEach(input => {
+                attachAutocompleteToInput(input, stepIndex);
+            });
+        }
+    }, 0);
+}
+
+function renderConditionTypeFields(type, condition, sourceType) {
+    if (type === 'httpStatusCode') {
+        return `
+            <div class="form-group">
+                <label>Expected HTTP Status Code *</label>
+                <input type="number" id="conditionHttpStatusCode" value="${condition.httpStatusCode || 200}" placeholder="200">
+                <div class="help-text">Execute this step if the previous response has this HTTP status code</div>
             </div>
         `;
     } else if (type === 'equals' || type === 'notEquals') {
-        return `
+        // JSON Path only needed for node source
+        const jsonPathField = sourceType === 'node' ? `
             <div class="form-group">
                 <label>JSON Path *</label>
                 <input type="text" id="conditionField" value="${condition.field || ''}" placeholder=".success">
                 <div class="help-text">Path to the field in the response (e.g., .success, .data.isActive)</div>
             </div>
+        ` : '';
+
+        return `
+            ${jsonPathField}
             <div class="form-group">
                 <label>Expected Value *</label>
                 <input type="text" id="conditionValue" value="${condition[type] !== undefined ? condition[type] : ''}" placeholder="true">
-                <div class="help-text">The value to ${type === 'equals' ? 'match' : 'not match'}</div>
+                <div class="help-text">The value to ${type === 'equals' ? 'match' : 'not match'}. Supports variables: {{ .vars.key }}</div>
+            </div>
+        `;
+    } else if (type === 'greaterThan' || type === 'lessThan' || type === 'greaterThanOrEqual' || type === 'lessThanOrEqual') {
+        const operatorText = type === 'greaterThan' ? 'greater than' :
+                           type === 'lessThan' ? 'less than' :
+                           type === 'greaterThanOrEqual' ? 'greater than or equal to' :
+                           'less than or equal to';
+
+        // JSON Path only needed for node source
+        const jsonPathField = sourceType === 'node' ? `
+            <div class="form-group">
+                <label>JSON Path *</label>
+                <input type="text" id="conditionField" value="${condition.field || ''}" placeholder=".balance">
+                <div class="help-text">Path to the numeric field in the response (e.g., .balance, .count)</div>
+            </div>
+        ` : '';
+
+        return `
+            ${jsonPathField}
+            <div class="form-group">
+                <label>Threshold Value *</label>
+                <input type="text" id="conditionValue" value="${condition[type] !== undefined ? condition[type] : ''}" placeholder="100">
+                <div class="help-text">Execute if ${sourceType === 'node' ? 'field' : 'value'} is ${operatorText} this value. Supports variables: {{ .vars.minimumBalance }}</div>
             </div>
         `;
     } else if (type === 'exists') {
-        return `
+        // JSON Path only needed for node source
+        const jsonPathField = sourceType === 'node' ? `
             <div class="form-group">
                 <label>JSON Path *</label>
                 <input type="text" id="conditionField" value="${condition.field || ''}" placeholder=".token">
                 <div class="help-text">Path to the field in the response</div>
             </div>
+        ` : '';
+
+        return `
+            ${jsonPathField}
             <div class="form-group">
                 <label>Should Exist *</label>
                 <select id="conditionExists">
@@ -136,64 +353,128 @@ function renderConditionTypeFields(type, condition) {
 
 function updateConditionTypeFields() {
     const type = document.getElementById('conditionType').value;
-    document.getElementById('conditionTypeFields').innerHTML = renderConditionTypeFields(type, {});
+    const sourceType = document.getElementById('conditionSource').value;
+
+    // Preserve current field value if it exists
+    const currentField = document.getElementById('conditionField')?.value || '';
+
+    document.getElementById('conditionTypeFields').innerHTML = renderConditionTypeFields(type, { field: currentField }, sourceType);
+
+    // Re-attach autocomplete to new inputs
+    const stepIndex = parseInt(document.getElementById('conditionModal').dataset.stepIndex);
+    setTimeout(() => {
+        const modal = document.getElementById('conditionModal');
+        if (modal) {
+            const inputs = modal.querySelectorAll('#conditionTypeFields input[type="text"]');
+            inputs.forEach(input => {
+                attachAutocompleteToInput(input, stepIndex);
+            });
+        }
+    }, 0);
 }
 
-function saveCondition(stepIndex) {
+function saveCondition(stepIndex, condIndex) {
+    const sourceType = document.getElementById('conditionSource').value;
     const type = document.getElementById('conditionType').value;
-    const step = parseInt(document.getElementById('conditionStep')?.value || 0);
 
-    const condition = { step };
+    const condition = {};
 
-    if (type === 'statusCode') {
-        const statusCode = document.getElementById('conditionStatusCode').value;
-        if (!statusCode) {
-            alert('Status code is required');
+    // Always set source type explicitly for consistency
+    condition.source = sourceType;
+
+    // Handle source-specific fields
+    if (sourceType === 'node') {
+        const nodeValue = document.getElementById('conditionNode')?.value;
+        if (!nodeValue) {
+            alert('Please select a reference node');
             return;
         }
-        condition.statusCode = parseInt(statusCode);
+        condition.node = nodeValue;  // Store as node ID string
+
+        // For node source, field is always required (except for httpStatusCode)
+        if (type !== 'httpStatusCode') {
+            const field = document.getElementById('conditionField')?.value.trim();
+            if (!field) {
+                alert('Response field is required');
+                return;
+            }
+            condition.field = field;
+        }
+    } else if (sourceType === 'variable') {
+        const varName = document.getElementById('conditionVariable')?.value;
+        if (!varName || varName === '') {
+            alert('Variable name is required');
+            return;
+        }
+        condition.variable = varName;
+    } else if (sourceType === 'input') {
+        const inputName = document.getElementById('conditionInput')?.value;
+        if (!inputName || inputName === '') {
+            alert('User input key is required');
+            return;
+        }
+        condition.input = inputName;
+    }
+
+    // Handle condition type
+    if (type === 'httpStatusCode') {
+        if (sourceType !== 'node') {
+            alert('HTTP status code condition is only valid for "Response from Node" source');
+            return;
+        }
+        const httpStatusCode = document.getElementById('conditionHttpStatusCode').value;
+        if (!httpStatusCode) {
+            alert('HTTP status code is required');
+            return;
+        }
+        condition.httpStatusCode = parseInt(httpStatusCode);
     } else if (type === 'equals' || type === 'notEquals') {
-        const field = document.getElementById('conditionField').value.trim();
         const value = document.getElementById('conditionValue').value;
 
-        if (!field) {
-            alert('JSON path is required');
-            return;
-        }
         if (value === '') {
             alert('Value is required');
             return;
         }
 
-        condition.field = field;
-        // Try to parse as number or boolean
+        // Try to parse as number or boolean, but preserve variable syntax
         let parsedValue = value;
         if (value === 'true') parsedValue = true;
         else if (value === 'false') parsedValue = false;
-        else if (!isNaN(value) && value !== '') parsedValue = parseFloat(value);
+        else if (!isNaN(value) && value !== '' && !value.includes('{{')) parsedValue = parseFloat(value);
         condition[type] = parsedValue;
-    } else if (type === 'exists') {
-        const field = document.getElementById('conditionField').value.trim();
+    } else if (type === 'greaterThan' || type === 'lessThan' || type === 'greaterThanOrEqual' || type === 'lessThanOrEqual') {
+        const value = document.getElementById('conditionValue').value;
 
-        if (!field) {
-            alert('JSON path is required');
+        if (value === '') {
+            alert('Threshold value is required');
             return;
         }
 
-        condition.field = field;
+        // Store as string if it contains variables, otherwise parse as number
+        condition[type] = value.includes('{{') ? value : (!isNaN(value) ? parseFloat(value) : value);
+    } else if (type === 'exists') {
         condition.exists = document.getElementById('conditionExists').value === 'true';
     }
 
-    config.nodes[stepIndex].condition = condition;
+    // Save to conditions array
+    if (!config.nodes[stepIndex].conditions) {
+        config.nodes[stepIndex].conditions = [];
+    }
+    if (condIndex === -1) {
+        config.nodes[stepIndex].conditions.push(condition);
+    } else {
+        config.nodes[stepIndex].conditions[condIndex] = condition;
+    }
+
     closeConditionModal();
     saveToLocalStorage();
     renderSteps();
     updatePreview();
 }
 
-function removeCondition(stepIndex) {
+function removeCondition(stepIndex, condIndex) {
     if (confirm('Remove this condition?')) {
-        delete config.nodes[stepIndex].condition;
+        config.nodes[stepIndex].conditions.splice(condIndex, 1);
         saveToLocalStorage();
         renderSteps();
         updatePreview();
