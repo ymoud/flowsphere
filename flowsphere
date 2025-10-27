@@ -868,7 +868,8 @@ evaluate_condition() {
         # Check for 'equals' condition
         if echo "$condition_json" | jq -e '.equals' > /dev/null 2>&1; then
             local expected_value=$(echo "$condition_json" | jq -r '.equals')
-            # Substitute variables in expected value
+            # Replace dynamic placeholders and substitute variables in expected value
+            expected_value=$(replace_dynamic_placeholders "$expected_value")
             expected_value=$(substitute_variables "$expected_value")
             local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
 
@@ -882,7 +883,8 @@ evaluate_condition() {
         # Check for 'notEquals' condition
         if echo "$condition_json" | jq -e '.notEquals' > /dev/null 2>&1; then
             local unwanted_value=$(echo "$condition_json" | jq -r '.notEquals')
-            # Substitute variables in unwanted value
+            # Replace dynamic placeholders and substitute variables in unwanted value
+            unwanted_value=$(replace_dynamic_placeholders "$unwanted_value")
             unwanted_value=$(substitute_variables "$unwanted_value")
             local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
 
@@ -890,6 +892,70 @@ evaluate_condition() {
                 return 0  # Values don't match (as expected)
             else
                 return 1  # Values match (but shouldn't)
+            fi
+        fi
+
+        # Check for 'greaterThan' condition
+        if echo "$condition_json" | jq -e '.greaterThan' > /dev/null 2>&1; then
+            local threshold=$(echo "$condition_json" | jq -r '.greaterThan')
+            # Replace dynamic placeholders and substitute variables in threshold
+            threshold=$(replace_dynamic_placeholders "$threshold")
+            threshold=$(substitute_variables "$threshold")
+            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+
+            # Use awk for floating point comparison
+            if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val > thresh) }'; then
+                return 0  # Value is greater than threshold
+            else
+                return 1  # Value is not greater than threshold
+            fi
+        fi
+
+        # Check for 'lessThan' condition
+        if echo "$condition_json" | jq -e '.lessThan' > /dev/null 2>&1; then
+            local threshold=$(echo "$condition_json" | jq -r '.lessThan')
+            # Replace dynamic placeholders and substitute variables in threshold
+            threshold=$(replace_dynamic_placeholders "$threshold")
+            threshold=$(substitute_variables "$threshold")
+            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+
+            # Use awk for floating point comparison
+            if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val < thresh) }'; then
+                return 0  # Value is less than threshold
+            else
+                return 1  # Value is not less than threshold
+            fi
+        fi
+
+        # Check for 'greaterThanOrEqual' condition
+        if echo "$condition_json" | jq -e '.greaterThanOrEqual' > /dev/null 2>&1; then
+            local threshold=$(echo "$condition_json" | jq -r '.greaterThanOrEqual')
+            # Replace dynamic placeholders and substitute variables in threshold
+            threshold=$(replace_dynamic_placeholders "$threshold")
+            threshold=$(substitute_variables "$threshold")
+            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+
+            # Use awk for floating point comparison
+            if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val >= thresh) }'; then
+                return 0  # Value is >= threshold
+            else
+                return 1  # Value is not >= threshold
+            fi
+        fi
+
+        # Check for 'lessThanOrEqual' condition
+        if echo "$condition_json" | jq -e '.lessThanOrEqual' > /dev/null 2>&1; then
+            local threshold=$(echo "$condition_json" | jq -r '.lessThanOrEqual')
+            # Replace dynamic placeholders and substitute variables in threshold
+            threshold=$(replace_dynamic_placeholders "$threshold")
+            threshold=$(substitute_variables "$threshold")
+            local actual_value=$(echo "$response_body" | jq -r "$field" 2>/dev/null || echo "null")
+
+            # Use awk for floating point comparison
+            if awk -v val="$actual_value" -v thresh="$threshold" 'BEGIN { exit !(val <= thresh) }'; then
+                return 0  # Value is <= threshold
+            else
+                return 1  # Value is not <= threshold
             fi
         fi
     fi

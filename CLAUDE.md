@@ -118,6 +118,14 @@ This is an HTTP sequence runner tool that executes sequential HTTP requests defi
   - `statusCode`: Check HTTP status of previous response
   - `field` + `equals`/`notEquals`: Check JSON field values
   - `field` + `exists`: Check if field exists in response
+  - `field` + `greaterThan`/`lessThan`: Numeric comparisons (supports integers and floats)
+  - `field` + `greaterThanOrEqual`/`lessThanOrEqual`: Numeric comparisons with equality
+- **Variable substitution in conditions**: All condition values support variable substitution
+  - Global variables: `{{ .vars.key }}`
+  - User input: `{{ .input.key }}`
+  - Response references: `{{ .responses.stepId.field }}`
+  - Dynamic placeholders: `{{ $timestamp }}`, `{{ $guid }}`
+  - Example: `"equals": "{{ .vars.expectedValue }}"`
 - Skipped steps maintain array indexing (stored as empty responses)
 
 **Validation:**

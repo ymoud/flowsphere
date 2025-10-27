@@ -1,0 +1,100 @@
+{
+  "variables": {
+    "expectedUserId": "1",
+    "minimumPosts": "5",
+    "maximumPosts": "15"
+  },
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "timeout": 10,
+    "validations": [
+      { "httpStatusCode": 200 }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "get-user",
+      "name": "Get user 1",
+      "method": "GET",
+      "url": "/users/1"
+    },
+    {
+      "id": "check-user-id-equals",
+      "name": "Check if user ID equals expected (should execute)",
+      "method": "GET",
+      "url": "/users/{{ .responses.get-user.id }}/posts",
+      "condition": {
+        "step": "get-user",
+        "field": ".id",
+        "equals": "{{ .vars.expectedUserId }}"
+      }
+    },
+    {
+      "id": "check-user-id-not-equals",
+      "name": "Check if user ID not equals 999 (should execute)",
+      "method": "GET",
+      "url": "/posts/1",
+      "condition": {
+        "step": "get-user",
+        "field": ".id",
+        "notEquals": "999"
+      }
+    },
+    {
+      "id": "get-posts",
+      "name": "Get all posts",
+      "method": "GET",
+      "url": "/posts"
+    },
+    {
+      "id": "conditional-on-greater-than",
+      "name": "Execute if posts array greater than minimumPosts (should execute)",
+      "method": "GET",
+      "url": "/posts/1/comments",
+      "condition": {
+        "step": "get-posts",
+        "field": ". | length",
+        "greaterThan": "{{ .vars.minimumPosts }}"
+      }
+    },
+    {
+      "id": "conditional-on-less-than",
+      "name": "Execute if posts array less than maximumPosts (should skip - 100 posts)",
+      "method": "GET",
+      "url": "/posts/2/comments",
+      "condition": {
+        "step": "get-posts",
+        "field": ". | length",
+        "lessThan": "{{ .vars.maximumPosts }}"
+      }
+    },
+    {
+      "id": "conditional-on-greater-than-or-equal",
+      "name": "Execute if user ID >= 1 (should execute)",
+      "method": "GET",
+      "url": "/users/1/albums",
+      "condition": {
+        "step": "get-user",
+        "field": ".id",
+        "greaterThanOrEqual": "{{ .vars.expectedUserId }}"
+      }
+    },
+    {
+      "id": "conditional-on-less-than-or-equal",
+      "name": "Execute if user ID <= 5 (should execute)",
+      "method": "GET",
+      "url": "/users/1/todos",
+      "condition": {
+        "step": "get-user",
+        "field": ".id",
+        "lessThanOrEqual": "5"
+      }
+    },
+    {
+      "id": "final-check",
+      "name": "Final check - always executes",
+      "method": "GET",
+      "url": "/posts/{{ .responses.get-user.id }}"
+    }
+  ]
+}
