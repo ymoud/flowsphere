@@ -10,7 +10,7 @@ Features listed in priority order (highest to lowest):
 
 | Priority | Feature | Status |
 |----------|---------|--------|
-| 1 | Test Execution with Proxy (Bypass CORS) | Planned |
+| 1 | Test Execution with Proxy (Bypass CORS) | 🚧 In Progress |
 | 2 | Try it Out - Individual Node Testing | Planned |
 | 3 | Execution Log Visualizer | Planned |
 | 4 | Swagger/OpenAPI Import | Planned |
@@ -32,6 +32,22 @@ Features listed in priority order (highest to lowest):
 ## FlowSphere Studio Enhancements
 
 ### Test Execution with Proxy (Bypass CORS)
+
+**Status:** 🚧 In Progress
+
+**Completed:**
+- ✅ Express server endpoint `/api/execute-stream` with Server-Sent Events (SSE)
+- ✅ Flow Runner UI with real-time streaming execution
+- ✅ User input prompts during execution flow
+- ✅ Browser launch for OAuth flows (opens URLs in modal iframe)
+- ✅ Execution log saving and download functionality
+- ✅ CLI-like compact result display with expandable details
+- ✅ Re-run capability
+
+**Pending:**
+- 🔲 Highlight substituted variables in request/response views
+  - Show which values were replaced from `{{ .vars.xxx }}`, `{{ .responses.xxx }}`, etc.
+  - Visual indication of dynamic vs static values in requests
 
 Add a proxy endpoint to the FlowSphere Studio Express server to enable direct API testing from the browser without CORS restrictions.
 
