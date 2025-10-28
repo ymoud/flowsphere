@@ -1,12 +1,12 @@
 # API FlowSphere
 
-**Design in Studio. Execute with CLI.**
+**Design in Studio. Execute Anywhere.**
 
 ---
 
 **Automate multi-step API workflows** — Define once, run anywhere. No coding required.
 
-API FlowSphere is a professional industrial-grade platform for managing and executing API workflows. It combines **FlowSphere Studio** (visual web app) and **FlowSphere CLI** (command-line executor) to give you complete control over complex API sequences.
+API FlowSphere is a professional industrial-grade platform for managing and executing API workflows. It combines **FlowSphere Studio** (visual web app with live execution) and **FlowSphere CLI** (command-line executor) to give you complete control over complex API sequences.
 
 ## What It Does
 
@@ -14,7 +14,8 @@ Executes API call sequences where each step uses data from previous responses. P
 
 **Example:** Login → Get user profile → Create resource → Verify creation
 - Each step automatically passes tokens, IDs, and data to the next
-- Visual config editor included (no JSON editing needed)
+- **Execute via CLI or browser UI** — same engine, your choice of interface
+- Visual config editor with live execution (no JSON editing needed)
 - Works on Windows, macOS, and Linux (truly cross-platform with Node.js)
 
 ## Why It Exists
@@ -81,7 +82,7 @@ flowsphere --version
 flowsphere --help
 ```
 
-### 2. Use FlowSphere Studio (Visual Editor)
+### 2. Use FlowSphere Studio (Visual Editor + Live Execution)
 
 **No JSON knowledge required.** Launch the visual editor with a single command:
 
@@ -90,16 +91,23 @@ flowsphere studio
 ```
 
 This will:
-- Start a local server on a random port
-- Automatically open your browser
-- Give you access to the full visual config editor
+- Start a local server on **port 3737**
+- Automatically open your browser to `http://localhost:3737`
+- Give you access to the full visual config editor **with live execution**
 
 **Key features:**
+- **Live Flow Execution** — Run your API sequences directly in the browser with real-time streaming results
+  - Color-coded status indicators (✅ success, ❌ failed, ⊘ skipped)
+  - Expandable request/response details with syntax highlighting
+  - **Variable highlighting** — see which values were substituted (color-coded by type)
+  - User input prompts during execution flow
+  - OAuth browser launch for authentication flows
+  - Save execution logs and re-run sequences with one click
 - Form-based editing with templates (OAuth flow, user input, etc.)
 - **Smart autocomplete** — type `{{` to see available variables, responses, inputs
 - **Import from Postman** — convert existing Postman collections automatically
 - Auto-save to browser (never lose work)
-- Live preview with one-click export to JSON
+- Live JSON preview with one-click export to file
 
 ### 3. Programmatic API
 
@@ -124,8 +132,11 @@ await FlowSphere.run('config.json', {
 
 | Feature | Description |
 |---------|-------------|
+| **Dual Execution Modes** | Run flows via CLI (terminal) or Studio UI (browser) with identical results |
+| **Live Flow Runner** | Execute sequences in browser with real-time streaming, color-coded highlighting, and detailed logs |
 | **Dynamic Variables** | Generate UUIDs and timestamps: `{{ $guid }}`, `{{ $timestamp }}` |
 | **Smart Data Passing** | Reference any field from previous responses: `{{ .responses.login.token }}` |
+| **Variable Highlighting** | Color-coded visualization of substituted values (variables, responses, dynamic values, user input) |
 | **Conditional Logic** | Execute steps based on previous results with AND logic (e.g., premium vs. free user flows) |
 | **User Interaction** | Prompt for input (passwords, codes) or auto-launch browser (OAuth flows) |
 | **Validation** | Verify status codes and response fields; fail fast on errors |
@@ -336,23 +347,30 @@ FlowSphere supports advanced array operations in JSON paths:
 ```
 flowsphere/
 ├── bin/
-│   └── flowsphere.js          # CLI entry point
+│   └── flowsphere.js          # CLI entry point + Express server for Studio
 ├── lib/
-│   ├── executor.js            # Core execution engine
-│   ├── substitution.js        # Variable substitution
+│   ├── executor.js            # Core execution engine (shared by CLI & Studio)
+│   ├── substitution.js        # Variable substitution with tracking
 │   ├── http-client.js         # HTTP request handling
 │   ├── validator.js           # Response validation
 │   ├── conditions.js          # Conditional logic
 │   ├── logger.js              # Execution logging
 │   └── utils.js               # Utilities
-├── studio/                    # Visual config editor
+├── studio/                    # Visual config editor + Flow Runner
 │   ├── index.html
 │   ├── css/
+│   │   └── styles.css         # UI styles + variable highlighting
 │   └── js/
+│       ├── config-editor.js   # Visual config editor
+│       ├── flow-runner.js     # Live execution UI
+│       ├── autocomplete.js    # Smart variable autocomplete
+│       └── ...                # Other UI modules
 ├── examples/                  # Example configs
 ├── tests/                     # Test configs
 └── package.json
 ```
+
+**Key Design Principle:** The execution engine (`lib/executor.js`) is shared between CLI and Studio, ensuring 100% identical behavior across both interfaces.
 
 ## Postman Integration
 
