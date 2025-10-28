@@ -229,7 +229,8 @@ function renderConditionSourceFields(sourceType, condition, stepOptions, stepInd
                 Object.keys(step.userPrompts).forEach(key => {
                     if (!seenKeys.has(key)) {
                         seenKeys.add(key);
-                        userInputKeys.push({ key, stepName: step.name || `Step ${i}` });
+                        const stepName = step.name || `${step.method} ${step.url}`;
+                        userInputKeys.push({ key, stepName });
                     }
                 });
             }

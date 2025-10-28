@@ -88,6 +88,9 @@
                             <button class="btn btn-secondary btn-sm" onclick="createNew()">
                                 <i class="bi bi-file-plus"></i> New Config
                             </button>
+                            <button class="btn btn-success btn-sm" onclick="runSequence()" id="runSequenceBtn" style="display: none;">
+                                <i class="bi bi-water"></i> Go with the <em>Flow</em>
+                            </button>
                             <div class="ms-auto d-flex align-items-center gap-2">
                                 <div id="fileNameContainer" class="d-flex align-items-center gap-1">
                                     <span id="currentFileName" class="text-muted small d-flex align-items-center gap-2">
@@ -537,6 +540,7 @@
     <script src="js/form-handlers.js"></script>
     <script src="js/modals.js"></script>
     <script src="js/config-manager.js"></script>
+    <script src="js/flow-runner.js"></script>
     <script src="js/main.js"></script>
 
     <!-- Optional Features Loading System -->

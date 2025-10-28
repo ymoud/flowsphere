@@ -131,6 +131,11 @@ function renderEditor() {
         if (typeof UIAdapter !== 'undefined' && UIAdapter.updateUIForLoadedFeatures) {
             UIAdapter.updateUIForLoadedFeatures();
         }
+
+        // Update Run Sequence button visibility
+        if (typeof updateRunSequenceButton === 'function') {
+            updateRunSequenceButton();
+        }
     }, 0);
 
     // Note: Scroll-to-view in JSON preview is only enabled for step/node accordions

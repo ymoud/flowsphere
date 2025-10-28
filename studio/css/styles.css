@@ -1622,3 +1622,140 @@ textarea.form-control {
     align-items: center;
     gap: 0.5rem;
 }
+
+/* ========================================
+   EXECUTION RESULTS MODAL
+   ======================================== */
+
+/* JSON preview code blocks in results modal - theme aware */
+.json-preview-code {
+    background-color: var(--bg-preview);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    font-family: 'Fira Code', 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+/* Ensure modal content respects theme */
+#resultsModal .modal-content {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+#resultsModal .modal-header {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+    border-bottom-color: var(--border-color);
+}
+
+#resultsModal .modal-body {
+    background-color: var(--bg-main);
+}
+
+#resultsModal .modal-footer {
+    background-color: var(--bg-surface);
+    border-top-color: var(--border-color);
+}
+
+/* Card styling in results modal */
+#resultsModal .card {
+    background-color: var(--bg-surface);
+    border-color: var(--border-color);
+}
+
+#resultsModal .card-header {
+    background-color: var(--bg-surface);
+    border-bottom-color: var(--border-color);
+}
+
+#resultsModal .card-body {
+    background-color: var(--bg-surface);
+}
+
+/* Accordion styling in results modal */
+#resultsModal .accordion-item {
+    background-color: var(--bg-surface);
+    border-color: var(--border-color);
+}
+
+#resultsModal .accordion-button {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+}
+
+#resultsModal .accordion-button:not(.collapsed) {
+    background-color: var(--bg-surface-hover);
+    color: var(--text-primary);
+}
+
+#resultsModal .accordion-body {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+}
+
+/* Animated step cards appearing */
+.step-card-animated {
+    animation: slideInFromTop 0.3s ease-out;
+}
+
+@keyframes slideInFromTop {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* CLI-like step line styling */
+.cli-step-line {
+    font-family: 'Fira Code', 'Courier New', monospace;
+    transition: all 0.2s ease;
+}
+
+/* Clickable step lines */
+.cli-step-clickable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.cli-step-clickable:hover {
+    box-shadow: 0 2px 4px var(--shadow-color);
+    transform: translateX(2px);
+}
+
+.cli-step-clickable:active {
+    transform: translateX(1px);
+}
+
+/* Rotate chevron when expanded - works when entire line is clicked */
+.cli-step-line[aria-expanded="true"] i.bi-chevron-down {
+    transform: rotate(180deg);
+}
+
+.cli-step-line i.bi-chevron-down {
+    transition: transform 0.2s ease;
+}
+
+/* Flow pulse animation for bi-activity icon */
+.flow-pulse {
+    animation: flow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes flow-pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.1);
+    }
+}

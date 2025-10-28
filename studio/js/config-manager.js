@@ -122,6 +122,11 @@ function closeFile() {
         editorContent.classList.add('empty-state');
         updatePreview();
 
+        // Hide Run Sequence button
+        if (typeof updateRunSequenceButton === 'function') {
+            updateRunSequenceButton();
+        }
+
         // Hide file actions dropdown
         const fileActionsDropdown = document.getElementById('fileActionsDropdown');
         if (fileActionsDropdown) fileActionsDropdown.style.display = 'none';
