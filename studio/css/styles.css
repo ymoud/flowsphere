@@ -1759,3 +1759,81 @@ textarea.form-control {
         transform: scale(1.1);
     }
 }
+
+/* ========================================
+   VARIABLE SUBSTITUTION HIGHLIGHTING
+   ======================================== */
+
+/* Base style for all substituted values */
+.json-substitution {
+    position: relative;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+    cursor: help;
+    transition: all 0.2s ease;
+}
+
+/* Global Variables: {{ .vars.xxx }} */
+.substitution-var {
+    background-color: rgba(0, 200, 150, 0.15);
+    border-bottom: 2px solid rgba(0, 200, 150, 0.4);
+}
+
+[data-theme="light"] .substitution-var {
+    background-color: rgba(0, 200, 150, 0.1);
+    border-bottom: 2px solid rgba(0, 200, 150, 0.5);
+}
+
+.substitution-var:hover {
+    background-color: rgba(0, 200, 150, 0.25);
+    border-bottom-color: rgba(0, 200, 150, 0.6);
+}
+
+/* Dynamic Variables: {{ $guid }}, {{ $timestamp }} */
+.substitution-dynamic {
+    background-color: rgba(123, 97, 255, 0.15);
+    border-bottom: 2px solid rgba(123, 97, 255, 0.4);
+}
+
+[data-theme="light"] .substitution-dynamic {
+    background-color: rgba(123, 97, 255, 0.1);
+    border-bottom: 2px solid rgba(123, 97, 255, 0.5);
+}
+
+.substitution-dynamic:hover {
+    background-color: rgba(123, 97, 255, 0.25);
+    border-bottom-color: rgba(123, 97, 255, 0.6);
+}
+
+/* Response References: {{ .responses.xxx }} */
+.substitution-response {
+    background-color: rgba(0, 102, 204, 0.15);
+    border-bottom: 2px solid rgba(0, 102, 204, 0.4);
+}
+
+[data-theme="light"] .substitution-response {
+    background-color: rgba(0, 102, 204, 0.1);
+    border-bottom: 2px solid rgba(0, 102, 204, 0.5);
+}
+
+.substitution-response:hover {
+    background-color: rgba(0, 102, 204, 0.25);
+    border-bottom-color: rgba(0, 102, 204, 0.6);
+}
+
+/* User Input: {{ .input.xxx }} */
+.substitution-input {
+    background-color: rgba(255, 200, 87, 0.15);
+    border-bottom: 2px solid rgba(255, 200, 87, 0.4);
+}
+
+[data-theme="light"] .substitution-input {
+    background-color: rgba(255, 200, 87, 0.1);
+    border-bottom: 2px solid rgba(255, 200, 87, 0.5);
+}
+
+.substitution-input:hover {
+    background-color: rgba(255, 200, 87, 0.25);
+    border-bottom-color: rgba(255, 200, 87, 0.6);
+}

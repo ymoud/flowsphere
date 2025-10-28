@@ -321,6 +321,8 @@ async function launchStudio(port = 3737) {
           // Execute step
           let response = null;
           let validationResults = null;
+          let substitutions = [];
+          let requestDetails = null;
           let startTime = Date.now();
 
           // Send step_start event so frontend can show placeholder if needed
@@ -335,7 +337,8 @@ async function launchStudio(port = 3737) {
           try {
             const result = await executeStep(node, context);
             response = result.response;
-            const requestDetails = result.requestDetails;
+            requestDetails = result.requestDetails;
+            substitutions = result.substitutions || [];
             const endTime = Date.now();
             const duration = (endTime - startTime) / 1000;
 
@@ -373,6 +376,7 @@ async function launchStudio(port = 3737) {
                 headers: response.headers,
                 body: response.body
               },
+              substitutions: result.substitutions || [],
               validations: validationResults,
               duration: parseFloat(duration.toFixed(3)),
               status: 'completed'
@@ -398,12 +402,14 @@ async function launchStudio(port = 3737) {
               step: stepNum,
               id,
               name,
-              method,
-              url,
+              // Use substituted values if available, otherwise use originals
+              method: requestDetails ? requestDetails.method : method,
+              url: requestDetails ? requestDetails.url : url,
               request: {
-                headers: node.headers,
-                body: node.body
+                headers: requestDetails ? (requestDetails.headers || {}) : (node.headers || {}),
+                body: requestDetails ? (requestDetails.body || {}) : (node.body || {})
               },
+              substitutions: substitutions,
               status: 'failed',
               error: error.message,
               duration: parseFloat(duration.toFixed(3))

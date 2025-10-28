@@ -10,17 +10,17 @@ Features listed in priority order (highest to lowest):
 
 | Priority | Feature | Status |
 |----------|---------|--------|
-| 1 | Test Execution with Proxy (Bypass CORS) | 🚧 In Progress |
-| 2 | Try it Out - Individual Node Testing | Planned |
-| 3 | Execution Log Visualizer | Planned |
-| 4 | Swagger/OpenAPI Import | Planned |
-| 5 | Enhanced Postman Import | Planned |
-| 6 | Export to Postman Collection/Environment | Planned |
+| 1 | Try it Out - Individual Node Testing | Planned |
+| 2 | Execution Log Visualizer | Planned |
+| 3 | Swagger/OpenAPI Import | Planned |
+| 4 | Enhanced Postman Import | Planned |
+| 5 | Export to Postman Collection/Environment | Planned |
 
 ### Completed & External Features
 
 | Feature | Status |
 |---------|--------|
+| Test Execution with Proxy (Bypass CORS) | ✅ Completed |
 | JavaScript/Node.js Version & NPM Package | ✅ Completed |
 | Plug-and-Play UI Architecture | ✅ Completed |
 | MCP Server for Code Generation | [External Repository](https://github.com/ymoud/flowsphere-mcp) |
@@ -33,7 +33,7 @@ Features listed in priority order (highest to lowest):
 
 ### Test Execution with Proxy (Bypass CORS)
 
-**Status:** 🚧 In Progress
+**Status:** ✅ Completed
 
 **Completed:**
 - ✅ Express server endpoint `/api/execute-stream` with Server-Sent Events (SSE)
@@ -43,11 +43,10 @@ Features listed in priority order (highest to lowest):
 - ✅ Execution log saving and download functionality
 - ✅ CLI-like compact result display with expandable details
 - ✅ Re-run capability
-
-**Pending:**
-- 🔲 Highlight substituted variables in request/response views
-  - Show which values were replaced from `{{ .vars.xxx }}`, `{{ .responses.xxx }}`, etc.
-  - Visual indication of dynamic vs static values in requests
+- ✅ Highlight substituted variables in request/response views
+  - Shows which values were replaced from `{{ .vars.xxx }}`, `{{ .responses.xxx }}`, etc.
+  - Color-coded highlighting: green for variables, purple for dynamic values, blue for responses, yellow for user input
+  - Hover tooltips show original placeholder syntax
 
 Add a proxy endpoint to the FlowSphere Studio Express server to enable direct API testing from the browser without CORS restrictions.
 

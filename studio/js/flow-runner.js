@@ -293,8 +293,8 @@ function updateModalWithStep(stepData, currentStep, totalSteps) {
         `Status ${stepData.response.status} ${stepData.response.statusText || ''}` :
         stepData.status.toUpperCase();
 
-    // Display URL (escaped for safety)
-    const displayUrl = escapeHtml(stepData.url);
+    // Display URL with substitution highlighting
+    const displayUrl = highlightSubstitutionsInText(stepData.url, stepData.substitutions);
 
     // Build validation lines (one per validation, like CLI)
     let validationLines = '';
@@ -369,7 +369,7 @@ function updateModalWithStep(stepData, currentStep, totalSteps) {
                                     <div id="request${currentStep}" class="accordion-collapse collapse"
                                          data-bs-parent="#stepAccordion${currentStep}">
                                         <div class="accordion-body p-0">
-                                            <pre class="json-preview-code m-0 p-2 small">${escapeHtml(JSON.stringify(stepData.request, null, 2))}</pre>
+                                            <pre class="json-preview-code m-0 p-2 small">${highlightSubstitutionsInJSON(stepData.request, stepData.substitutions)}</pre>
                                         </div>
                                     </div>
                                 </div>
@@ -385,7 +385,7 @@ function updateModalWithStep(stepData, currentStep, totalSteps) {
                                     <div id="response${currentStep}" class="accordion-collapse collapse"
                                          data-bs-parent="#stepAccordion${currentStep}">
                                         <div class="accordion-body p-0">
-                                            <pre class="json-preview-code m-0 p-2 small" style="max-height: 400px; overflow-y: auto;">${JSON.stringify(stepData.response.body, null, 2)}</pre>
+                                            <pre class="json-preview-code m-0 p-2 small" style="max-height: 400px; overflow-y: auto;">${escapeHtml(JSON.stringify(stepData.response.body, null, 2))}</pre>
                                         </div>
                                     </div>
                                 </div>
@@ -397,7 +397,7 @@ function updateModalWithStep(stepData, currentStep, totalSteps) {
                                 <strong>Skipped:</strong> ${escapeHtml(stepData.skipReason)}
                             </div>
                         ` : ''}
-                        ${stepData.error ? `
+                        ${stepData.error && !stepData.error.includes('validation failed') ? `
                             <div class="alert alert-danger mt-2 mb-0 small">
                                 <i class="bi bi-exclamation-triangle me-1"></i>
                                 <strong>Error:</strong> ${escapeHtml(stepData.error)}
@@ -471,8 +471,8 @@ function replaceStepPlaceholder(stepData, stepNumber, totalSteps) {
         `Status ${stepData.response.status} ${stepData.response.statusText || ''}` :
         stepData.status.toUpperCase();
 
-    // Display URL (escaped for safety)
-    const displayUrl = escapeHtml(stepData.url);
+    // Display URL with substitution highlighting
+    const displayUrl = highlightSubstitutionsInText(stepData.url, stepData.substitutions);
 
     // Build validation lines
     let validationLines = '';
@@ -544,7 +544,7 @@ function replaceStepPlaceholder(stepData, stepNumber, totalSteps) {
                                 <div id="request${stepNumber}" class="accordion-collapse collapse"
                                      data-bs-parent="#stepAccordion${stepNumber}">
                                     <div class="accordion-body p-0">
-                                        <pre class="json-preview-code m-0 p-2 small">${escapeHtml(JSON.stringify(stepData.request, null, 2))}</pre>
+                                        <pre class="json-preview-code m-0 p-2 small">${highlightSubstitutionsInJSON(stepData.request, stepData.substitutions)}</pre>
                                     </div>
                                 </div>
                             </div>
@@ -560,7 +560,7 @@ function replaceStepPlaceholder(stepData, stepNumber, totalSteps) {
                                 <div id="response${stepNumber}" class="accordion-collapse collapse"
                                      data-bs-parent="#stepAccordion${stepNumber}">
                                     <div class="accordion-body p-0">
-                                        <pre class="json-preview-code m-0 p-2 small" style="max-height: 400px; overflow-y: auto;">${JSON.stringify(stepData.response.body, null, 2)}</pre>
+                                        <pre class="json-preview-code m-0 p-2 small" style="max-height: 400px; overflow-y: auto;">${escapeHtml(JSON.stringify(stepData.response.body, null, 2))}</pre>
                                     </div>
                                 </div>
                             </div>
@@ -572,7 +572,7 @@ function replaceStepPlaceholder(stepData, stepNumber, totalSteps) {
                             <strong>Skipped:</strong> ${escapeHtml(stepData.skipReason)}
                         </div>
                     ` : ''}
-                    ${stepData.error ? `
+                    ${stepData.error && !stepData.error.includes('validation failed') ? `
                         <div class="alert alert-danger mt-2 mb-0 small">
                             <i class="bi bi-exclamation-triangle me-1"></i>
                             <strong>Error:</strong> ${escapeHtml(stepData.error)}
@@ -880,7 +880,7 @@ function createResultsModal() {
                             <i class="bi bi-download"></i> Save Logs
                         </button>
                         <button type="button" class="btn btn-success" id="rerunBtn" style="display: none;" onclick="rerunSequence()">
-                            <i class="bi bi-arrow-clockwise"></i> Run Again
+                            <i class="bi bi-arrow-clockwise"></i> Go Again
                         </button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
@@ -933,6 +933,148 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+/**
+ * Get CSS class and label for substitution type
+ * @param {string} type - Substitution type
+ * @returns {Object} Object with typeClass and typeLabel
+ */
+function getSubstitutionStyle(type) {
+    let typeClass = 'substitution-var';
+    let typeLabel = 'Variable';
+
+    if (type === 'dynamic-guid') {
+        typeClass = 'substitution-dynamic';
+        typeLabel = 'Dynamic GUID';
+    } else if (type === 'dynamic-timestamp') {
+        typeClass = 'substitution-dynamic';
+        typeLabel = 'Dynamic Timestamp';
+    } else if (type === 'response') {
+        typeClass = 'substitution-response';
+        typeLabel = 'Response Reference';
+    } else if (type === 'input') {
+        typeClass = 'substitution-input';
+        typeLabel = 'User Input';
+    }
+
+    return { typeClass, typeLabel };
+}
+
+/**
+ * Highlight substituted variables in plain text (like URLs)
+ * @param {string} text - The text to highlight
+ * @param {Array} substitutions - Array of substitution records
+ * @returns {string} HTML string with highlighted values
+ */
+function highlightSubstitutionsInText(text, substitutions = []) {
+    if (!text || substitutions.length === 0) {
+        return escapeHtml(text);
+    }
+
+    // Create a map of values to their substitution info
+    const valueMap = new Map();
+    substitutions.forEach(sub => {
+        const key = String(sub.value);
+        if (!valueMap.has(key)) {
+            valueMap.set(key, []);
+        }
+        valueMap.get(key).push(sub);
+    });
+
+    let result = text;
+
+    // Replace each substituted value with highlighted version
+    // Sort by value length (longest first) to avoid partial replacements
+    const sortedValues = Array.from(valueMap.keys()).sort((a, b) => b.length - a.length);
+
+    for (const value of sortedValues) {
+        const subs = valueMap.get(value);
+        const sub = subs[0]; // Use first substitution info
+        const { typeClass, typeLabel } = getSubstitutionStyle(sub.type);
+
+        // Escape value for regex
+        const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escapedValue, 'g');
+
+        // Create highlighted replacement
+        const replacement = `<span class="json-substitution ${typeClass}" data-original="${escapeHtml(sub.original)}" data-type="${typeLabel}" title="${typeLabel}: ${escapeHtml(sub.original)}">${value}</span>`;
+
+        result = result.replace(regex, replacement);
+    }
+
+    // Escape the remaining text (non-highlighted parts)
+    const parts = result.split(/(<span[^>]*>.*?<\/span>)/);
+    const escapedParts = parts.map((part, index) => {
+        // Odd indices are our span tags - don't escape them
+        if (index % 2 === 1) {
+            return part;
+        }
+        // Even indices are regular text - escape them
+        return escapeHtml(part);
+    });
+
+    return escapedParts.join('');
+}
+
+/**
+ * Highlight substituted variables in JSON
+ * @param {Object} jsonObj - The JSON object to display
+ * @param {Array} substitutions - Array of substitution records
+ * @returns {string} HTML string with highlighted values
+ */
+function highlightSubstitutionsInJSON(jsonObj, substitutions = []) {
+    if (!jsonObj || substitutions.length === 0) {
+        return escapeHtml(JSON.stringify(jsonObj, null, 2));
+    }
+
+    // Create a map of values to their substitution info
+    const valueMap = new Map();
+    substitutions.forEach(sub => {
+        const key = String(sub.value);
+        if (!valueMap.has(key)) {
+            valueMap.set(key, []);
+        }
+        valueMap.get(key).push(sub);
+    });
+
+    // Convert JSON to string
+    let jsonString = JSON.stringify(jsonObj, null, 2);
+
+    // Replace each substituted value with highlighted version
+    // Sort by value length (longest first) to avoid partial replacements
+    const sortedValues = Array.from(valueMap.keys()).sort((a, b) => b.length - a.length);
+
+    for (const value of sortedValues) {
+        const subs = valueMap.get(value);
+        const sub = subs[0]; // Use first substitution info
+        const { typeClass, typeLabel } = getSubstitutionStyle(sub.type);
+
+        // Escape value for regex
+        const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Match the value when it appears as a JSON string value (between quotes)
+        const regex = new RegExp(`"(${escapedValue})"`, 'g');
+
+        // Create highlighted replacement
+        const replacement = `"<span class="json-substitution ${typeClass}" data-original="${escapeHtml(sub.original)}" data-type="${typeLabel}" title="${typeLabel}: ${escapeHtml(sub.original)}">$1</span>"`;
+
+        jsonString = jsonString.replace(regex, replacement);
+    }
+
+    // Escape the remaining text (non-highlighted parts)
+    // Split by our span tags, escape each part, then rejoin
+    const parts = jsonString.split(/(<span[^>]*>.*?<\/span>)/);
+    const escapedParts = parts.map((part, index) => {
+        // Odd indices are our span tags - don't escape them
+        if (index % 2 === 1) {
+            return part;
+        }
+        // Even indices are regular text - escape them
+        return escapeHtml(part);
+    });
+
+    return escapedParts.join('');
 }
 
 /**
