@@ -126,8 +126,15 @@ This will:
   - User input prompts during execution flow
   - OAuth browser launch for authentication flows
   - Save execution logs and re-run sequences with one click
-- **Form-based editing** — no manual JSON editing needed
-- **Smart autocomplete** — type `{{` to see available variables, responses, inputs
+- **Engage Node (Try it Out)** — Test individual nodes in isolation without running the entire sequence
+  - Intelligent dependency mocking (automatically prompts for required values from previous responses)
+  - **Response schema storage** — optionally save response structure for enhanced autocomplete
+  - **Schema-based autocomplete** — field suggestions with type indicators (string, number, object, array)
+  - **Schema comparison** — detect changes between runs and choose to replace or merge schemas
+  - Works for both successful and failed requests (captures any valid JSON response)
+- **Form-based editing** — no manual JSON editing needed, includes templates (OAuth flow, user input, etc.)
+- **Smart autocomplete** — type `{{` to see available variables, responses, inputs with types
+- **Import from Postman** — convert existing Postman collections automatically
 - **Auto-save** to browser (never lose work)
 - **Live JSON preview** with one-click export to file
 

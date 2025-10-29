@@ -10,13 +10,10 @@ Features listed in priority order (highest to lowest):
 
 | Priority | Feature | Status |
 |----------|---------|--------|
-| 1 | Response Headers Access | Planned |
-| 2 | OAuth Callback Auto-Capture | Planned |
-| 3 | Try it Out - Individual Node Testing | Planned |
-| 4 | Execution Log Visualizer | Planned |
-| 5 | Swagger/OpenAPI Import | Planned |
-| 6 | Enhanced Postman Import | Planned |
-| 7 | Export to Postman Collection/Environment | Planned |
+| 1 | Execution Log Visualizer | Planned |
+| 2 | Swagger/OpenAPI Import | Planned |
+| 3 | Enhanced Postman Import | Planned |
+| 4 | Export to Postman Collection/Environment | Planned |
 
 ### Completed & External Features
 
@@ -24,6 +21,7 @@ Features listed in priority order (highest to lowest):
 |---------|--------|
 | Publish to NPM | ✅ Completed (v0.1.0) |
 | Node Templates & Import System | ✅ Completed |
+| Try it Out - Individual Node Testing (Engage Node) | ✅ Completed |
 | Test Execution with Proxy (Bypass CORS) | ✅ Completed |
 | JavaScript/Node.js Version & NPM Package | ✅ Completed |
 | Plug-and-Play UI Architecture | ✅ Completed |
@@ -1200,9 +1198,9 @@ FlowSphere displays:
 - ✅ CLI-like compact result display with expandable details
 - ✅ Re-run capability
 - ✅ Highlight substituted variables in request/response views
-  - Shows which values were replaced from variable references
-  - Color-coded highlighting: green for variables, purple for dynamic values, blue for responses, yellow for user input
-  - Hover tooltips show original placeholder syntax
+  - ✅ Shows which values were replaced from variable references
+  - ✅ Color-coded highlighting: green for variables, purple for dynamic values, blue for responses, yellow for user input
+  - ✅ Hover tooltips show original placeholder syntax
 
 Add a proxy endpoint to the FlowSphere Studio Express server to enable direct API testing from the browser without CORS restrictions.
 
@@ -1361,11 +1359,24 @@ Proxy middleware with security checks including invalid URL scheme blocking and 
 - Security hardening (if exposing publicly)
 - Performance metrics
 
-### Try it Out - Individual Node Testing
+### Try it Out - Individual Node Testing (Engage Node)
+
+**Status:** ✅ Completed
+
+**Key Features Implemented:**
+- ✅ Individual node execution with "Engage Node" button on each node card
+- ✅ Intelligent dependency detection and mocking (field-by-field modal for response references)
+- ✅ Response schema extraction and storage (optional, user-controlled)
+- ✅ Schema-based autocomplete with type indicators (string, number, object, array, boolean)
+- ✅ Schema comparison with diff visualization (shows added, removed, and changed fields)
+- ✅ Smart schema merge detection (only offers merge when schemas are compatible)
+- ✅ Works for both successful and failed requests (captures any valid JSON response)
+- ✅ Variable substitution highlighting in execution results
+- ✅ Consistent UI styling across Try it Out and Flow Runner features
 
 **Depends on:** Test Execution with Proxy (Bypass CORS)
 
-Add the ability to test individual nodes in isolation without running the entire sequence, with intelligent mocking of dependencies and optional response schema storage for enhanced autocomplete.
+~~Add the ability to~~ Test individual nodes in isolation without running the entire sequence, with intelligent mocking of dependencies and optional response schema storage for enhanced autocomplete.
 
 **Benefits:**
 - ✅ Test single nodes in isolation without running entire sequence
