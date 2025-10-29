@@ -55,6 +55,103 @@
     }
 
     /**
+     * Extract schema from response body
+     * Recursively analyzes the structure and captures field names and types
+     * @param {any} value - The value to analyze
+     * @param {number} maxDepth - Maximum depth to traverse (default: 10)
+     * @param {number} currentDepth - Current depth (internal use)
+     * @returns {object} Schema representation
+     */
+    function extractSchema(value, maxDepth = 10, currentDepth = 0) {
+        // Prevent infinite recursion
+        if (currentDepth >= maxDepth) {
+            return { type: 'unknown', reason: 'max depth reached' };
+        }
+
+        // Handle null explicitly
+        if (value === null) {
+            return { type: 'null' };
+        }
+
+        // Handle undefined
+        if (value === undefined) {
+            return { type: 'undefined' };
+        }
+
+        // Get JavaScript type
+        const jsType = typeof value;
+
+        // Handle primitives
+        if (jsType === 'string') {
+            return { type: 'string' };
+        }
+        if (jsType === 'number') {
+            return { type: 'number' };
+        }
+        if (jsType === 'boolean') {
+            return { type: 'boolean' };
+        }
+
+        // Handle arrays
+        if (Array.isArray(value)) {
+            if (value.length === 0) {
+                return { type: 'array', items: { type: 'unknown' } };
+            }
+
+            // Analyze first few items to determine array item type
+            const samples = value.slice(0, 3); // Sample first 3 items
+            const itemSchemas = samples.map(item => extractSchema(item, maxDepth, currentDepth + 1));
+
+            // If all items have same type, use that
+            const firstType = itemSchemas[0]?.type;
+            const allSameType = itemSchemas.every(schema => schema.type === firstType);
+
+            if (allSameType && firstType !== 'object') {
+                return { type: 'array', items: itemSchemas[0] };
+            } else if (allSameType && firstType === 'object') {
+                // For object arrays, merge properties from samples
+                const mergedProperties = {};
+                itemSchemas.forEach(schema => {
+                    if (schema.properties) {
+                        Object.keys(schema.properties).forEach(key => {
+                            if (!mergedProperties[key]) {
+                                mergedProperties[key] = schema.properties[key];
+                            }
+                        });
+                    }
+                });
+                return {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: mergedProperties
+                    }
+                };
+            } else {
+                return {
+                    type: 'array',
+                    items: { type: 'mixed' }
+                };
+            }
+        }
+
+        // Handle objects
+        if (jsType === 'object') {
+            const properties = {};
+            for (const [key, val] of Object.entries(value)) {
+                properties[key] = extractSchema(val, maxDepth, currentDepth + 1);
+            }
+            return {
+                type: 'object',
+                properties: properties
+            };
+        }
+
+        // Fallback
+        return { type: 'unknown' };
+    }
+
+    /**
      * Initialize the Try it Out feature
      */
     function initTryItOut() {
@@ -436,14 +533,14 @@
                                     </div>
 
                                     ${Object.keys(result.request.headers || {}).length > 0 ? `
-                                        <details class="mb-2">
+                                        <details class="mb-2" open>
                                             <summary><strong>Headers</strong></summary>
                                             <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${JSON.stringify(result.request.headers, null, 2)}</pre>
                                         </details>
                                     ` : ''}
 
                                     ${result.request.body && Object.keys(result.request.body).length > 0 ? `
-                                        <details class="mb-2">
+                                        <details class="mb-2" open>
                                             <summary><strong>Body</strong></summary>
                                             <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${JSON.stringify(result.request.body, null, 2)}</pre>
                                         </details>
@@ -482,6 +579,11 @@
                             </div>
                         </div>
                         <div class="modal-footer">
+                            ${result.success && result.response?.body ? `
+                            <button type="button" class="btn btn-success" id="storeSchemaBtn">
+                                <i class="bi bi-save me-2"></i>Store Response Schema
+                            </button>
+                            ` : ''}
                             <button type="button" class="btn btn-primary" id="reengageNode">
                                 <i class="bi bi-arrow-clockwise me-2"></i>Re-engage Node
                             </button>
@@ -509,12 +611,94 @@
             });
         }
 
+        // Add Store Schema button handler
+        const storeSchemaBtn = modalEl.querySelector('#storeSchemaBtn');
+        if (storeSchemaBtn) {
+            storeSchemaBtn.addEventListener('click', () => {
+                // Extract schema from response body
+                const schema = extractSchema(result.response.body);
+
+                // Store schema in config
+                storeResponseSchema(node, schema);
+
+                // Update button to show success
+                storeSchemaBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Schema Stored!';
+                storeSchemaBtn.disabled = true;
+                storeSchemaBtn.classList.remove('btn-success');
+                storeSchemaBtn.classList.add('btn-outline-success');
+
+                showToast('Response schema stored successfully', 'success', 3000);
+            });
+        }
+
         // Clean up modal on close
         modalEl.addEventListener('hidden.bs.modal', () => {
             modalEl.remove();
         });
 
         modal.show();
+    }
+
+    /**
+     * Store response schema in config
+     * @param {object} node - The node that was executed
+     * @param {object} schema - Extracted schema
+     */
+    function storeResponseSchema(node, schema) {
+        if (!node.id) {
+            console.error('[EngageNode] Cannot store schema: node has no ID');
+            showToast('Cannot store schema: node must have an ID', 'error', 5000);
+            return;
+        }
+
+        // Initialize responseSchemas section if not exists
+        if (!config.responseSchemas) {
+            config.responseSchemas = {};
+        }
+
+        // Store schema by node ID
+        config.responseSchemas[node.id] = {
+            nodeId: node.id,
+            nodeName: node.name || node.method + ' ' + node.url,
+            method: node.method || 'GET',
+            url: node.url || '',
+            schema: schema,
+            timestamp: new Date().toISOString()
+        };
+
+        console.log('[EngageNode] Stored schema for node:', node.id);
+
+        // Save to localStorage
+        if (typeof saveToLocalStorage === 'function') {
+            saveToLocalStorage();
+        }
+
+        // Update preview
+        if (typeof updatePreview === 'function') {
+            updatePreview();
+        }
+
+        // Update Response Schemas UI
+        if (typeof window.renderResponseSchemas === 'function') {
+            window.renderResponseSchemas();
+        }
+
+        // Update accordion header count
+        updateResponseSchemasCount();
+    }
+
+    /**
+     * Update the Response Schemas accordion header count
+     */
+    function updateResponseSchemasCount() {
+        const header = document.querySelector('#responseSchemasSection')?.previousElementSibling;
+        if (header) {
+            const button = header.querySelector('button');
+            if (button) {
+                const count = Object.keys(config.responseSchemas || {}).length;
+                button.textContent = `Response Schemas (${count})`;
+            }
+        }
     }
 
     /**

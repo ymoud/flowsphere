@@ -12,6 +12,18 @@ function safeAttachAutocomplete(input, stepIndex = null, mode = 'template') {
     // Silently skip if autocomplete not loaded (graceful degradation)
 }
 
+/**
+ * Escape HTML to prevent XSS
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') return text;
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 function renderEditor() {
     if (!config) return;
 
@@ -96,6 +108,23 @@ function renderEditor() {
             </div>
         </div>
 
+        <!-- Response Schemas -->
+        ${typeof FeatureRegistry !== 'undefined' && FeatureRegistry.isFeatureLoaded('try-it-out') ? `
+        <div class="accordion-item mb-3 border rounded">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#responseSchemasSection">
+                    Response Schemas (${Object.keys(config.responseSchemas || {}).length})
+                </button>
+            </h2>
+            <div id="responseSchemasSection" class="accordion-collapse collapse">
+                <div class="accordion-body">
+                    <div id="responseSchemasContent"></div>
+                    <div class="form-text mt-2">Schemas captured from "Engage Node" feature to enhance autocomplete</div>
+                </div>
+            </div>
+        </div>
+        ` : ''}
+
         <!-- Nodes -->
         <div class="accordion-item mb-3 border rounded">
             <h2 class="accordion-header">
@@ -118,6 +147,7 @@ function renderEditor() {
     renderGlobalVariables();
     renderDefaultValidations();
     renderDefaultHeaders();
+    renderResponseSchemas();
     renderSteps();
 
     // Attach autocomplete to baseUrl input
@@ -263,6 +293,112 @@ function renderDefaultHeaders() {
     }, 0);
 }
 
+function renderResponseSchemas() {
+    const schemas = config.responseSchemas || {};
+    const container = document.getElementById('responseSchemasContent');
+
+    if (!container) {
+        return; // Feature not loaded or container not found
+    }
+
+    const schemaCount = Object.keys(schemas).length;
+
+    if (schemaCount === 0) {
+        container.innerHTML = '<div class="text-muted small">No response schemas stored yet. Use "Engage Node" to capture schemas.</div>';
+        return;
+    }
+
+    const html = `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted small">${schemaCount} schema${schemaCount !== 1 ? 's' : ''} stored</span>
+            <button class="btn btn-danger btn-sm" onclick="clearAllSchemas()">
+                <i class="bi bi-trash me-2"></i>Clear All Schemas
+            </button>
+        </div>
+        ${Object.entries(schemas).map(([nodeId, schemaData]) => {
+            const methodBadgeClass = {
+                'GET': 'bg-info text-dark',
+                'POST': 'bg-success',
+                'PUT': 'bg-warning text-dark',
+                'DELETE': 'bg-danger',
+                'PATCH': 'bg-primary'
+            }[schemaData.method] || 'bg-secondary';
+
+            return `
+            <div class="card mb-2">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${schemaData.nodeName || nodeId}</strong>
+                        <small class="text-muted ms-2">[${nodeId}]</small>
+                        <br>
+                        <small>
+                            <span class="badge ${methodBadgeClass}">${schemaData.method || 'GET'}</span>
+                            <code class="ms-1">${schemaData.url || ''}</code>
+                        </small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteSchema('${nodeId.replace(/'/g, "\\'")}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <div class="card-body py-2">
+                    <details>
+                        <summary class="small text-muted">View Schema</summary>
+                        <pre class="small mt-2 p-2" style="background: var(--bg-surface); border: 1px solid var(--border-color); max-height: 300px; overflow-y: auto;">${escapeHtml(JSON.stringify(schemaData.schema, null, 2))}</pre>
+                    </details>
+                    ${schemaData.timestamp ? `<div class="small text-muted mt-1">Captured: ${new Date(schemaData.timestamp).toLocaleString()}</div>` : ''}
+                </div>
+            </div>
+        `;
+        }).join('')}
+    `;
+
+    container.innerHTML = html;
+}
+
+function deleteSchema(nodeId) {
+    if (!confirm(`Delete schema for "${nodeId}"?`)) {
+        return;
+    }
+
+    if (config.responseSchemas && config.responseSchemas[nodeId]) {
+        delete config.responseSchemas[nodeId];
+
+        // Remove entire section if empty
+        if (Object.keys(config.responseSchemas).length === 0) {
+            delete config.responseSchemas;
+        }
+
+        renderResponseSchemas();
+        updateResponseSchemasHeaderCount();
+        saveToLocalStorage();
+        updatePreview();
+    }
+}
+
+function clearAllSchemas() {
+    const count = Object.keys(config.responseSchemas || {}).length;
+    if (!confirm(`Delete all ${count} schema${count !== 1 ? 's' : ''}?`)) {
+        return;
+    }
+
+    delete config.responseSchemas;
+    renderResponseSchemas();
+    updateResponseSchemasHeaderCount();
+    saveToLocalStorage();
+    updatePreview();
+}
+
+function updateResponseSchemasHeaderCount() {
+    const header = document.querySelector('#responseSchemasSection')?.previousElementSibling;
+    if (header) {
+        const button = header.querySelector('button');
+        if (button) {
+            const count = Object.keys(config.responseSchemas || {}).length;
+            button.textContent = `Response Schemas (${count})`;
+        }
+    }
+}
+
 function renderSteps() {
     const steps = config.nodes || [];
     const container = document.getElementById('stepsList');
@@ -328,18 +464,19 @@ function renderSteps() {
                                 <i class="bi bi-three-dots-vertical"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li>
-                                    <a class="dropdown-item" href="#" onclick="cloneStep(${index}); return false;">
-                                        <i class="bi bi-copy me-2"></i>Duplicate
-                                    </a>
-                                </li>
                                 ${typeof FeatureRegistry !== 'undefined' && FeatureRegistry.isFeatureLoaded('try-it-out') ? `
                                 <li>
                                     <a class="dropdown-item" href="#" onclick="tryItOutNode(${index}); return false;">
                                         <i class="bi bi-gear-wide-connected me-2"></i>Engage Node
                                     </a>
                                 </li>
+                                <li><hr class="dropdown-divider"></li>
                                 ` : ''}
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="cloneStep(${index}); return false;">
+                                        <i class="bi bi-copy me-2"></i>Duplicate
+                                    </a>
+                                </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <a class="dropdown-item text-danger" href="#" onclick="removeStep(${index}); return false;">
@@ -631,6 +768,21 @@ function getMethodBadgeClass(method) {
 
 function renderStepForm(step, index) {
     return `
+        <!-- Node Actions Toolbar -->
+        <div class="d-flex gap-2 mb-3">
+            ${typeof FeatureRegistry !== 'undefined' && FeatureRegistry.isFeatureLoaded('try-it-out') ? `
+            <button class="btn btn-primary flex-grow-1" onclick="tryItOutNode(${index}); return false;">
+                <i class="bi bi-gear-wide-connected me-2"></i>Engage Node
+            </button>
+            ` : ''}
+            <button class="btn btn-outline-secondary" onclick="cloneStep(${index}); return false;">
+                <i class="bi bi-copy me-2"></i>Duplicate
+            </button>
+            <button class="btn btn-outline-danger" onclick="removeStep(${index}); return false;">
+                <i class="bi bi-trash me-2"></i>Delete
+            </button>
+        </div>
+
         <!-- Node Details -->
         <div class="border-bottom pb-3 mb-3">
             <h6 class="text-uppercase fw-semibold small text-secondary mb-3">Node Details</h6>
@@ -899,3 +1051,6 @@ window.removeGlobalVariable = removeGlobalVariable;
 window.updateStepDraggableState = updateStepDraggableState;
 window.toggleBodyVisibility = toggleBodyVisibility;
 window.updateStepAsync = updateStepAsync;
+window.deleteSchema = deleteSchema;
+window.clearAllSchemas = clearAllSchemas;
+window.renderResponseSchemas = renderResponseSchemas;
