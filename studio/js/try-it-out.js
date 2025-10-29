@@ -668,7 +668,7 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            ${result.success && result.response?.body ? `
+                            ${result.response?.body ? `
                             <button type="button" class="btn btn-success" id="storeSchemaBtn">
                                 <i class="bi bi-save me-2"></i>Store Response Schema
                             </button>
@@ -700,23 +700,68 @@
             });
         }
 
-        // Add Store Schema button handler
+        // Compare schema and style button accordingly
         const storeSchemaBtn = modalEl.querySelector('#storeSchemaBtn');
-        if (storeSchemaBtn) {
+        if (storeSchemaBtn && result.response?.body && node.id) {
+            const newSchema = extractSchema(result.response.body);
+            const existingSchema = config.responseSchemas?.[node.id];
+
+            if (existingSchema) {
+                // Schema exists - compare with new schema using diff
+                const diff = getSchemaDiff(existingSchema.schema, newSchema);
+                const hasDifferences = diff.added.length > 0 || diff.removed.length > 0 || diff.changed.length > 0;
+
+                if (!hasDifferences) {
+                    // Schemas are the same - show as already stored
+                    storeSchemaBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Schema Up-to-Date';
+                    storeSchemaBtn.disabled = true;
+                    storeSchemaBtn.classList.remove('btn-success');
+                    storeSchemaBtn.classList.add('btn-outline-success');
+                } else {
+                    // Schemas are different - show warning style
+                    storeSchemaBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Update Schema';
+                    storeSchemaBtn.classList.remove('btn-success');
+                    storeSchemaBtn.classList.add('btn-warning');
+                }
+            }
+
+            // Add Store Schema button handler
             storeSchemaBtn.addEventListener('click', () => {
-                // Extract schema from response body
+                // Don't do anything if button is disabled
+                if (storeSchemaBtn.disabled) return;
+
                 const schema = extractSchema(result.response.body);
 
-                // Store schema in config
-                storeResponseSchema(node, schema);
+                if (config.responseSchemas?.[node.id]) {
+                    // Schema exists - check if there are actual differences
+                    const existingSchema = config.responseSchemas[node.id];
+                    const diff = getSchemaDiff(existingSchema.schema, schema);
+                    const hasDifferences = diff.added.length > 0 || diff.removed.length > 0 || diff.changed.length > 0;
 
-                // Update button to show success
-                storeSchemaBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Schema Stored!';
-                storeSchemaBtn.disabled = true;
-                storeSchemaBtn.classList.remove('btn-success');
-                storeSchemaBtn.classList.add('btn-outline-success');
+                    if (!hasDifferences) {
+                        // Schemas are identical - shouldn't happen since button should be disabled
+                        // But just in case, update button state and don't open modal
+                        storeSchemaBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Schema Up-to-Date';
+                        storeSchemaBtn.disabled = true;
+                        storeSchemaBtn.classList.remove('btn-success', 'btn-warning');
+                        storeSchemaBtn.classList.add('btn-outline-success');
+                        return;
+                    }
 
-                showToast('Response schema stored successfully', 'success', 3000);
+                    // Has differences - show choice modal
+                    showSchemaUpdateChoice(node, schema, modalEl);
+                } else {
+                    // No existing schema - store new
+                    storeResponseSchema(node, schema, false);
+
+                    // Update button to show success
+                    storeSchemaBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Schema Stored!';
+                    storeSchemaBtn.disabled = true;
+                    storeSchemaBtn.classList.remove('btn-success', 'btn-warning');
+                    storeSchemaBtn.classList.add('btn-outline-success');
+
+                    showToast('Response schema stored successfully', 'success', 3000);
+                }
             });
         }
 
@@ -729,11 +774,416 @@
     }
 
     /**
+     * Check if two schemas can be meaningfully merged
+     * @param {object} schema1 - First schema
+     * @param {object} schema2 - Second schema
+     * @returns {boolean} True if schemas can be merged
+     */
+    function schemasCanBeMerged(schema1, schema2) {
+        if (!schema1 || !schema2) return false;
+
+        // Different types at root - can't merge
+        if (schema1.type !== schema2.type) return false;
+
+        // Primitives can't be merged meaningfully
+        if (['string', 'number', 'boolean', 'null'].includes(schema1.type)) {
+            return false;
+        }
+
+        // Arrays can be merged if item types match
+        if (schema1.type === 'array') {
+            if (!schema1.items || !schema2.items) return false;
+            return schemasCanBeMerged(schema1.items, schema2.items);
+        }
+
+        // Objects - check if they have compatible structure
+        if (schema1.type === 'object') {
+            const props1 = Object.keys(schema1.properties || {});
+            const props2 = Object.keys(schema2.properties || {});
+
+            // If no properties in either, can't merge
+            if (props1.length === 0 || props2.length === 0) return false;
+
+            // Check if there's ANY overlap in property names
+            const hasOverlap = props1.some(prop => props2.includes(prop));
+
+            // Check if there are conflicting property types
+            const hasConflicts = props1.some(prop => {
+                if (props2.includes(prop)) {
+                    const type1 = schema1.properties[prop].type;
+                    const type2 = schema2.properties[prop].type;
+                    // Same property name but different types = conflict
+                    return type1 !== type2;
+                }
+                return false;
+            });
+
+            // Can merge if:
+            // - There's property overlap (shared structure), OR
+            // - No conflicts and both schemas have properties
+            // Can't merge if:
+            // - Completely different property sets (no overlap) AND schemas are significantly different
+            // - There are type conflicts for the same property
+
+            if (hasConflicts) return false;
+
+            // If there's overlap, can merge
+            if (hasOverlap) return true;
+
+            // No overlap - check if schemas are too different
+            // If they're completely disjoint (no shared properties), it's likely success vs error
+            const totalProps = props1.length + props2.length;
+            const uniqueProps = new Set([...props1, ...props2]).size;
+
+            // If all properties are unique, schemas are disjoint - don't merge
+            if (uniqueProps === totalProps) return false;
+
+            // Otherwise, can merge (will just combine properties)
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Compare two schemas to see if they're equivalent
+     * @param {object} schema1 - First schema
+     * @param {object} schema2 - Second schema
+     * @returns {boolean} True if schemas are the same
+     */
+    function schemasAreEqual(schema1, schema2) {
+        if (!schema1 || !schema2) return false;
+
+        // Different types
+        if (schema1.type !== schema2.type) return false;
+
+        // Primitives - just check type
+        if (['string', 'number', 'boolean', 'null'].includes(schema1.type)) {
+            return true;
+        }
+
+        // Arrays - compare item schemas
+        if (schema1.type === 'array') {
+            return schemasAreEqual(schema1.items, schema2.items);
+        }
+
+        // Objects - compare properties
+        if (schema1.type === 'object') {
+            const props1 = Object.keys(schema1.properties || {}).sort();
+            const props2 = Object.keys(schema2.properties || {}).sort();
+
+            // Different number of properties
+            if (props1.length !== props2.length) return false;
+
+            // Different property names
+            if (JSON.stringify(props1) !== JSON.stringify(props2)) return false;
+
+            // Compare each property recursively
+            for (const key of props1) {
+                if (!schemasAreEqual(schema1.properties[key], schema2.properties[key])) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Get schema differences for display
+     * @param {object} oldSchema - Existing schema
+     * @param {object} newSchema - New schema
+     * @param {string} path - Current path (for recursion)
+     * @returns {object} Diff object with added, removed, changed arrays
+     */
+    function getSchemaDiff(oldSchema, newSchema, path = '') {
+        const diff = {
+            added: [],
+            removed: [],
+            changed: []
+        };
+
+        if (!oldSchema || !newSchema) return diff;
+
+        // Different types at same path
+        if (oldSchema.type !== newSchema.type) {
+            diff.changed.push({
+                path: path || '(root)',
+                oldType: oldSchema.type,
+                newType: newSchema.type
+            });
+            return diff;
+        }
+
+        // For objects, compare properties
+        if (oldSchema.type === 'object' && oldSchema.properties && newSchema.properties) {
+            const oldProps = Object.keys(oldSchema.properties);
+            const newProps = Object.keys(newSchema.properties);
+
+            // Find added properties
+            newProps.forEach(prop => {
+                if (!oldProps.includes(prop)) {
+                    diff.added.push({
+                        path: path ? `${path}.${prop}` : prop,
+                        type: newSchema.properties[prop].type
+                    });
+                }
+            });
+
+            // Find removed properties
+            oldProps.forEach(prop => {
+                if (!newProps.includes(prop)) {
+                    diff.removed.push({
+                        path: path ? `${path}.${prop}` : prop,
+                        type: oldSchema.properties[prop].type
+                    });
+                }
+            });
+
+            // Find changed properties (recursive)
+            oldProps.forEach(prop => {
+                if (newProps.includes(prop)) {
+                    const subPath = path ? `${path}.${prop}` : prop;
+                    const subDiff = getSchemaDiff(
+                        oldSchema.properties[prop],
+                        newSchema.properties[prop],
+                        subPath
+                    );
+                    diff.added.push(...subDiff.added);
+                    diff.removed.push(...subDiff.removed);
+                    diff.changed.push(...subDiff.changed);
+                }
+            });
+        }
+
+        // For arrays, compare item schemas
+        if (oldSchema.type === 'array' && oldSchema.items && newSchema.items) {
+            const subPath = path ? `${path}[]` : '[]';
+            const subDiff = getSchemaDiff(oldSchema.items, newSchema.items, subPath);
+            diff.added.push(...subDiff.added);
+            diff.removed.push(...subDiff.removed);
+            diff.changed.push(...subDiff.changed);
+        }
+
+        return diff;
+    }
+
+    /**
+     * Show modal asking user whether to replace or merge schema
+     * @param {object} node - The node
+     * @param {object} newSchema - The new schema
+     * @param {HTMLElement} parentModalEl - Parent modal element
+     */
+    function showSchemaUpdateChoice(node, newSchema, parentModalEl) {
+        const choiceModalId = `schemaChoice_${node.id}_${Date.now()}`;
+        const existingSchema = config.responseSchemas[node.id];
+
+        // Check if schemas can be merged
+        const canMerge = schemasCanBeMerged(existingSchema.schema, newSchema);
+
+        // Get schema differences
+        const diff = getSchemaDiff(existingSchema.schema, newSchema);
+        const hasDifferences = diff.added.length > 0 || diff.removed.length > 0 || diff.changed.length > 0;
+
+        // Build diff display HTML
+        let diffHtml = '';
+        if (hasDifferences) {
+            diffHtml = '<div class="mb-3"><h6 class="small text-muted mb-2">Schema Changes:</h6>';
+
+            if (diff.added.length > 0) {
+                diffHtml += '<div class="small mb-2"><strong class="text-success">+ Added:</strong><ul class="mb-0 ps-3">';
+                diff.added.forEach(item => {
+                    diffHtml += `<li><code>${item.path}</code> <span class="text-muted">(${item.type})</span></li>`;
+                });
+                diffHtml += '</ul></div>';
+            }
+
+            if (diff.removed.length > 0) {
+                diffHtml += '<div class="small mb-2"><strong class="text-danger">- Removed:</strong><ul class="mb-0 ps-3">';
+                diff.removed.forEach(item => {
+                    diffHtml += `<li><code>${item.path}</code> <span class="text-muted">(${item.type})</span></li>`;
+                });
+                diffHtml += '</ul></div>';
+            }
+
+            if (diff.changed.length > 0) {
+                diffHtml += '<div class="small mb-2"><strong class="text-warning">~ Changed:</strong><ul class="mb-0 ps-3">';
+                diff.changed.forEach(item => {
+                    diffHtml += `<li><code>${item.path}</code>: <span class="text-muted">${item.oldType}</span> → <span class="text-muted">${item.newType}</span></li>`;
+                });
+                diffHtml += '</ul></div>';
+            }
+
+            diffHtml += '</div>';
+        } else {
+            diffHtml = '<div class="alert alert-info py-2 small mb-3"><i class="bi bi-info-circle me-1"></i><strong>No changes detected</strong> - Schemas appear identical</div>';
+        }
+
+        const choiceModalHtml = `
+            <div class="modal fade" id="${choiceModalId}" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-diagram-3 me-2"></i>Schema Already Exists
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>A schema already exists for node <strong>${node.id}</strong>.</p>
+                            <p class="text-muted small">
+                                Last saved: ${new Date(existingSchema.timestamp).toLocaleString()}
+                            </p>
+
+                            ${diffHtml}
+
+                            ${!canMerge && hasDifferences ? `
+                                <div class="alert alert-warning py-2 small mb-3">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    <strong>Incompatible schemas:</strong> The new response has a completely different structure. Merge is not available.
+                                </div>
+                            ` : ''}
+                            <p class="mb-3">How would you like to update it?</p>
+
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-outline-danger" id="replaceSchemaBtn">
+                                    <i class="bi bi-arrow-repeat me-2"></i>
+                                    <strong>Replace</strong>
+                                    <div class="small text-muted">Discard old schema and use the new one</div>
+                                </button>
+
+                                ${canMerge && hasDifferences ? `
+                                <button type="button" class="btn btn-outline-primary" id="mergeSchemaBtn">
+                                    <i class="bi bi-unity me-2"></i>
+                                    <strong>Merge</strong>
+                                    <div class="small text-muted">Combine both schemas (keeps all fields)</div>
+                                </button>
+                                ` : ''}
+
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                    <i class="bi bi-x me-2"></i>
+                                    <strong>Cancel</strong>
+                                    <div class="small text-muted">Keep existing schema unchanged</div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add choice modal to DOM
+        document.body.insertAdjacentHTML('beforeend', choiceModalHtml);
+
+        // Initialize and show choice modal
+        const choiceModalEl = document.getElementById(choiceModalId);
+        const choiceModal = new bootstrap.Modal(choiceModalEl);
+
+        // Replace button handler
+        const replaceBtn = choiceModalEl.querySelector('#replaceSchemaBtn');
+        replaceBtn.addEventListener('click', () => {
+            storeResponseSchema(node, newSchema, false);
+            showToast('Schema replaced successfully', 'success', 3000);
+            choiceModal.hide();
+
+            // Update parent modal button
+            const storeBtn = parentModalEl?.querySelector('#storeSchemaBtn');
+            if (storeBtn) {
+                storeBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Schema Updated!';
+                storeBtn.disabled = true;
+                storeBtn.classList.remove('btn-success');
+                storeBtn.classList.add('btn-outline-success');
+            }
+        });
+
+        // Merge button handler (only if button exists)
+        const mergeBtn = choiceModalEl.querySelector('#mergeSchemaBtn');
+        if (mergeBtn) {
+            mergeBtn.addEventListener('click', () => {
+                storeResponseSchema(node, newSchema, true);
+                showToast('Schemas merged successfully', 'success', 3000);
+                choiceModal.hide();
+
+                // Update parent modal button
+                const storeBtn = parentModalEl?.querySelector('#storeSchemaBtn');
+                if (storeBtn) {
+                    storeBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Schema Merged!';
+                    storeBtn.disabled = true;
+                    storeBtn.classList.remove('btn-success');
+                    storeBtn.classList.add('btn-outline-success');
+                }
+            });
+        }
+
+        // Clean up choice modal on close
+        choiceModalEl.addEventListener('hidden.bs.modal', () => {
+            choiceModalEl.remove();
+        });
+
+        choiceModal.show();
+    }
+
+    /**
+     * Merge two schemas - combines properties from both
+     * @param {object} existingSchema - The existing schema
+     * @param {object} newSchema - The new schema to merge
+     * @returns {object} Merged schema
+     */
+    function mergeSchemas(existingSchema, newSchema) {
+        // If types don't match, keep existing
+        if (existingSchema.type !== newSchema.type) {
+            return existingSchema;
+        }
+
+        // For primitives, just return existing
+        if (['string', 'number', 'boolean', 'null'].includes(existingSchema.type)) {
+            return existingSchema;
+        }
+
+        // For arrays, merge item schemas
+        if (existingSchema.type === 'array') {
+            return {
+                type: 'array',
+                items: mergeSchemas(existingSchema.items || {}, newSchema.items || {})
+            };
+        }
+
+        // For objects, merge properties
+        if (existingSchema.type === 'object') {
+            const mergedProperties = { ...existingSchema.properties };
+
+            // Add new properties from newSchema
+            if (newSchema.properties) {
+                Object.keys(newSchema.properties).forEach(key => {
+                    if (mergedProperties[key]) {
+                        // Property exists in both - merge recursively
+                        mergedProperties[key] = mergeSchemas(mergedProperties[key], newSchema.properties[key]);
+                    } else {
+                        // New property - add it
+                        mergedProperties[key] = newSchema.properties[key];
+                    }
+                });
+            }
+
+            return {
+                type: 'object',
+                properties: mergedProperties
+            };
+        }
+
+        // Default: return existing
+        return existingSchema;
+    }
+
+    /**
      * Store response schema in config
      * @param {object} node - The node that was executed
      * @param {object} schema - Extracted schema
+     * @param {boolean} shouldMerge - Whether to merge with existing schema
      */
-    function storeResponseSchema(node, schema) {
+    function storeResponseSchema(node, schema, shouldMerge = false) {
         if (!node.id) {
             console.error('[EngageNode] Cannot store schema: node has no ID');
             showToast('Cannot store schema: node must have an ID', 'error', 5000);
@@ -743,6 +1193,12 @@
         // Initialize responseSchemas section if not exists
         if (!config.responseSchemas) {
             config.responseSchemas = {};
+        }
+
+        // If merging and schema exists, merge the schemas
+        if (shouldMerge && config.responseSchemas[node.id]) {
+            const existingSchema = config.responseSchemas[node.id].schema;
+            schema = mergeSchemas(existingSchema, schema);
         }
 
         // Store schema by node ID
