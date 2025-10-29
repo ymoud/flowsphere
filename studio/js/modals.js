@@ -176,8 +176,26 @@ function showConditionModal(stepIndex, condIndex, condition) {
     setTimeout(() => {
         const modal = document.getElementById('conditionModal');
         if (modal) {
-            const inputs = modal.querySelectorAll('input[type="text"]');
-            inputs.forEach(input => {
+            // Attach jq autocomplete to the field input (for node source)
+            const fieldInput = modal.querySelector('#conditionField');
+            if (fieldInput) {
+                // Get the selected node to determine which schema to use
+                const nodeSelect = modal.querySelector('#conditionNode');
+                const selectedNodeId = nodeSelect?.value;
+                // Find the stepIndex of the selected node
+                let targetStepIndex = stepIndex; // default to current step
+                if (selectedNodeId) {
+                    const targetNode = config.nodes.findIndex(n => (n.id || `node-${config.nodes.indexOf(n)}`) === selectedNodeId);
+                    if (targetNode !== -1) {
+                        targetStepIndex = targetNode;
+                    }
+                }
+                safeAttachAutocomplete(fieldInput, targetStepIndex, 'jq');
+            }
+
+            // Attach template autocomplete to other text inputs (like value comparisons)
+            const otherInputs = modal.querySelectorAll('input[type="text"]:not(#conditionField)');
+            otherInputs.forEach(input => {
                 safeAttachAutocomplete(input, stepIndex);
             });
         }
@@ -377,8 +395,25 @@ function updateConditionTypeFields() {
     setTimeout(() => {
         const modal = document.getElementById('conditionModal');
         if (modal) {
-            const inputs = modal.querySelectorAll('#conditionTypeFields input[type="text"]');
-            inputs.forEach(input => {
+            // Attach jq autocomplete to the field input
+            const fieldInput = modal.querySelector('#conditionField');
+            if (fieldInput) {
+                // Get the selected node to determine which schema to use
+                const nodeSelect = modal.querySelector('#conditionNode');
+                const selectedNodeId = nodeSelect?.value;
+                let targetStepIndex = stepIndex;
+                if (selectedNodeId) {
+                    const targetNode = config.nodes.findIndex(n => (n.id || `node-${config.nodes.indexOf(n)}`) === selectedNodeId);
+                    if (targetNode !== -1) {
+                        targetStepIndex = targetNode;
+                    }
+                }
+                safeAttachAutocomplete(fieldInput, targetStepIndex, 'jq');
+            }
+
+            // Attach template autocomplete to other inputs
+            const otherInputs = modal.querySelectorAll('#conditionTypeFields input[type="text"]:not(#conditionField)');
+            otherInputs.forEach(input => {
                 safeAttachAutocomplete(input, stepIndex);
             });
         }
