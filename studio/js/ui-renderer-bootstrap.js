@@ -333,6 +333,13 @@ function renderSteps() {
                                         <i class="bi bi-copy me-2"></i>Duplicate
                                     </a>
                                 </li>
+                                ${typeof FeatureRegistry !== 'undefined' && FeatureRegistry.isFeatureLoaded('try-it-out') ? `
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="tryItOutNode(${index}); return false;">
+                                        <i class="bi bi-play-circle me-2"></i>Try it Out
+                                    </a>
+                                </li>
+                                ` : ''}
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <a class="dropdown-item text-danger" href="#" onclick="removeStep(${index}); return false;">

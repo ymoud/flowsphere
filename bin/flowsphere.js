@@ -191,6 +191,154 @@ async function launchStudio(port = 3737) {
     }
   });
 
+  // Execute single node endpoint for "Try it Out" feature
+  app.post('/api/execute-node', async (req, res) => {
+    try {
+      const { node, config, mockResponses = {} } = req.body;
+
+      if (!node) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing node in request body'
+        });
+      }
+
+      if (!config) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing config in request body'
+        });
+      }
+
+      // Import required executor modules
+      const { mergeWithDefaults, executeStep } = require('../lib/executor');
+      const { validateResponse } = require('../lib/validator');
+
+      // Merge node with defaults from config
+      const defaults = config.defaults || {};
+      const mergedNode = mergeWithDefaults(node, defaults);
+
+      // Build mock responses array by node ID
+      const responses = [];
+      for (const nodeId in mockResponses) {
+        responses.push({
+          id: nodeId,
+          status: 200,
+          body: mockResponses[nodeId]
+        });
+      }
+
+      // Debug logging
+      console.log('[TryItOut API] mockResponses:', JSON.stringify(mockResponses, null, 2));
+      console.log('[TryItOut API] Built responses array:', JSON.stringify(responses, null, 2));
+
+      // Build execution context
+      const context = {
+        vars: config.variables || {},
+        responses: responses,
+        input: {}, // No user input for try it out (yet)
+        enableDebug: config.enableDebug || false
+      };
+
+      const startTime = Date.now();
+      let response = null;
+      let requestDetails = null;
+      let validationResults = null;
+      let substitutions = [];
+
+      try {
+        // Execute the node
+        const result = await executeStep(mergedNode, context);
+        response = result.response;
+        requestDetails = result.requestDetails;
+        substitutions = result.substitutions || [];
+
+        const endTime = Date.now();
+        const duration = (endTime - startTime) / 1000;
+
+        // Validate response
+        const validations = mergedNode.validations || [];
+        try {
+          validationResults = validateResponse(response, validations, context.enableDebug);
+        } catch (validationError) {
+          // Validation failed - extract results from error
+          validationResults = validationError.validationResults || null;
+
+          // Return validation failure response
+          return res.json({
+            success: false,
+            response: {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
+              body: response.body
+            },
+            request: {
+              method: requestDetails.method,
+              url: requestDetails.url,
+              headers: requestDetails.headers || {},
+              body: requestDetails.body || {}
+            },
+            substitutions: substitutions,
+            validations: validationResults,
+            duration: parseFloat(duration.toFixed(3)),
+            error: validationError.message
+          });
+        }
+
+        // Success - return complete result
+        res.json({
+          success: true,
+          response: {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
+            body: response.body
+          },
+          request: {
+            method: requestDetails.method,
+            url: requestDetails.url,
+            headers: requestDetails.headers || {},
+            body: requestDetails.body || {}
+          },
+          substitutions: substitutions,
+          validations: validationResults,
+          duration: parseFloat(duration.toFixed(3))
+        });
+
+      } catch (error) {
+        // Execution error (network, timeout, etc.)
+        const endTime = Date.now();
+        const duration = (endTime - startTime) / 1000;
+
+        res.json({
+          success: false,
+          request: requestDetails ? {
+            method: requestDetails.method,
+            url: requestDetails.url,
+            headers: requestDetails.headers || {},
+            body: requestDetails.body || {}
+          } : {
+            method: mergedNode.method,
+            url: mergedNode.url,
+            headers: mergedNode.headers || {},
+            body: mergedNode.body || {}
+          },
+          substitutions: substitutions,
+          duration: parseFloat(duration.toFixed(3)),
+          error: error.message
+        });
+      }
+
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  });
+
   // Streaming execution endpoint using Server-Sent Events (SSE)
   app.post('/api/execute-stream', async (req, res) => {
     try {

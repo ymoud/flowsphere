@@ -424,3 +424,173 @@ node bin/flowsphere.js studio
 - you should not create documentation files for bug fixes u make, unless i tell to do so.
 - dont open a browser each time you make a change to the ui, instruct the user to refresh the page and provide them with a lclickable link
 - when i ask you to commit, only commit changes you have made (even in a file) as files might be edited externally. Always be cautious not to commit something you havent written.
+## UI Styling Guide
+
+When implementing UI features in FlowSphere Studio, follow these consistent styling patterns to ensure uniform user experience across all features.
+
+### Validation Display Pattern
+
+**Use this exact pattern when displaying validation results** (used in Flow Runner and Try it Out):
+
+```javascript
+// Format validations
+const validationParts = result.validations.map(v => {
+    const icon = v.passed ? '<span class="text-success">✓</span>' : '<span class="text-danger">✗</span>';
+
+    if (v.type === 'httpStatusCode') {
+        const label = v.passed ? 'Validated' : 'Failed';
+        return `
+            <div class="ps-4 small">
+                ${icon} ${label} status = <span class="text-warning">${v.actual}</span>${v.passed ? '' : ` (expected ${v.expected})`}
+            </div>
+        `;
+    } else if (v.type === 'jsonpath') {
+        const displayValue = typeof v.value === 'object'
+            ? JSON.stringify(v.value)
+            : String(v.value);
+        const shortValue = displayValue.length > 80
+            ? displayValue.substring(0, 77) + '...'
+            : displayValue;
+        const label = v.passed ? 'Extracted' : 'Failed';
+        return `
+            <div class="ps-4 small">
+                ${icon} ${label} ${escapeHtml(v.path)} = <span class="text-warning">${escapeHtml(shortValue)}</span>
+            </div>
+        `;
+    }
+    return '';
+});
+```
+
+**Key elements:**
+- Icon: `✓` (text-success) for passed, `✗` (text-danger) for failed
+- Label: `Validated`/`Extracted` for passed, `Failed` for failed
+- Value color: `text-warning` (yellow/orange)
+- Indentation: `ps-4` (padding-start: 1.5rem)
+- Size: `small` class
+- Always use `escapeHtml()` for user-provided values
+
+### JSON/Code Display Pattern
+
+**Use CSS variables for theme-aware displays:**
+
+```html
+<pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">
+    ${JSON.stringify(data, null, 2)}
+</pre>
+```
+
+**Never use:**
+- `bg-light` class in dark theme contexts (it's white)
+- Hard-coded colors like `#FFFFFF` or `#000000`
+
+**CSS Variables available:**
+- `--bg-surface` - Surface background (adapts to theme)
+- `--text-primary` - Primary text color (adapts to theme)
+- `--border-color` - Border color (adapts to theme)
+- `--text-warning` - Warning/accent text (yellow/orange)
+- `--text-success` - Success text (green)
+- `--text-danger` - Error text (red)
+
+### Escape HTML Function
+
+**Always include this function when displaying user-provided data:**
+
+```javascript
+function escapeHtml(text) {
+    if (typeof text !== 'string') return text;
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+```
+
+### Substitution Display Pattern
+
+**Display variable substitutions using this format:**
+
+```javascript
+const substitutionsHtml = result.substitutions.map(sub => `
+    <li>
+        <code>${sub.original}</code> → <code>${sub.value}</code>
+        ${sub.type ? `<small class="text-muted">(${sub.type})</small>` : ''}
+    </li>
+`).join('');
+```
+
+**Substitution object structure:**
+- `original` - The original placeholder (e.g., `{{ .vars.name }}`)
+- `value` - The substituted value
+- `type` - Source type: `dynamic-guid`, `dynamic-timestamp`, `variable`, `input`, `response`
+
+### Color Classes
+
+**Bootstrap text colors:**
+- `text-success` - Green (passed validations, success states)
+- `text-danger` - Red (failed validations, errors)
+- `text-warning` - Yellow/Orange (values, highlights)
+- `text-muted` - Gray (secondary info, labels)
+- `text-primary` - Default text color (theme-aware)
+
+### Consistency Checklist
+
+When implementing new UI features that display execution results:
+- ✅ Use the exact validation display pattern from Flow Runner
+- ✅ Use CSS variables for background/text colors
+- ✅ Use `escapeHtml()` for all user-provided data
+- ✅ Match icon styles: ✓ for success, ✗ for failure
+- ✅ Match text colors: green for success, red for failure, yellow for values
+- ✅ Match indentation and spacing: `ps-4`, `small` class
+- ✅ Test in both dark and light themes
+
+### Substitution Display Pattern with Path
+
+**Display variable substitutions with location context:**
+
+```javascript
+// Format substitution path helper function
+function formatSubstitutionPath(path) {
+    if (!path) return '';
+    const parts = path.split('.');
+    if (parts.length === 0) return '';
+    
+    const section = parts[0];
+    
+    if (section === 'headers') {
+        const headerName = parts.slice(1).join('.');
+        return `request header ${headerName}`;
+    } else if (section === 'body') {
+        const bodyPath = parts.slice(1).join('.');
+        return bodyPath ? `request body: ${bodyPath}` : 'request body';
+    } else if (section === 'url') {
+        return 'request URL';
+    } else if (section === 'method') {
+        return 'request method';
+    } else {
+        return path;
+    }
+}
+
+// Display substitutions with location
+const substitutionsHtml = result.substitutions.map(sub => {
+    const location = formatSubstitutionPath(sub.path);
+    return `
+        <li class="mb-1">
+            ${location ? `<span class="text-muted">${location}:</span> ` : ''}
+            <code>${sub.original}</code> → <code>${sub.value}</code>
+            ${sub.type ? `<small class="text-muted">(${sub.type})</small>` : ''}
+        </li>
+    `;
+}).join('');
+```
+
+**Substitution object structure (lib/substitution.js):**
+- `original` - The original placeholder (e.g., `{{ .vars.name }}`)
+- `value` - The substituted value
+- `type` - Source type: `dynamic-guid`, `dynamic-timestamp`, `variable`, `input`, `response`
+- `path` - Location where substitution occurred (e.g., `headers.sandboxId`, `body.payload.id`)
+
+**Display examples:**
+- `headers.sandboxId` → "request header sandboxId: {{ .vars.sandboxId }} → Yannis-Test (variable)"
+- `body.payload.id` → "request body: payload.id: {{ $guid }} → abc-123 (dynamic-guid)"
+- `url` → "request URL: {{ .vars.baseUrl }} → https://api.example.com (variable)"

@@ -54,6 +54,15 @@ const FeatureRegistry = (function() {
             loaded: true,
             essential: false,
             category: 'UI Enhancement'
+        },
+        'try-it-out': {
+            name: 'Try it Out',
+            description: 'Test individual nodes in isolation with dependency mocking',
+            script: 'js/try-it-out.js',
+            enabled: true,
+            loaded: false,
+            essential: false,
+            category: 'Testing'
         }
     };
 
