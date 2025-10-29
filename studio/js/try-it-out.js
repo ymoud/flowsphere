@@ -21,37 +21,148 @@
     }
 
     /**
-     * Format substitution path for display
-     * Converts "headers.sandboxId" to "request header sandboxId"
-     * Converts "body.payload.sandboxId" to "request body: payload.sandboxId"
-     * @param {string} path - Path from substitution
-     * @returns {string} Formatted location string
+     * Get substitution styling based on type
+     * @param {string} type - Substitution type
+     * @returns {Object} Object with typeClass and typeLabel
      */
-    function formatSubstitutionPath(path) {
-        if (!path) return '';
+    function getSubstitutionStyle(type) {
+        let typeClass = 'substitution-var';
+        let typeLabel = 'Variable';
 
-        // Split path into parts
-        const parts = path.split('.');
-
-        if (parts.length === 0) return '';
-
-        const section = parts[0]; // e.g., 'headers', 'body', 'url'
-
-        // Handle different sections
-        if (section === 'headers') {
-            const headerName = parts.slice(1).join('.');
-            return `request header ${headerName}`;
-        } else if (section === 'body') {
-            const bodyPath = parts.slice(1).join('.');
-            return bodyPath ? `request body: ${bodyPath}` : 'request body';
-        } else if (section === 'url') {
-            return 'request URL';
-        } else if (section === 'method') {
-            return 'request method';
-        } else {
-            // Generic fallback
-            return path;
+        if (type === 'dynamic-guid') {
+            typeClass = 'substitution-dynamic';
+            typeLabel = 'Dynamic GUID';
+        } else if (type === 'dynamic-timestamp') {
+            typeClass = 'substitution-dynamic';
+            typeLabel = 'Dynamic Timestamp';
+        } else if (type === 'response') {
+            typeClass = 'substitution-response';
+            typeLabel = 'Response Reference';
+        } else if (type === 'input') {
+            typeClass = 'substitution-input';
+            typeLabel = 'User Input';
+        } else if (type === 'variable') {
+            typeClass = 'substitution-var';
+            typeLabel = 'Variable';
         }
+
+        return { typeClass, typeLabel };
+    }
+
+    /**
+     * Highlight substituted variables in plain text (like URLs)
+     * @param {string} text - The text to highlight
+     * @param {Array} substitutions - Array of substitution records
+     * @returns {string} HTML string with highlighted values
+     */
+    function highlightSubstitutionsInText(text, substitutions = []) {
+        if (!text || substitutions.length === 0) {
+            return escapeHtml(text);
+        }
+
+        // Create a map of values to their substitution info
+        const valueMap = new Map();
+        substitutions.forEach(sub => {
+            const key = String(sub.value);
+            if (!valueMap.has(key)) {
+                valueMap.set(key, []);
+            }
+            valueMap.get(key).push(sub);
+        });
+
+        let result = text;
+
+        // Replace each substituted value with highlighted version
+        // Sort by value length (longest first) to avoid partial replacements
+        const sortedValues = Array.from(valueMap.keys()).sort((a, b) => b.length - a.length);
+
+        for (const value of sortedValues) {
+            const subs = valueMap.get(value);
+            const sub = subs[0]; // Use first substitution info
+            const { typeClass, typeLabel } = getSubstitutionStyle(sub.type);
+
+            // Escape value for regex
+            const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(escapedValue, 'g');
+
+            // Create highlighted replacement
+            const replacement = `<span class="json-substitution ${typeClass}" data-original="${escapeHtml(sub.original)}" data-type="${typeLabel}" title="${typeLabel}: ${escapeHtml(sub.original)}">${value}</span>`;
+
+            result = result.replace(regex, replacement);
+        }
+
+        // Escape the remaining text (non-highlighted parts)
+        const parts = result.split(/(<span[^>]*>.*?<\/span>)/);
+        const escapedParts = parts.map((part, index) => {
+            // Odd indices are our span tags - don't escape them
+            if (index % 2 === 1) {
+                return part;
+            }
+            // Even indices are regular text - escape them
+            return escapeHtml(part);
+        });
+
+        return escapedParts.join('');
+    }
+
+    /**
+     * Highlight substituted variables in JSON
+     * @param {Object} jsonObj - The JSON object to display
+     * @param {Array} substitutions - Array of substitution records
+     * @returns {string} HTML string with highlighted values
+     */
+    function highlightSubstitutionsInJSON(jsonObj, substitutions = []) {
+        if (!jsonObj || substitutions.length === 0) {
+            return escapeHtml(JSON.stringify(jsonObj, null, 2));
+        }
+
+        // Create a map of values to their substitution info
+        const valueMap = new Map();
+        substitutions.forEach(sub => {
+            const key = String(sub.value);
+            if (!valueMap.has(key)) {
+                valueMap.set(key, []);
+            }
+            valueMap.get(key).push(sub);
+        });
+
+        // Convert JSON to string
+        let jsonString = JSON.stringify(jsonObj, null, 2);
+
+        // Replace each substituted value with highlighted version
+        // Sort by value length (longest first) to avoid partial replacements
+        const sortedValues = Array.from(valueMap.keys()).sort((a, b) => b.length - a.length);
+
+        for (const value of sortedValues) {
+            const subs = valueMap.get(value);
+            const sub = subs[0]; // Use first substitution info
+            const { typeClass, typeLabel } = getSubstitutionStyle(sub.type);
+
+            // Escape value for regex
+            const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+            // Match the value when it appears as a JSON string value (between quotes)
+            const regex = new RegExp(`"(${escapedValue})"`, 'g');
+
+            // Create highlighted replacement
+            const replacement = `"<span class="json-substitution ${typeClass}" data-original="${escapeHtml(sub.original)}" data-type="${typeLabel}" title="${typeLabel}: ${escapeHtml(sub.original)}">$1</span>"`;
+
+            jsonString = jsonString.replace(regex, replacement);
+        }
+
+        // Escape the remaining text (non-highlighted parts)
+        // Split by our span tags, escape each part, then rejoin
+        const parts = jsonString.split(/(<span[^>]*>.*?<\/span>)/);
+        const escapedParts = parts.map((part, index) => {
+            // Odd indices are our span tags - don't escape them
+            if (index % 2 === 1) {
+                return part;
+            }
+            // Even indices are regular text - escape them
+            return escapeHtml(part);
+        });
+
+        return escapedParts.join('');
     }
 
     /**
@@ -486,28 +597,8 @@
             `;
         }
 
-        // Format substitutions (show what was replaced and where)
-        let substitutionsHtml = '';
-        if (result.substitutions && result.substitutions.length > 0) {
-            substitutionsHtml = `
-                <div class="mb-3">
-                    <h6>Variable Substitutions:</h6>
-                    <ul class="list-unstyled small">
-                        ${result.substitutions.map(sub => {
-                            // Format path to be more readable
-                            const location = formatSubstitutionPath(sub.path);
-                            return `
-                                <li class="mb-1">
-                                    ${location ? `<span class="text-muted">${location}:</span> ` : ''}
-                                    <code>${sub.original}</code> → <code>${sub.value}</code>
-                                    ${sub.type ? `<small class="text-muted">(${sub.type})</small>` : ''}
-                                </li>
-                            `;
-                        }).join('')}
-                    </ul>
-                </div>
-            `;
-        }
+        // Substitutions are now highlighted inline in the URL, headers, and body
+        // No separate substitutions section needed - hover over highlighted values to see details
 
         const modalHtml = `
             <div class="modal fade" id="${modalId}" tabindex="-1">
@@ -529,24 +620,22 @@
                                     <h6>Request</h6>
                                     <div class="mb-2">
                                         <strong>${result.request.method}</strong>
-                                        <code>${result.request.url}</code>
+                                        <code>${highlightSubstitutionsInText(result.request.url, result.substitutions)}</code>
                                     </div>
 
                                     ${Object.keys(result.request.headers || {}).length > 0 ? `
                                         <details class="mb-2" open>
                                             <summary><strong>Headers</strong></summary>
-                                            <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${JSON.stringify(result.request.headers, null, 2)}</pre>
+                                            <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${highlightSubstitutionsInJSON(result.request.headers, result.substitutions)}</pre>
                                         </details>
                                     ` : ''}
 
                                     ${result.request.body && Object.keys(result.request.body).length > 0 ? `
                                         <details class="mb-2" open>
                                             <summary><strong>Body</strong></summary>
-                                            <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${JSON.stringify(result.request.body, null, 2)}</pre>
+                                            <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${highlightSubstitutionsInJSON(result.request.body, result.substitutions)}</pre>
                                         </details>
                                     ` : ''}
-
-                                    ${substitutionsHtml}
                                 </div>
 
                                 <div class="col-md-6">

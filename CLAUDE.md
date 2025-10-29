@@ -638,4 +638,4 @@ const substitutionsHtml = result.substitutions.map(sub => {
 - `headers.sandboxId` → "request header sandboxId: {{ .vars.sandboxId }} → Yannis-Test (variable)"
 - `body.payload.id` → "request body: payload.id: {{ $guid }} → abc-123 (dynamic-guid)"
 - `url` → "request URL: {{ .vars.baseUrl }} → https://api.example.com (variable)"
-- for each feature of the roadmap I want you to create a technical design md file in directory /docs with implementation plan and details before you start implementing it
+- we need to be consistent in our UI components. When implementing a new feature always try to find similar UI and re-use the same logic.
