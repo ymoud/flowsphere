@@ -7,6 +7,11 @@
 let lastExecutionLog = null;
 let lastExecutionResult = null;
 
+// Execution state
+let executionState = 'idle'; // 'idle', 'running', 'completed', 'failed'
+let currentStepNumber = 0;
+let totalStepsCount = 0;
+
 /**
  * Update Run Sequence button visibility based on config state
  * Should be called whenever the config changes
@@ -18,6 +23,125 @@ function updateRunSequenceButton() {
     // Show button only if there are nodes in the config
     const hasNodes = config && config.nodes && config.nodes.length > 0;
     btn.style.display = hasNodes ? 'inline-block' : 'none';
+}
+
+/**
+ * Update execution progress indicator (now integrated in modal header)
+ */
+function updateProgressIndicator(state, stepNumber, totalSteps) {
+    const progressBarContainer = document.getElementById('progressBarContainer');
+    const progressIcon = document.getElementById('progressIcon');
+    const progressBar = document.getElementById('progressBar');
+    const progressSteps = document.getElementById('progressSteps');
+
+    if (!progressBarContainer || !progressIcon) return;
+
+    // Show progress bar during active states
+    if (state === 'loading' || state === 'running' || state === 'paused' || state === 'completed' || state === 'failed') {
+        progressBarContainer.style.display = 'flex';
+
+        // Update icon and progress bar based on state
+        if (state === 'loading') {
+            progressIcon.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div>';
+            progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-primary';
+            progressBar.style.width = '0%';
+            if (progressSteps) progressSteps.textContent = `0 / ${totalSteps}`;
+        } else if (state === 'running') {
+            progressIcon.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Running...</span></div>';
+            progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-primary';
+            const percentage = totalSteps > 0 ? (stepNumber / totalSteps * 100) : 0;
+            progressBar.style.width = percentage + '%';
+            if (progressSteps) progressSteps.textContent = `${stepNumber} / ${totalSteps}`;
+        } else if (state === 'paused') {
+            progressIcon.innerHTML = '<i class="bi bi-pause-circle-fill text-warning fs-5"></i>';
+            progressBar.className = 'progress-bar bg-warning';
+            const percentage = totalSteps > 0 ? (stepNumber / totalSteps * 100) : 0;
+            progressBar.style.width = percentage + '%';
+            if (progressSteps) progressSteps.textContent = `${stepNumber} / ${totalSteps}`;
+        } else if (state === 'completed') {
+            progressIcon.innerHTML = '<i class="bi bi-check-circle-fill text-success fs-5"></i>';
+            progressBar.className = 'progress-bar bg-success';
+            progressBar.style.width = '100%';
+            if (progressSteps) progressSteps.textContent = `${totalSteps} / ${totalSteps}`;
+        } else if (state === 'failed') {
+            progressIcon.innerHTML = '<i class="bi bi-x-circle-fill text-danger fs-5"></i>';
+            progressBar.className = 'progress-bar bg-danger';
+            const percentage = totalSteps > 0 ? (stepNumber / totalSteps * 100) : 0;
+            progressBar.style.width = percentage + '%';
+            if (progressSteps) progressSteps.textContent = `${stepNumber} / ${totalSteps}`;
+        }
+    } else {
+        // Hide progress bar when idle
+        progressBarContainer.style.display = 'none';
+        progressIcon.innerHTML = '';
+    }
+}
+
+/**
+ * Helper to set modal title and subtitle
+ */
+function setModalTitle(title, subtitle = null) {
+    const modalTitle = document.getElementById('resultsModalLabel');
+    const modalSubtitle = document.getElementById('resultsModalSubtitle');
+
+    if (modalTitle) {
+        modalTitle.textContent = title;
+    }
+
+    if (modalSubtitle) {
+        if (subtitle) {
+            modalSubtitle.textContent = subtitle;
+            modalSubtitle.style.display = 'block';
+        } else {
+            modalSubtitle.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Update Run button based on current execution state
+ */
+function updateRunButton(newState) {
+    if (newState) {
+        executionState = newState;
+    }
+
+    const runBtn = document.getElementById('runSequenceBtn');
+
+    // Update toolbar Run button
+    if (runBtn) {
+        if (executionState === 'idle' || executionState === 'completed' || executionState === 'failed') {
+            runBtn.disabled = false;
+            runBtn.innerHTML = '<i class="bi bi-water"></i> Go with the <em>Flow</em>';
+        } else if (executionState === 'running') {
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<i class="bi bi-water"></i> <em>Flow</em> in Motion';
+        }
+    }
+}
+
+/**
+ * Clear results and reset to idle state
+ */
+function clearResults() {
+    // Reset state
+    currentStepNumber = 0;
+    totalStepsCount = 0;
+    lastExecutionLog = null;
+    lastExecutionResult = null;
+
+    // Update button and progress to idle state
+    updateRunButton('idle');
+    updateProgressIndicator('idle', 0, 0);
+
+    // Close results modal
+    const modal = document.getElementById('resultsModal');
+    if (modal) {
+        const bootstrapModal = bootstrap.Modal.getInstance(modal);
+        if (bootstrapModal) {
+            bootstrapModal.hide();
+        }
+    }
 }
 
 /**
@@ -33,14 +157,18 @@ async function runSequence() {
             return;
         }
 
+        // Reset state for new execution
+        currentStepNumber = 0;
+        totalStepsCount = config.nodes.length;
+
         // Hide post-execution buttons
         hidePostExecutionButtons();
 
-        // Show loading state
-        showRunningState(true);
-
-        // Open modal immediately with loading state
+        // Open modal immediately with loading state (this creates the modal)
         showLoadingModal(config.nodes.length);
+
+        // Now update to running state (after modal exists)
+        updateRunButton('running');
 
         // Use streaming API endpoint
         const response = await fetch('/api/execute-stream', {
@@ -104,7 +232,9 @@ async function runSequence() {
                 // Handle different event types
                 if (eventType === 'start') {
                     totalSteps = data.totalSteps;
+                    totalStepsCount = data.totalSteps; // Update global state
                     updateModalWithFlowStarted(totalSteps);
+                    updateProgressIndicator('running', 0, totalSteps);
                 } else if (eventType === 'step_start') {
                     // Step execution started - set timeout to show placeholder after 0.8s
                     const timeoutId = setTimeout(() => {
@@ -119,19 +249,27 @@ async function runSequence() {
                     // Show a clickable placeholder instead of immediately showing modal
                     // This allows user to complete previous step (e.g., OAuth flow in browser)
 
-                    // Show placeholder with "click to provide input" message
-                    // Use data.step as the unique ID (not currentStep, to avoid double-counting)
-                    await showInputPendingPlaceholder(data, data.step, totalSteps);
+                    // Set paused state and modal title BEFORE showing placeholder
+                    setModalTitle('Flow Paused', 'Awaiting User Calibration');
+                    updateProgressIndicator('paused', currentStep, totalSteps);
 
-                    // Wait for user to click and provide input
-                    const userInput = await collectUserInputForStep(data);
-                    if (userInput === null) {
-                        // User cancelled - abort execution
-                        reader.cancel();
-                        showRunningState(false);
-                        showAlert('warning', 'Execution cancelled by user');
-                        return;
+                    // Loop until user provides input
+                    let userInput = null;
+                    while (!userInput) {
+                        // Show placeholder with "click to provide input" message
+                        // Use data.step as the unique ID (not currentStep, to avoid double-counting)
+                        await showInputPendingPlaceholder(data, data.step, totalSteps);
+
+                        // Wait for user to click and provide input
+                        userInput = await collectUserInputForStep(data);
+
+                        // If modal was closed without submitting (returns null), loop again
+                        // This allows user to reopen by clicking the placeholder
                     }
+
+                    // Restore running state after user provides input
+                    setModalTitle('Flow in Motion', 'Executing nodes sequentially');
+                    updateProgressIndicator('running', currentStep, totalSteps);
 
                     // Remove the placeholder
                     removeInputPendingPlaceholder(data.step);
@@ -158,10 +296,12 @@ async function runSequence() {
 
                         if (pending.placeholderShown) {
                             // Replace placeholder with actual result
+                            currentStepNumber = pending.stepNumber; // Update global step number
                             replaceStepPlaceholder(data, pending.stepNumber, totalSteps);
                         } else {
                             // No placeholder was shown - add step normally
                             currentStep++;
+                            currentStepNumber = currentStep; // Update global step number
                             steps.push(data);
                             updateModalWithStep(data, currentStep, totalSteps);
                         }
@@ -170,9 +310,13 @@ async function runSequence() {
                     } else {
                         // No pending step (shouldn't happen, but handle gracefully)
                         currentStep++;
+                        currentStepNumber = currentStep; // Update global step number
                         steps.push(data);
                         updateModalWithStep(data, currentStep, totalSteps);
                     }
+
+                    // Update progress indicator with current step
+                    updateProgressIndicator('running', currentStepNumber, totalSteps);
 
                     // Handle browser launch if step succeeded
                     if (data.status === 'completed' && data.launchBrowser && data.response) {
@@ -183,18 +327,26 @@ async function runSequence() {
                     lastExecutionLog = data.executionLog || [];
                     lastExecutionResult = data; // Store full execution result with metadata
                     updateModalWithSummary(data);
-                    showRunningState(false);
-                    showPostExecutionButtons();
+
+                    // Update execution state based on success
+                    const finalState = data.success ? 'completed' : 'failed';
+                    updateRunButton(finalState);
+                    updateProgressIndicator(finalState, currentStepNumber, totalStepsCount);
+                    showPostExecutionButtons(data.success);
                 } else if (eventType === 'error') {
                     showExecutionError(new Error(data.message));
-                    showRunningState(false);
+                    updateRunButton('failed');
+                    updateProgressIndicator('failed', currentStepNumber, totalStepsCount);
+                    showPostExecutionButtons(false);
                 }
             }
         }
 
     } catch (error) {
-        showRunningState(false);
+        updateRunButton('failed');
+        updateProgressIndicator('failed', currentStepNumber, totalStepsCount);
         showExecutionError(error);
+        showPostExecutionButtons(false);
         console.error('Execution error:', error);
     }
 }
@@ -209,17 +361,11 @@ function getCurrentConfig() {
 
 /**
  * Show/hide running state - with Flow branding
+ * @deprecated Use updateRunButton() instead
  */
 function showRunningState(isRunning) {
-    const btn = document.getElementById('runSequenceBtn');
-    if (btn) {
-        btn.disabled = isRunning;
-        if (isRunning) {
-            btn.innerHTML = '<i class="bi bi-water"></i> <em>Flow</em> in Motion';
-        } else {
-            btn.innerHTML = '<i class="bi bi-water"></i> Go with the <em>Flow</em>';
-        }
-    }
+    // Backward compatibility wrapper
+    updateRunButton(isRunning ? 'running' : 'idle');
 }
 
 /**
@@ -233,23 +379,16 @@ function showLoadingModal(totalSteps) {
         modal = document.getElementById('resultsModal');
     }
 
-    // Update modal title with animated icon
-    const modalTitle = document.getElementById('resultsModalLabel');
-    if (modalTitle) {
-        modalTitle.innerHTML = '<i class="bi bi-activity me-2 flow-pulse"></i>Flow in Motion';
-    }
+    // Update modal title with branded message
+    // Stage 1: Auto-Execution Begins - "Flow in Motion — executing nodes sequentially..."
+    setModalTitle('Flow in Motion', 'Executing nodes sequentially');
 
+    // Initialize modal body with steps container
     const modalBody = document.getElementById('resultsModalBody');
-    modalBody.innerHTML = `
-        <div class="text-center py-3 mb-3" id="flowLoadingState">
-            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <h5>Preparing the <em>Flow</em>...</h5>
-            <p class="text-muted">Getting ready to execute ${totalSteps} step${totalSteps !== 1 ? 's' : ''}.</p>
-        </div>
-        <div id="flowStepsContainer" class="execution-log"></div>
-    `;
+    modalBody.innerHTML = `<div id="flowStepsContainer" class="execution-log"></div>`;
+
+    // Show progress indicator with loading state
+    updateProgressIndicator('loading', 0, totalSteps);
 
     // Show modal
     const bootstrapModal = bootstrap.Modal.getOrCreateInstance(modal);
@@ -260,19 +399,12 @@ function showLoadingModal(totalSteps) {
  * Update modal when flow starts
  */
 function updateModalWithFlowStarted(totalSteps) {
-    const loadingState = document.getElementById('flowLoadingState');
-    if (loadingState) {
-        loadingState.innerHTML = `
-            <div class="alert alert-info d-flex align-items-center gap-2 mb-0">
-                <div class="spinner-border spinner-border-sm" role="status">
-                    <span class="visually-hidden">Running...</span>
-                </div>
-                <div>
-                    <strong><em>Flow</em> is running...</strong>
-                    <div class="small">Executing ${totalSteps} step${totalSteps !== 1 ? 's' : ''} in sequence</div>
-                </div>
-            </div>
-        `;
+    // Progress indicator handles this now - no need for separate loading state
+    // Just update the modal title with branded message
+    const modalTitle = document.getElementById('resultsModalLabel');
+    if (modalTitle) {
+        // Stage 1: Auto-Execution Begins - "Flow in Motion — executing nodes sequentially..."
+        modalTitle.textContent = 'Flow in Motion';
     }
 }
 
@@ -409,12 +541,12 @@ function updateModalWithStep(stepData, currentStep, totalSteps) {
         </div>
     `;
 
-    container.insertAdjacentHTML('beforeend', stepHtml);
+    container.insertAdjacentHTML('afterbegin', stepHtml);
 
-    // Scroll to the new step
+    // Scroll to the new step (at top)
     const newStep = document.getElementById(`step-${currentStep}`);
     if (newStep) {
-        newStep.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        newStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
 
@@ -438,12 +570,12 @@ function showStepPlaceholder(stepData, currentStep, totalSteps) {
         </div>
     `;
 
-    container.insertAdjacentHTML('beforeend', placeholderHtml);
+    container.insertAdjacentHTML('afterbegin', placeholderHtml);
 
-    // Scroll to placeholder
+    // Scroll to placeholder (at top)
     const placeholder = document.getElementById(`step-${currentStep}`);
     if (placeholder) {
-        placeholder.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        placeholder.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
 
@@ -599,40 +731,56 @@ function showInputPendingPlaceholder(stepData, stepNumber, totalSteps) {
             return;
         }
 
-        const placeholderHtml = `
-            <div class="step-card-animated mb-2" id="step-${stepNumber}">
-                <div class="d-flex align-items-center gap-2 py-3 px-3 bg-warning bg-opacity-10 border border-warning rounded cursor-pointer user-select-none"
-                     role="button"
-                     id="inputPendingBtn-${stepNumber}"
-                     style="cursor: pointer; transition: all 0.2s;">
-                    <i class="bi bi-hand-index-thumb text-warning fs-5"></i>
-                    <div class="flex-grow-1">
-                        <div class="fw-bold">
-                            <i class="bi bi-pencil-square me-1"></i>
-                            ${escapeHtml(stepData.name)}
+        // Check if placeholder already exists (from a previous loop iteration)
+        let btn = document.getElementById(`inputPendingBtn-${stepNumber}`);
+
+        if (!btn) {
+            // Create placeholder if it doesn't exist
+            const placeholderHtml = `
+                <div class="step-card-animated mb-2" id="step-${stepNumber}">
+                    <div class="d-flex align-items-center gap-2 py-3 px-3 bg-warning bg-opacity-10 border border-warning rounded cursor-pointer user-select-none"
+                         role="button"
+                         id="inputPendingBtn-${stepNumber}"
+                         style="cursor: pointer; transition: all 0.2s;">
+                        <i class="bi bi-hand-index-thumb text-warning fs-5"></i>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">
+                                <i class="bi bi-pencil-square me-1"></i>
+                                ${escapeHtml(stepData.name)}
+                            </div>
+                            <div class="small text-muted mt-1">
+                                <i class="bi bi-info-circle me-1"></i>
+                                User input required. Click here when ready to provide input.
+                            </div>
                         </div>
-                        <div class="small text-muted mt-1">
-                            <i class="bi bi-info-circle me-1"></i>
-                            User input required. Click here when ready to provide input.
-                        </div>
+                        <span class="badge bg-warning text-dark">Click to Continue</span>
+                        <i class="bi bi-chevron-right ms-2"></i>
                     </div>
-                    <span class="badge bg-warning text-dark">Click to Continue</span>
-                    <i class="bi bi-chevron-right ms-2"></i>
                 </div>
-            </div>
-        `;
+            `;
 
-        container.insertAdjacentHTML('beforeend', placeholderHtml);
+            container.insertAdjacentHTML('afterbegin', placeholderHtml);
 
-        // Scroll to placeholder
-        const placeholder = document.getElementById(`step-${stepNumber}`);
-        if (placeholder) {
-            placeholder.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            // Scroll to placeholder (at top)
+            const placeholder = document.getElementById(`step-${stepNumber}`);
+            if (placeholder) {
+                placeholder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            btn = document.getElementById(`inputPendingBtn-${stepNumber}`);
         }
 
-        // Add click handler and hover effect
-        const btn = document.getElementById(`inputPendingBtn-${stepNumber}`);
         if (btn) {
+            // Re-enable button if it was disabled from a previous click
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+            btn.style.transform = 'scale(1)';
+
+            // Remove old event listeners by cloning the button
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            btn = newBtn;
+
             // Hover effect
             btn.addEventListener('mouseenter', () => {
                 btn.style.transform = 'scale(1.02)';
@@ -671,74 +819,29 @@ function removeInputPendingPlaceholder(stepNumber) {
  * Update modal with final summary - keeps steps visible
  */
 function updateModalWithSummary(result) {
-    // Update modal title to "Flow Complete"
-    const modalTitle = document.getElementById('resultsModalLabel');
-    if (modalTitle) {
-        modalTitle.innerHTML = '<i class="bi bi-check-circle me-2"></i>Flow Complete';
+    // Progress indicator handles the completion status
+    // Just update modal title with branded message
+    if (result.success) {
+        // Stage 4: Flow Success - "Flow complete — precision achieved."
+        setModalTitle('Flow Complete', 'Precision Achieved');
+    } else {
+        // Stage 5: Flow Failure - "Flow interrupted — integrity check required."
+        setModalTitle('Flow Interrupted', 'Integrity Check Required');
     }
 
-    const loadingState = document.getElementById('flowLoadingState');
-    if (loadingState) {
-        const summaryClass = result.success ? 'alert-success' : 'alert-danger';
-        const summaryIcon = result.success ? '✅' : '❌';
-
-        loadingState.innerHTML = `
-            <div class="alert ${summaryClass} d-flex align-items-center gap-2 mb-0">
-                <span style="font-size: 1.5rem;">${summaryIcon}</span>
-                <div>
-                    <strong>${result.success ? '<em>Flow</em> Completed Successfully!' : '<em>Flow</em> Failed'}</strong>
-                    <div class="small text-muted">Every node executed with precision.</div>
-                    <div class="small mt-1">
-                        ${result.stepsExecuted} executed, ${result.stepsSkipped} skipped${result.stepsFailed > 0 ? `, ${result.stepsFailed} failed` : ''}
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // Note: flowStepsContainer already has all the steps, so we don't replace it
-    // This keeps all step cards visible when the flow completes
+    // flowStepsContainer already has all the steps visible
 }
 
 /**
  * Show execution error in modal - keeps steps visible
  */
 function showExecutionError(error) {
-    // Update the loading state to show error, but keep steps visible
-    const loadingState = document.getElementById('flowLoadingState');
-    if (loadingState) {
-        loadingState.innerHTML = `
-            <div class="alert alert-danger d-flex align-items-center gap-2 mb-0">
-                <i class="bi bi-exclamation-triangle-fill fs-3"></i>
-                <div>
-                    <strong><em>Flow</em> Execution Failed</strong>
-                    <div class="small mt-1">${escapeHtml(error.message)}</div>
-                </div>
-            </div>
-        `;
-    }
+    // Progress indicator handles the error status
+    // Just update modal title with branded message
+    // Stage 5: Flow Failure - "Flow interrupted — integrity check required."
+    setModalTitle('Flow Interrupted', 'Integrity Check Required');
 
-    // If there's no loading state container, fall back to updating modal body
-    // But preserve any existing steps container
-    if (!loadingState) {
-        const modalBody = document.getElementById('resultsModalBody');
-        if (modalBody) {
-            // Check if steps container exists
-            const stepsContainer = document.getElementById('flowStepsContainer');
-            const stepsHtml = stepsContainer ? stepsContainer.outerHTML : '';
-
-            modalBody.innerHTML = `
-                <div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
-                    <i class="bi bi-exclamation-triangle-fill fs-3"></i>
-                    <div>
-                        <strong><em>Flow</em> Execution Failed</strong>
-                        <div class="small mt-1">${escapeHtml(error.message)}</div>
-                    </div>
-                </div>
-                ${stepsHtml}
-            `;
-        }
-    }
+    // Error is already shown in the failed step card, no need for duplicate alert
 }
 
 /**
@@ -869,20 +972,37 @@ function createResultsModal() {
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="resultsModalLabel">Execution Results</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <span id="progressIcon"></span>
+                            <div>
+                                <h5 class="modal-title mb-0" id="resultsModalLabel">Flow Monitor</h5>
+                                <div class="text-muted small" id="resultsModalSubtitle" style="display: none;"></div>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-3 flex-grow-1 mx-3" id="progressBarContainer" style="display: none;">
+                            <div class="flex-grow-1">
+                                <div class="progress" style="height: 8px;">
+                                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <span id="progressSteps" class="text-muted small"></span>
+                        </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body" id="resultsModalBody">
                         <!-- Results will be inserted here -->
                     </div>
                     <div class="modal-footer">
+                        <!-- Post-execution buttons -->
                         <button type="button" class="btn btn-primary" id="saveLogsBtn" style="display: none;" onclick="saveLogs()">
-                            <i class="bi bi-download"></i> Save Logs
+                            <i class="bi bi-file-earmark-arrow-down"></i> <span id="saveLogsBtnText">Save Execution Logs</span>
                         </button>
                         <button type="button" class="btn btn-success" id="rerunBtn" style="display: none;" onclick="rerunSequence()">
-                            <i class="bi bi-arrow-clockwise"></i> Go Again
+                            <i class="bi bi-arrow-repeat" id="rerunBtnIcon"></i> <span id="rerunBtnText">Re-Engage Flow</span>
                         </button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-door-closed"></i> Close Monitor
+                        </button>
                     </div>
                 </div>
             </div>
@@ -901,8 +1021,9 @@ function showAlert(type, message) {
                       type === 'success' ? 'alert-success' :
                       type === 'warning' ? 'alert-warning' : 'alert-info';
 
+    const alertId = `alert-${Date.now()}`;
     const alertHtml = `
-        <div class="alert ${alertClass} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3"
+        <div id="${alertId}" class="alert ${alertClass} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3"
              style="z-index: 9999; max-width: 500px;" role="alert">
             ${escapeHtml(message)}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -911,18 +1032,16 @@ function showAlert(type, message) {
 
     document.body.insertAdjacentHTML('beforeend', alertHtml);
 
-    // Auto-dismiss after 5 seconds
+    // Auto-dismiss this specific alert after 3 seconds
     setTimeout(() => {
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(alert => {
-            if (alert.classList.contains('show')) {
-                const bsAlert = bootstrap.Alert.getInstance(alert);
-                if (bsAlert) {
-                    bsAlert.close();
-                }
+        const alert = document.getElementById(alertId);
+        if (alert && alert.classList.contains('show')) {
+            const bsAlert = bootstrap.Alert.getInstance(alert);
+            if (bsAlert) {
+                bsAlert.close();
             }
-        });
-    }, 5000);
+        }
+    }, 3000);
 }
 
 /**
@@ -972,6 +1091,9 @@ function highlightSubstitutionsInText(text, substitutions = []) {
         return escapeHtml(text);
     }
 
+    // First, escape the entire text
+    let escapedText = escapeHtml(text);
+
     // Create a map of values to their substitution info
     const valueMap = new Map();
     substitutions.forEach(sub => {
@@ -982,9 +1104,9 @@ function highlightSubstitutionsInText(text, substitutions = []) {
         valueMap.get(key).push(sub);
     });
 
-    let result = text;
+    // Build array of replacements with their positions
+    const replacements = [];
 
-    // Replace each substituted value with highlighted version
     // Sort by value length (longest first) to avoid partial replacements
     const sortedValues = Array.from(valueMap.keys()).sort((a, b) => b.length - a.length);
 
@@ -993,28 +1115,45 @@ function highlightSubstitutionsInText(text, substitutions = []) {
         const sub = subs[0]; // Use first substitution info
         const { typeClass, typeLabel } = getSubstitutionStyle(sub.type);
 
-        // Escape value for regex
-        const escapedValue = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escapedValue, 'g');
+        // Escape value for searching in the already-escaped text
+        const escapedValue = escapeHtml(String(value));
 
-        // Create highlighted replacement
-        const replacement = `<span class="json-substitution ${typeClass}" data-original="${escapeHtml(sub.original)}" data-type="${typeLabel}" title="${typeLabel}: ${escapeHtml(sub.original)}">${value}</span>`;
+        // Find all occurrences
+        let startIndex = 0;
+        while (true) {
+            const index = escapedText.indexOf(escapedValue, startIndex);
+            if (index === -1) break;
 
-        result = result.replace(regex, replacement);
+            // Check if this position is already covered by a previous replacement
+            const isCovered = replacements.some(r =>
+                index >= r.start && index < r.end
+            );
+
+            if (!isCovered) {
+                replacements.push({
+                    start: index,
+                    end: index + escapedValue.length,
+                    value: escapedValue,
+                    html: `<span class="json-substitution ${typeClass}" data-original="${escapeHtml(sub.original)}" data-type="${typeLabel}" title="${typeLabel}: ${escapeHtml(sub.original)}">${escapedValue}</span>`
+                });
+            }
+
+            startIndex = index + escapedValue.length;
+        }
     }
 
-    // Escape the remaining text (non-highlighted parts)
-    const parts = result.split(/(<span[^>]*>.*?<\/span>)/);
-    const escapedParts = parts.map((part, index) => {
-        // Odd indices are our span tags - don't escape them
-        if (index % 2 === 1) {
-            return part;
-        }
-        // Even indices are regular text - escape them
-        return escapeHtml(part);
-    });
+    // Sort replacements by start position (reverse order for easier replacement)
+    replacements.sort((a, b) => b.start - a.start);
 
-    return escapedParts.join('');
+    // Apply replacements from end to start to preserve positions
+    let result = escapedText;
+    for (const replacement of replacements) {
+        result = result.substring(0, replacement.start) +
+                 replacement.html +
+                 result.substring(replacement.end);
+    }
+
+    return result;
 }
 
 /**
@@ -1109,32 +1248,32 @@ async function collectUserInputForStep(stepData) {
         });
 
         const modalHtml = `
-            <div class="modal fade" id="${modalId}" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal fade" id="${modalId}" tabindex="-1">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header bg-primary bg-opacity-10">
-                            <h5 class="modal-title">
-                                <i class="bi bi-pencil-square me-2"></i>
-                                User Input Required
-                            </h5>
+                            <div>
+                                <h5 class="modal-title mb-0">
+                                    <i class="bi bi-sliders me-2"></i>
+                                    Node Calibration Required
+                                </h5>
+                                <div class="text-muted small mt-1">Manual input needed to proceed with flow execution.</div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <div class="alert alert-info mb-3">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>${escapeHtml(stepData.name)}</strong>
-                            </div>
                             <form id="userInputForm">
                                 ${formHtml}
                             </form>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" id="cancelUserInputBtn">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                                 <i class="bi bi-x-circle me-1"></i>
-                                Cancel Execution
+                                Cancel Calibration
                             </button>
                             <button type="button" class="btn btn-primary" id="submitUserInputBtn">
-                                <i class="bi bi-check-circle me-1"></i>
-                                Continue
+                                <i class="bi bi-check2-circle me-1"></i>
+                                Apply &amp; Engage
                             </button>
                         </div>
                     </div>
@@ -1147,14 +1286,7 @@ async function collectUserInputForStep(stepData) {
         const modal = document.getElementById(modalId);
         const bootstrapModal = new bootstrap.Modal(modal);
 
-        // Handle cancel
-        document.getElementById('cancelUserInputBtn').addEventListener('click', () => {
-            bootstrapModal.hide();
-            modal.addEventListener('hidden.bs.modal', () => {
-                modal.remove();
-                resolve(null);
-            }, { once: true });
-        });
+        let submittedInput = null;
 
         // Handle submit
         document.getElementById('submitUserInputBtn').addEventListener('click', () => {
@@ -1168,12 +1300,16 @@ async function collectUserInputForStep(stepData) {
                 userInput[promptKey] = value;
             });
 
+            submittedInput = userInput;
             bootstrapModal.hide();
-            modal.addEventListener('hidden.bs.modal', () => {
-                modal.remove();
-                resolve(userInput);
-            }, { once: true });
         });
+
+        // Handle modal being closed (via submit, X button, Esc, or clicking outside)
+        modal.addEventListener('hidden.bs.modal', () => {
+            modal.remove();
+            // If submittedInput is set, user clicked Continue; otherwise they closed without submitting
+            resolve(submittedInput);
+        }, { once: true });
 
         // Show modal
         bootstrapModal.show();
@@ -1409,9 +1545,25 @@ function extractValueFromPath(obj, path) {
 /**
  * Show Save Logs and Re-run buttons after execution completes
  */
-function showPostExecutionButtons() {
+function showPostExecutionButtons(success = true) {
     const saveLogsBtn = document.getElementById('saveLogsBtn');
+    const saveLogsBtnText = document.getElementById('saveLogsBtnText');
     const rerunBtn = document.getElementById('rerunBtn');
+    const rerunBtnText = document.getElementById('rerunBtnText');
+    const rerunBtnIcon = document.getElementById('rerunBtnIcon');
+
+    // Update button text and icons based on success/failure
+    if (success) {
+        // Stage 4: Flow Success
+        if (saveLogsBtnText) saveLogsBtnText.textContent = 'Save Execution Logs';
+        if (rerunBtnText) rerunBtnText.textContent = 'Re-Engage Flow';
+        if (rerunBtnIcon) rerunBtnIcon.className = 'bi bi-arrow-repeat';
+    } else {
+        // Stage 5: Flow Failure
+        if (saveLogsBtnText) saveLogsBtnText.textContent = 'Save Failure Logs';
+        if (rerunBtnText) rerunBtnText.textContent = 'Retry Flow';
+        if (rerunBtnIcon) rerunBtnIcon.className = 'bi bi-arrow-clockwise';
+    }
 
     if (saveLogsBtn) saveLogsBtn.style.display = 'inline-block';
     if (rerunBtn) rerunBtn.style.display = 'inline-block';
