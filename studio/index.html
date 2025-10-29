@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FlowSphere Studio</title>
+    <title>API FlowSphere Studio</title>
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="assets/favicon/favicon.ico">
@@ -56,7 +56,7 @@
                 <img src="assets/logo.png" alt="FlowSphere Studio" class="app-logo">
                 <div class="flex-grow-1">
                     <h1 class="app-title mb-1">FLOWSPHERE STUDIO</h1>
-                    <p class="app-subtitle mb-0">Design in Studio. Execute with CLI.</p>
+                    <p class="app-subtitle mb-0">Design in Studio. Execute Anywhere.</p>
                 </div>
                 <div class="d-flex gap-2">
                     <button class="theme-toggle" onclick="showSettings()" title="Settings">
@@ -457,11 +457,14 @@
                         <!-- About Tab -->
                         <div class="tab-pane fade" id="about" role="tabpanel">
                             <div class="p-3">
-                                <h6 class="fw-bold mb-3">FlowSphere Studio</h6>
+                                <h6 class="fw-bold mb-3">API FlowSphere Studio</h6>
+                                <p class="text-muted mb-2">
+                                    <strong>Automate multi-step API workflows</strong> — Define once, run anywhere. No coding required.
+                                </p>
                                 <p class="text-muted">
-                                    A visual flow designer for creating and editing API workflow configurations.
-                                    Design complex HTTP sequences with a user-friendly interface and execute them
-                                    with the FlowSphere CLI.
+                                    API FlowSphere is a professional industrial-grade platform for managing and executing API workflows.
+                                    It combines <strong>FlowSphere Studio</strong> (visual web app with live execution) and
+                                    <strong>FlowSphere CLI</strong> (command-line executor) to give you complete control over complex API sequences.
                                 </p>
 
                                 <h6 class="fw-bold mb-2 mt-4">Plug-and-Play Architecture</h6>
@@ -476,13 +479,17 @@
                                     the page when toggled (enabled or disabled). Built-in features take effect immediately without reload.
                                 </p>
 
-                                <h6 class="fw-bold mb-2 mt-4">Core Features</h6>
+                                <h6 class="fw-bold mb-2 mt-4">Studio Features</h6>
                                 <ul class="text-muted small">
-                                    <li>Visual config editor with form-based interface</li>
-                                    <li>Auto-save to browser localStorage</li>
-                                    <li>Live JSON preview with copy-to-clipboard</li>
-                                    <li>Collapsible JSON preview panel</li>
-                                    <li>Template-based config creation</li>
+                                    <li><strong>Live Flow Execution</strong> — Run API sequences directly in browser with real-time streaming results</li>
+                                    <li><strong>Engage Node (Try it Out)</strong> — Test individual nodes in isolation with intelligent dependency mocking</li>
+                                    <li><strong>Response Schema Storage</strong> — Optional schema capture for enhanced autocomplete with type indicators</li>
+                                    <li><strong>Smart Autocomplete</strong> — Context-aware suggestions for variables, responses, and inputs with types</li>
+                                    <li><strong>Visual Config Editor</strong> — Form-based interface with validation and templates</li>
+                                    <li><strong>Dual Execution Modes</strong> — Run flows in Studio (browser) or CLI (terminal) with identical behavior</li>
+                                    <li>Auto-save to browser localStorage (never lose work)</li>
+                                    <li>Live JSON preview with syntax highlighting</li>
+                                    <li>Import from Postman collections</li>
                                 </ul>
 
                                 <h6 class="fw-bold mb-2 mt-3">Optional Features (Can Be Disabled)</h6>
@@ -497,7 +504,7 @@
                                 <div class="mt-4 pt-3 border-top">
                                     <p class="text-muted small mb-0">
                                         <i class="bi bi-github me-1"></i>
-                                        <a href="https://github.com/your-repo/flowsphere" target="_blank" class="text-decoration-none">
+                                        <a href="https://github.com/ymoud/flowsphere" target="_blank" class="text-decoration-none">
                                             View on GitHub
                                         </a>
                                     </p>
