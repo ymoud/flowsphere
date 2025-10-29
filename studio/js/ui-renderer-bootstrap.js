@@ -336,7 +336,7 @@ function renderSteps() {
                                 ${typeof FeatureRegistry !== 'undefined' && FeatureRegistry.isFeatureLoaded('try-it-out') ? `
                                 <li>
                                     <a class="dropdown-item" href="#" onclick="tryItOutNode(${index}); return false;">
-                                        <i class="bi bi-play-circle me-2"></i>Try it Out
+                                        <i class="bi bi-gear-wide-connected me-2"></i>Engage Node
                                     </a>
                                 </li>
                                 ` : ''}

@@ -157,11 +157,14 @@
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Mock Required Values</h5>
+                            <h5 class="modal-title">
+                                <i class="bi bi-sliders me-2"></i>Node Calibration Required
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
-                            <p>This node references values from previous responses. Please provide mock values:</p>
+                            <p>Some parameters need calibration before this node can execute.</p>
+                            <p class="text-muted">Please supply the required values below.</p>
                             <div id="mockFieldsContainer">
                                 ${dependencies.map((dep, index) => `
                                     <div class="form-group mb-3">
@@ -181,8 +184,12 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-primary" id="executeMockedNode">Run</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle me-2"></i>Cancel Calibration
+                            </button>
+                            <button type="button" class="btn btn-primary" id="executeMockedNode">
+                                <i class="bi bi-play-circle me-2"></i>Apply & Engage
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -277,7 +284,7 @@
      */
     async function executeNode(node, mockResponses) {
         // Show loading state
-        const loadingToast = showToast('Executing node...', 'info', 0); // 0 = no auto-hide
+        const loadingToast = showToast('Node in Motion...', 'info', 0); // 0 = no auto-hide
 
         try {
             console.log('[TryItOut] Executing node with mockResponses:', mockResponses);
@@ -411,11 +418,15 @@
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title">
-                                ${statusIcon} Try it Out - ${node.name || node.method + ' ' + node.url}
+                                <i class="bi bi-check-circle-fill me-2 ${statusClass}"></i>Node Execution Complete
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
+                            <div class="alert alert-${result.success ? 'success' : 'danger'} mb-3">
+                                <strong>${node.name || node.method + ' ' + node.url}</strong>
+                                <span class="ms-2">${statusIcon} ${statusText}</span>
+                            </div>
                             <div class="row">
                                 <div class="col-md-6">
                                     <h6>Request</h6>
@@ -471,6 +482,9 @@
                             </div>
                         </div>
                         <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" id="reengageNode">
+                                <i class="bi bi-arrow-clockwise me-2"></i>Re-engage Node
+                            </button>
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                         </div>
                     </div>
@@ -484,6 +498,16 @@
         // Initialize and show Bootstrap modal
         const modalEl = document.getElementById(modalId);
         const modal = new bootstrap.Modal(modalEl);
+
+        // Add Re-engage Node button handler
+        const reengageBtn = modalEl.querySelector('#reengageNode');
+        if (reengageBtn) {
+            reengageBtn.addEventListener('click', () => {
+                modal.hide();
+                // Re-run with same dependencies - need to show mocking modal again
+                tryItOutNode(config.nodes.indexOf(node));
+            });
+        }
 
         // Clean up modal on close
         modalEl.addEventListener('hidden.bs.modal', () => {
@@ -506,7 +530,7 @@
             return window.showToast(message, type, duration);
         } else {
             // Fallback: use console
-            console.log(`[TryItOut] ${type.toUpperCase()}: ${message}`);
+            console.log(`[EngageNode] ${type.toUpperCase()}: ${message}`);
             return { hide: () => {} };
         }
     }
