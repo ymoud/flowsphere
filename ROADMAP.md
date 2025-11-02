@@ -10,11 +10,14 @@ Features listed in priority order (highest to lowest):
 
 | Priority | Feature | Status |
 |----------|---------|--------|
-| 1 | Try it Out - Individual Node Testing | Planned |
-| 2 | Execution Log Visualizer | Planned |
-| 3 | Swagger/OpenAPI Import | Planned |
-| 4 | Enhanced Postman Import | Planned |
-| 5 | Export to Postman Collection/Environment | Planned |
+| 1 | Node Templates & Import System | Planned |
+| 2 | Response Headers Access | Planned |
+| 3 | OAuth Callback Auto-Capture | Planned |
+| 4 | Try it Out - Individual Node Testing | Planned |
+| 5 | Execution Log Visualizer | Planned |
+| 6 | Swagger/OpenAPI Import | Planned |
+| 7 | Enhanced Postman Import | Planned |
+| 8 | Export to Postman Collection/Environment | Planned |
 
 ### Completed & External Features
 
@@ -30,6 +33,1020 @@ Features listed in priority order (highest to lowest):
 ## Detailed Feature Specifications
 
 ## FlowSphere Studio Enhancements
+
+### Node Templates & Import System
+
+**Status:** Planned
+
+Replace the current template system with a more flexible two-button approach that separates "starting fresh" from "adding to existing work".
+
+**Problem with Current System:**
+- The "New" button dropdown mixes complete templates with individual patterns
+- Users must load a full template and delete unwanted nodes to get specific features
+- No way to add common patterns (auth, user input) to an existing flow incrementally
+- Building from scratch requires either starting empty or modifying templates
+
+**Proposed Solution:**
+
+Two distinct buttons that serve different purposes:
+
+**1. Load Config Button**
+Opens a modal with three import options:
+- **Load FlowSphere JSON Config** - Import existing config file
+- **Import from Postman Files** - Convert Postman collection to FlowSphere config
+- **Import from Swagger File** - Generate config from OpenAPI/Swagger spec (future)
+
+**Modal UX:**
+```
+┌─────────────────────────────────────┐
+│  Load Config                     × │
+├─────────────────────────────────────┤
+│ Choose import source:               │
+│                                     │
+│ [📄 FlowSphere JSON Config]        │
+│ [📮 Postman Collection]            │
+│ [📋 Swagger/OpenAPI Spec] 🔜       │
+│                                     │
+│ ⚠️  This will replace your current │
+│    flow. Save before proceeding.   │
+└─────────────────────────────────────┘
+```
+
+**2. Import Nodes Button**
+Opens a modal showing categorized node templates that can be added to the current flow:
+
+**Modal UX:**
+```
+┌─────────────────────────────────────┐
+│  Import Nodes                    × │
+├─────────────────────────────────────┤
+│ Select node template to add:        │
+│                                     │
+│ 🔐 Authentication                   │
+│  • Bearer Token Auth               │
+│  • OAuth 2.0 Flow (2 nodes)        │
+│  • API Key Header                  │
+│                                     │
+│ 👤 User Interaction                 │
+│  • Username/Password Prompt         │
+│  • Verification Code Input          │
+│  • Custom User Input                │
+│                                     │
+│ ✅ Validation Examples              │
+│  • Status + Extract Token           │
+│  • Paginated Response               │
+│  • Multi-field Validation           │
+│                                     │
+│ 🔀 Conditional Flow                 │
+│  • Premium vs Free User             │
+│  • Skip on Error                    │
+│                                     │
+│ ℹ️  Nodes will be added to the end │
+│    of your current flow.           │
+└─────────────────────────────────────┘
+```
+
+**Node Template Categories:**
+
+**Authentication:**
+- **Bearer Token Auth** - Simple login with token extraction
+- **OAuth 2.0 Flow** - Two nodes: get auth URL → exchange code for token
+- **API Key Header** - Static API key in headers
+
+**User Interaction:**
+- **Username/Password Prompt** - Interactive credential collection
+- **Verification Code Input** - 2FA/MFA code prompt
+- **Custom User Input** - Generic template for custom prompts
+
+**Validation Examples:**
+- **Status + Extract Token** - Common auth response validation
+- **Paginated Response** - Validate array length and pagination metadata
+- **Multi-field Validation** - Multiple jsonpath validations example
+
+**Conditional Flow:**
+- **Premium vs Free User** - Conditional execution based on user tier
+- **Skip on Error** - Graceful error handling pattern
+
+**Key Features:**
+
+**1. Smart Variable Auto-Creation**
+When an imported node references variables that don't exist:
+```javascript
+// Node uses {{ .vars.clientId }}
+// But clientId doesn't exist in config.variables
+
+→ Auto-create in variables section:
+{
+  "variables": {
+    "clientId": "YOUR_CLIENT_ID_HERE",  // ← auto-added with placeholder
+    ...
+  }
+}
+
+→ Show notification:
+"ℹ️ Added variable 'clientId' to your config. Update the value in Variables section."
+```
+
+**Benefits:**
+- No broken references after import
+- Clear placeholder values guide the user
+- Immediate visibility of required configuration
+- Works for all variable types (.vars references)
+
+**2. Smart ID Auto-Rename**
+When an imported node has an ID that already exists:
+```javascript
+// Current flow has node with id: "authenticate"
+// Importing "Bearer Token Auth" template also uses id: "authenticate"
+
+→ Auto-rename to avoid conflict:
+{
+  "id": "authenticate-2",  // ← auto-incremented
+  "name": "Bearer Token Auth",
+  ...
+}
+
+→ Show notification:
+"ℹ️ Renamed node ID to 'authenticate-2' to avoid conflict."
+```
+
+**Benefits:**
+- No ID collisions
+- Predictable naming scheme (append -2, -3, etc.)
+- User can rename later if needed
+- Preserves all references and relationships
+
+**3. Dependency Detection**
+Some templates import multiple nodes (e.g., OAuth flow = 2 nodes):
+```javascript
+// OAuth 2.0 Flow template imports:
+[
+  {
+    "id": "oauth-get-url",
+    "name": "Get OAuth URL",
+    "method": "POST",
+    "url": "/oauth/authorize",
+    "launchBrowser": ".authorizationUrl",
+    ...
+  },
+  {
+    "id": "oauth-exchange-code",
+    "name": "Exchange Code for Token",
+    "method": "POST",
+    "url": "/oauth/token",
+    "userPrompts": {
+      "authCode": "Enter the authorization code from browser:"
+    },
+    "body": {
+      "code": "{{ .input.authCode }}",
+      "redirect_uri": "{{ .vars.redirectUri }}"
+    },
+    ...
+  }
+]
+
+→ Both nodes added in sequence
+→ Variables auto-created: redirectUri
+→ IDs auto-renamed if conflicts
+```
+
+**4. Node Placement**
+Imported nodes are added to the end of the current flow by default:
+- Preserves existing sequence order
+- New nodes can be reordered with drag-and-drop
+- Clear visual indicator showing newly added nodes (highlight for 3 seconds)
+
+**Benefits:**
+
+**For New Users:**
+- Clear entry points: "Load Config" (start fresh) vs "Import Nodes" (add patterns)
+- Guided workflow with templates that demonstrate best practices
+- Learn FlowSphere features through pre-built examples
+
+**For Experienced Users:**
+- Rapid flow construction by combining templates
+- Reusable patterns eliminate repetitive config writing
+- Focus on API-specific logic, not boilerplate
+
+**For Teams:**
+- Share custom node templates (stored as JSON files)
+- Standardize common patterns across team configs
+- Version control templates alongside configs
+
+**Success Criteria:**
+- ✅ Users can add common patterns without manual JSON editing
+- ✅ No ID conflicts or broken variable references after import
+- ✅ Clear separation between "start fresh" and "add to existing"
+- ✅ 5+ high-quality templates covering essential patterns
+- ✅ Import workflow takes < 10 seconds from click to added nodes
+
+### Response Headers Access
+
+**Status:** Planned
+
+Enable access to HTTP response headers for validation and reference in subsequent nodes, just like response body access.
+
+**Current Limitation:**
+- Only response body is accessible via `{{ .responses.nodeId.field }}`
+- Response headers are not stored or accessible
+- Cannot validate response headers (e.g., rate limits, tokens in headers)
+- Cannot pass header values to subsequent requests
+- Missing critical data for some APIs (pagination links, auth tokens, rate limits)
+
+**Use Cases:**
+
+**1. Authentication Tokens in Headers:**
+Some APIs return tokens in response headers instead of body:
+```json
+{
+  "id": "login",
+  "method": "POST",
+  "url": "/auth/login",
+  "validations": [
+    { "httpStatusCode": 200 },
+    { "header": "X-Auth-Token", "exists": true }
+  ]
+}
+```
+
+Then use in next request:
+```json
+{
+  "id": "getProfile",
+  "method": "GET",
+  "url": "/profile",
+  "headers": {
+    "X-Auth-Token": "{{ .responses.login.headers.X-Auth-Token }}"
+  }
+}
+```
+
+**2. Rate Limiting Validation:**
+Verify API rate limits before continuing:
+```json
+{
+  "id": "checkRateLimit",
+  "method": "GET",
+  "url": "/api/data",
+  "validations": [
+    { "httpStatusCode": 200 },
+    { "header": "X-RateLimit-Remaining", "greaterThan": 10 }
+  ]
+}
+```
+
+**3. Pagination Links:**
+Some APIs use `Link` header for pagination (GitHub, GitLab):
+```json
+{
+  "id": "getUsers",
+  "method": "GET",
+  "url": "/users",
+  "validations": [
+    { "header": "Link", "exists": true }
+  ]
+}
+```
+
+**4. Content Metadata Validation:**
+Verify response format and size:
+```json
+{
+  "id": "downloadFile",
+  "method": "GET",
+  "url": "/files/report.pdf",
+  "validations": [
+    { "httpStatusCode": 200 },
+    { "header": "Content-Type", "equals": "application/pdf" },
+    { "header": "Content-Length", "greaterThan": 1000 }
+  ]
+}
+```
+
+**5. Custom Business Logic Headers:**
+APIs may return important data in custom headers:
+```json
+{
+  "id": "processPayment",
+  "method": "POST",
+  "url": "/payments",
+  "validations": [
+    { "httpStatusCode": 201 },
+    { "header": "X-Transaction-ID", "exists": true },
+    { "header": "X-Processing-Time", "lessThan": 5000 }
+  ]
+}
+```
+
+**6. Redirects with Browser Launch:**
+Handle 302 redirects and launch browser with Location header (useful for OAuth, SSO):
+```json
+{
+  "id": "initiateOAuth",
+  "method": "POST",
+  "url": "/oauth/initiate",
+  "body": {
+    "client_id": "{{ .vars.clientId }}",
+    "redirect_uri": "{{ .vars.redirectUri }}"
+  },
+  "validations": [
+    { "httpStatusCode": 302 },
+    { "header": "Location", "exists": true }
+  ],
+  "launchBrowser": "headers.Location"
+}
+```
+
+This enables seamless OAuth flows where the redirect URL is in the Location header, not the response body.
+
+**Proposed Syntax:**
+
+**Validation Syntax:**
+```json
+{
+  "validations": [
+    { "header": "Header-Name", "exists": true },
+    { "header": "Header-Name", "equals": "expected-value" },
+    { "header": "Header-Name", "notEquals": "forbidden-value" },
+    { "header": "Header-Name", "greaterThan": 100 },
+    { "header": "Header-Name", "lessThan": 1000 },
+    { "header": "Header-Name", "greaterThanOrEqual": 0 },
+    { "header": "Header-Name", "lessThanOrEqual": 500 }
+  ]
+}
+```
+
+**Reference Syntax:**
+```json
+{
+  "headers": {
+    "Authorization": "{{ .responses.nodeId.headers.HeaderName }}"
+  },
+  "body": {
+    "transactionId": "{{ .responses.payment.headers.X-Transaction-ID }}"
+  }
+}
+```
+
+**Condition Syntax:**
+```json
+{
+  "conditions": [
+    {
+      "source": "node",
+      "node": "checkApi",
+      "field": "headers.X-RateLimit-Remaining",
+      "greaterThan": 0
+    }
+  ]
+}
+```
+
+**Header Name Handling:**
+- Case-insensitive (HTTP headers are case-insensitive per RFC)
+- Access `X-Auth-Token` as `headers.X-Auth-Token` or `headers.x-auth-token`
+- Hyphens in header names supported (no special syntax needed)
+
+**Examples:**
+
+**Example 1: OAuth with Token in Header**
+```json
+{
+  "nodes": [
+    {
+      "id": "authenticate",
+      "name": "Get OAuth Token",
+      "method": "POST",
+      "url": "/oauth/token",
+      "body": {
+        "grant_type": "client_credentials",
+        "client_id": "{{ .vars.clientId }}",
+        "client_secret": "{{ .vars.clientSecret }}"
+      },
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "header": "X-OAuth-Token", "exists": true },
+        { "header": "X-Token-Expires-In", "greaterThan": 0 }
+      ]
+    },
+    {
+      "id": "callApi",
+      "name": "Call Protected API",
+      "method": "GET",
+      "url": "/api/protected",
+      "headers": {
+        "Authorization": "Bearer {{ .responses.authenticate.headers.X-OAuth-Token }}"
+      }
+    }
+  ]
+}
+```
+
+**Example 2: Rate Limit Aware Flow**
+```json
+{
+  "nodes": [
+    {
+      "id": "apiCall1",
+      "name": "First API Call",
+      "method": "GET",
+      "url": "/api/data",
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "header": "X-RateLimit-Remaining", "greaterThan": 5 }
+      ]
+    },
+    {
+      "id": "apiCall2",
+      "name": "Second API Call (conditional)",
+      "method": "GET",
+      "url": "/api/more-data",
+      "conditions": [
+        {
+          "source": "node",
+          "node": "apiCall1",
+          "field": "headers.X-RateLimit-Remaining",
+          "greaterThan": 10
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Example 3: Pagination with Link Header**
+```json
+{
+  "nodes": [
+    {
+      "id": "getPage1",
+      "name": "Get First Page",
+      "method": "GET",
+      "url": "/api/users?page=1",
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "header": "Link", "exists": true },
+        { "jsonpath": ". | length", "greaterThan": 0 }
+      ]
+    },
+    {
+      "id": "verifyPagination",
+      "name": "Verify Pagination Info",
+      "method": "GET",
+      "url": "/api/stats",
+      "userPrompts": {
+        "linkHeader": "Link header was: {{ .responses.getPage1.headers.Link }}"
+      }
+    }
+  ]
+}
+```
+
+**Example 4: OAuth Redirect Flow with Browser Launch**
+```json
+{
+  "nodes": [
+    {
+      "id": "initiateOAuth",
+      "name": "Initiate OAuth Flow",
+      "method": "POST",
+      "url": "/oauth/authorize",
+      "body": {
+        "client_id": "{{ .vars.clientId }}",
+        "redirect_uri": "{{ .vars.redirectUri }}",
+        "response_type": "code",
+        "scope": "read write"
+      },
+      "validations": [
+        { "httpStatusCode": 302 },
+        { "header": "Location", "exists": true }
+      ],
+      "launchBrowser": "headers.Location"
+    },
+    {
+      "id": "exchangeCode",
+      "name": "Exchange Authorization Code",
+      "method": "POST",
+      "url": "/oauth/token",
+      "userPrompts": {
+        "authCode": "Enter the authorization code from the browser:"
+      },
+      "body": {
+        "code": "{{ .input.authCode }}",
+        "client_id": "{{ .vars.clientId }}",
+        "client_secret": "{{ .vars.clientSecret }}",
+        "redirect_uri": "{{ .vars.redirectUri }}",
+        "grant_type": "authorization_code"
+      },
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "jsonpath": ".access_token", "exists": true }
+      ]
+    }
+  ]
+}
+```
+
+**Benefits:**
+
+**For API Testing:**
+- Complete validation coverage (body + headers)
+- Test rate limiting behavior
+- Verify security headers (CORS, CSP, etc.)
+- Validate content metadata
+
+**For Complex Workflows:**
+- Pass tokens/IDs in headers between requests
+- Implement rate-limit-aware flows
+- Follow pagination links from headers
+- Chain requests using header data
+
+**For Real-World APIs:**
+- Many APIs use headers for important data (GitHub, Stripe, Twilio)
+- RESTful APIs often return metadata in headers
+- Security tokens frequently in headers
+- Pagination commonly via `Link` header
+
+**Success Criteria:**
+- ✅ All header validation operators work (exists, equals, notEquals, numeric comparisons)
+- ✅ Headers accessible via `{{ .responses.nodeId.headers.HeaderName }}` syntax
+- ✅ Header names are case-insensitive (per HTTP spec)
+- ✅ Conditions can evaluate header values
+- ✅ Headers visible in execution logs and Studio UI
+- ✅ Autocomplete suggests available headers in Studio
+- ✅ Backward compatible with existing configs
+
+### OAuth Callback Auto-Capture
+
+**Status:** Planned
+
+**Depends on:** Response Headers Access (for `launchBrowser: "headers.Location"`)
+
+Automatically capture OAuth authorization codes from redirect callbacks without requiring manual copy/paste from the browser URL bar.
+
+**Current OAuth Flow (Manual - Tedious):**
+1. FlowSphere initiates OAuth → receives authorization URL
+2. Browser launches → user authenticates on OAuth provider
+3. OAuth provider redirects to `http://localhost:3000/callback?code=ABC123`
+4. **User manually copies the code from URL bar** 😓
+5. User pastes code into FlowSphere prompt
+6. FlowSphere exchanges code for access token
+
+This works but is error-prone, tedious, and breaks the flow experience.
+
+**Proposed OAuth Flow (Automatic - Seamless):**
+1. FlowSphere initiates OAuth with `redirect_uri: http://localhost:PORT/oauth-callback`
+2. Browser launches → user authenticates
+3. OAuth provider redirects to `http://localhost:PORT/oauth-callback?code=ABC123&state=xyz`
+4. **FlowSphere automatically captures the code** ✨
+5. FlowSphere validates state parameter (CSRF protection)
+6. FlowSphere automatically proceeds to token exchange
+7. Done! Zero manual intervention.
+
+**Config Format:**
+
+```json
+{
+  "variables": {
+    "clientId": "your-client-id",
+    "clientSecret": "your-client-secret"
+  },
+  "nodes": [
+    {
+      "id": "initiateOAuth",
+      "name": "Initiate OAuth Flow",
+      "method": "POST",
+      "url": "https://oauth.example.com/authorize",
+      "body": {
+        "client_id": "{{ .vars.clientId }}",
+        "redirect_uri": "http://localhost:3737/oauth-callback",
+        "response_type": "code",
+        "scope": "read write",
+        "state": "{{ $guid }}"
+      },
+      "validations": [
+        { "httpStatusCode": 302 },
+        { "header": "Location", "exists": true }
+      ],
+      "launchBrowser": "headers.Location",
+      "waitForCallback": {
+        "enabled": true,
+        "timeout": 300,
+        "validateState": true,
+        "captureParams": {
+          "code": "authCode",
+          "state": "oauthState",
+          "error": "oauthError",
+          "error_description": "oauthErrorDesc"
+        }
+      }
+    },
+    {
+      "id": "exchangeToken",
+      "name": "Exchange Code for Token",
+      "method": "POST",
+      "url": "https://oauth.example.com/token",
+      "body": {
+        "code": "{{ .input.authCode }}",
+        "client_id": "{{ .vars.clientId }}",
+        "client_secret": "{{ .vars.clientSecret }}",
+        "redirect_uri": "http://localhost:3737/oauth-callback",
+        "grant_type": "authorization_code"
+      },
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "jsonpath": ".access_token", "exists": true },
+        { "jsonpath": ".token_type", "equals": "Bearer" }
+      ]
+    }
+  ]
+}
+```
+
+**waitForCallback Configuration:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `enabled` | boolean | Enable automatic callback capture (default: false) |
+| `timeout` | number | Seconds to wait for callback before prompting user (default: 300) |
+| `validateState` | boolean | Verify state parameter matches for CSRF protection (default: true) |
+| `captureParams` | object | Map query params to input variables (e.g., `"code": "authCode"`) |
+
+**Studio Implementation:**
+
+FlowSphere Studio already runs an Express server on port 3737, making this feature straightforward:
+
+1. **Callback Endpoint Registration:**
+   - Studio registers route: `GET /oauth-callback`
+   - Route accepts any query parameters
+   - Extracts parameters based on `captureParams` config
+
+2. **Execution Flow:**
+   ```
+   Execute node with waitForCallback
+      ↓
+   Register callback handler (GET /oauth-callback)
+      ↓
+   Launch browser with OAuth URL
+      ↓
+   Pause execution + Show waiting UI
+      ↓
+   [User authenticates in browser]
+      ↓
+   OAuth provider redirects → http://localhost:3737/oauth-callback?code=ABC&state=xyz
+      ↓
+   Studio captures params: code=ABC, state=xyz
+      ↓
+   Validate state matches (CSRF check)
+      ↓
+   Store params in .input: { authCode: "ABC", oauthState: "xyz" }
+      ↓
+   Resume execution automatically
+      ↓
+   Next node runs with {{ .input.authCode }}
+   ```
+
+3. **UI During Callback Wait:**
+   ```
+   ┌─────────────────────────────────────────────────────┐
+   │ ⏳ Step 1: Initiate OAuth Flow                      │
+   ├─────────────────────────────────────────────────────┤
+   │ Status: Waiting for OAuth callback...              │
+   │                                                     │
+   │ 🌐 Browser launched with authorization URL         │
+   │ 📍 Callback: http://localhost:3737/oauth-callback  │
+   │                                                     │
+   │ Please complete authentication in your browser.    │
+   │ FlowSphere will automatically continue when the    │
+   │ OAuth provider redirects back.                     │
+   │                                                     │
+   │ ⏱️  Timeout: 4:32 remaining                         │
+   │                                                     │
+   │ [Cancel] [Enter Code Manually]                     │
+   └─────────────────────────────────────────────────────┘
+   ```
+
+4. **Success Callback Page:**
+   When callback received, show user-friendly page:
+   ```html
+   ┌─────────────────────────────────────────────────┐
+   │  ✅ OAuth Authorization Successful              │
+   ├─────────────────────────────────────────────────┤
+   │  Authorization code captured successfully!      │
+   │                                                 │
+   │  You can close this window and return to       │
+   │  FlowSphere Studio.                             │
+   │                                                 │
+   │  FlowSphere is now exchanging the code for an  │
+   │  access token...                                │
+   └─────────────────────────────────────────────────┘
+   ```
+
+**CLI Enhancement (Temporary HTTP Server):**
+
+For CLI users, add optional OAuth callback support with a temporary HTTP server:
+
+**Usage:**
+```bash
+# Enable OAuth callback server
+flowsphere config.json --enable-oauth-callback
+
+# Or specify custom port
+flowsphere config.json --enable-oauth-callback --oauth-port 8080
+
+# Or let CLI choose random available port
+flowsphere config.json --enable-oauth-callback --oauth-port random
+```
+
+**How It Works:**
+
+1. **Server Initialization:**
+   - CLI detects `waitForCallback` in config
+   - If `--enable-oauth-callback` flag provided:
+     - Start temporary HTTP server on specified/random port
+     - Display: `📡 OAuth callback server started on http://localhost:54321`
+     - Register route: `GET /oauth-callback`
+
+2. **Config Adjustment:**
+   - CLI automatically substitutes `{{ $oauthCallbackUrl }}` in redirect_uri
+   - Example: `"redirect_uri": "{{ $oauthCallbackUrl }}"` → `http://localhost:54321/oauth-callback`
+
+3. **Execution Flow:**
+   ```
+   Start CLI with --enable-oauth-callback
+      ↓
+   Detect waitForCallback in config
+      ↓
+   Start temp HTTP server on random port (e.g., 54321)
+      ↓
+   Display: "OAuth callback: http://localhost:54321/oauth-callback"
+      ↓
+   Execute OAuth initiation request
+      ↓
+   Launch browser with authorization URL
+      ↓
+   Wait for callback (max timeout seconds)
+      ↓
+   [User authenticates]
+      ↓
+   OAuth redirects → http://localhost:54321/oauth-callback?code=ABC
+      ↓
+   CLI captures params, validates state
+      ↓
+   Store in .input, shutdown temp server
+      ↓
+   Continue execution with token exchange
+   ```
+
+4. **Fallback to Manual Entry:**
+   - If `--enable-oauth-callback` NOT provided
+   - CLI ignores `waitForCallback` configuration
+   - Falls back to `userPrompts` for manual code entry
+   - **Fully backward compatible**
+
+5. **CLI Output:**
+   ```bash
+   $ flowsphere oauth-flow.json --enable-oauth-callback
+
+   📡 OAuth callback server started on http://localhost:54321/oauth-callback
+
+   ═══════════════════════════════════════════════════════
+   Step 1: Initiate OAuth Flow
+   ═══════════════════════════════════════════════════════
+   POST https://oauth.example.com/authorize
+   ✅ Status: 302 Found
+   ✅ Header "Location" exists
+   🌐 Launching browser...
+
+   ⏳ Waiting for OAuth callback...
+      Callback URL: http://localhost:54321/oauth-callback
+      Timeout: 5:00
+
+   [User authenticates in browser]
+
+   ✅ Callback received!
+      Code: ABC123DEF456
+      State: validated ✓
+
+   🔒 Shutting down OAuth callback server...
+
+   ═══════════════════════════════════════════════════════
+   Step 2: Exchange Code for Token
+   ═══════════════════════════════════════════════════════
+   POST https://oauth.example.com/token
+   ✅ Status: 200 OK
+   ✅ Field .access_token exists
+   ✅ Field .token_type equals "Bearer"
+
+   ✅ Sequence completed successfully!
+   ```
+
+**Dynamic Callback URL Variable:**
+
+```json
+{
+  "nodes": [
+    {
+      "id": "initiateOAuth",
+      "method": "POST",
+      "url": "/oauth/authorize",
+      "body": {
+        "client_id": "{{ .vars.clientId }}",
+        "redirect_uri": "{{ $oauthCallbackUrl }}",
+        "response_type": "code",
+        "state": "{{ $guid }}"
+      },
+      "waitForCallback": {
+        "enabled": true,
+        "timeout": 300
+      }
+    }
+  ]
+}
+```
+
+- `{{ $oauthCallbackUrl }}` is automatically replaced with:
+  - **Studio**: `http://localhost:3737/oauth-callback` (fixed)
+  - **CLI**: `http://localhost:{random-port}/oauth-callback` (dynamic)
+
+**Security Features:**
+
+**1. CSRF Protection (State Validation):**
+```json
+{
+  "waitForCallback": {
+    "validateState": true  // Default: true
+  }
+}
+```
+- Generates unique state with `{{ $guid }}`
+- Validates state parameter in callback matches
+- Rejects callback if state doesn't match
+
+**2. Timeout Protection:**
+- Maximum wait time configurable (default: 5 minutes)
+- Prevents hanging indefinitely
+- Offers manual entry fallback on timeout
+
+**3. Error Handling:**
+```json
+{
+  "waitForCallback": {
+    "captureParams": {
+      "code": "authCode",
+      "error": "oauthError",
+      "error_description": "oauthErrorDesc"
+    }
+  }
+}
+```
+
+If OAuth provider returns error:
+```
+http://localhost:3737/oauth-callback?error=access_denied&error_description=User+cancelled
+```
+
+FlowSphere displays:
+```
+❌ OAuth Error: access_denied
+   User cancelled authentication
+
+[Retry] [Cancel] [Enter Code Manually]
+```
+
+**4. Single-Use Callback:**
+- Callback endpoint accepts only ONE request
+- Subsequent requests ignored (prevents replay attacks)
+- Callback handler unregistered after capture
+
+**Benefits:**
+
+**For Studio Users:**
+- ✅ Seamless OAuth testing - zero manual steps
+- ✅ Professional UX - just like real OAuth apps
+- ✅ Leverages existing Express server (no extra setup)
+- ✅ CSRF protection built-in
+- ✅ User-friendly success/error pages
+
+**For CLI Users:**
+- ✅ Optional enhancement via `--enable-oauth-callback` flag
+- ✅ Automated OAuth flows in CI/CD pipelines
+- ✅ Temporary HTTP server (auto-cleanup)
+- ✅ Fully backward compatible (manual entry still works)
+- ✅ Works with any OAuth provider
+
+**For All Users:**
+- ✅ Eliminates error-prone copy/paste
+- ✅ Faster OAuth testing iterations
+- ✅ Validates state for security
+- ✅ Handles errors gracefully
+- ✅ Timeout protection prevents hanging
+
+**Use Cases:**
+
+**1. GitHub OAuth Flow:**
+```json
+{
+  "nodes": [
+    {
+      "id": "githubAuth",
+      "method": "GET",
+      "url": "https://github.com/login/oauth/authorize",
+      "body": {
+        "client_id": "{{ .vars.githubClientId }}",
+        "redirect_uri": "{{ $oauthCallbackUrl }}",
+        "scope": "repo user",
+        "state": "{{ $guid }}"
+      },
+      "waitForCallback": {
+        "enabled": true,
+        "captureParams": { "code": "authCode" }
+      }
+    },
+    {
+      "id": "githubToken",
+      "method": "POST",
+      "url": "https://github.com/login/oauth/access_token",
+      "headers": { "Accept": "application/json" },
+      "body": {
+        "client_id": "{{ .vars.githubClientId }}",
+        "client_secret": "{{ .vars.githubClientSecret }}",
+        "code": "{{ .input.authCode }}",
+        "redirect_uri": "{{ $oauthCallbackUrl }}"
+      }
+    }
+  ]
+}
+```
+
+**2. Google OAuth Flow:**
+```json
+{
+  "nodes": [
+    {
+      "id": "googleAuth",
+      "method": "GET",
+      "url": "https://accounts.google.com/o/oauth2/v2/auth",
+      "body": {
+        "client_id": "{{ .vars.googleClientId }}",
+        "redirect_uri": "{{ $oauthCallbackUrl }}",
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": "{{ $guid }}"
+      },
+      "waitForCallback": {
+        "enabled": true,
+        "timeout": 600,
+        "captureParams": { "code": "authCode" }
+      }
+    }
+  ]
+}
+```
+
+**3. Custom SSO Provider:**
+```json
+{
+  "nodes": [
+    {
+      "id": "ssoAuth",
+      "method": "POST",
+      "url": "https://sso.company.com/authorize",
+      "body": {
+        "client_id": "{{ .vars.ssoClientId }}",
+        "redirect_uri": "{{ $oauthCallbackUrl }}",
+        "response_type": "code",
+        "state": "{{ $guid }}"
+      },
+      "validations": [
+        { "httpStatusCode": 302 },
+        { "header": "Location", "exists": true }
+      ],
+      "launchBrowser": "headers.Location",
+      "waitForCallback": {
+        "enabled": true,
+        "validateState": true,
+        "captureParams": {
+          "code": "authCode",
+          "session_id": "sessionId"
+        }
+      }
+    }
+  ]
+}
+```
+
+**Success Criteria:**
+- ✅ Studio automatically captures OAuth callbacks without user intervention
+- ✅ CLI supports optional OAuth callback server with `--enable-oauth-callback` flag
+- ✅ State parameter validated for CSRF protection
+- ✅ Timeout handling prevents indefinite waiting
+- ✅ Error responses captured and displayed clearly
+- ✅ User-friendly success page shown in browser after callback
+- ✅ Manual entry fallback always available
+- ✅ Fully backward compatible (existing configs work unchanged)
+- ✅ Single-use callback prevents replay attacks
+- ✅ Works with all major OAuth providers (GitHub, Google, Azure, custom SSO)
 
 ### Test Execution with Proxy (Bypass CORS)
 

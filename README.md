@@ -54,16 +54,24 @@ node bin/flowsphere.js config.json
 
 ## Quick Start
 
-### 1. Run a Workflow (FlowSphere CLI)
+### 1. Create and Run Workflows
 
-**Try a learning example:**
+**Option A: Create from scratch** (no JSON knowledge required):
 ```bash
-flowsphere examples/config-simple.json
+# Launch visual editor to create new flows
+flowsphere studio
 ```
 
-**Or run a production scenario:**
+Studio provides templates to get started:
+- **Empty** — Start with a blank canvas
+- **Simple API Flow** — Basic request/response example
+- **OAuth Flow** — Authentication with browser launch
+- **User Input** — Interactive prompts
+
+**Option B: Run existing workflows** (FlowSphere CLI):
 ```bash
-flowsphere scenarios/config-onboarding-sbx.json
+# Try a learning example
+flowsphere examples/config-simple.json
 ```
 
 **That's it.** The CLI handles everything: making requests, extracting data, passing it forward, and validating responses.
@@ -82,9 +90,11 @@ flowsphere --version
 flowsphere --help
 ```
 
-### 2. Use FlowSphere Studio (Visual Editor + Live Execution)
+### 2. FlowSphere Studio (Visual Editor + Live Execution)
 
-**No JSON knowledge required.** Launch the visual editor with a single command:
+**Create API workflows visually — no JSON knowledge required.**
+
+Launch Studio with a single command:
 
 ```bash
 flowsphere studio
@@ -95,7 +105,16 @@ This will:
 - Automatically open your browser to `http://localhost:3737`
 - Give you access to the full visual config editor **with live execution**
 
-**Key features:**
+**Build flows from scratch or edit existing ones:**
+- **Start fresh** with built-in templates:
+  - Empty workflow
+  - Simple API call example
+  - OAuth authentication flow
+  - User input prompts
+- **Edit existing configs** by loading JSON files
+- **Import from Postman** — convert existing collections automatically
+
+**Key Studio features:**
 - **Live Flow Execution** — Run your API sequences directly in the browser with real-time streaming results
   - Color-coded status indicators (✅ success, ❌ failed, ⊘ skipped)
   - Expandable request/response details with syntax highlighting
@@ -103,11 +122,10 @@ This will:
   - User input prompts during execution flow
   - OAuth browser launch for authentication flows
   - Save execution logs and re-run sequences with one click
-- Form-based editing with templates (OAuth flow, user input, etc.)
+- **Form-based editing** — no manual JSON editing needed
 - **Smart autocomplete** — type `{{` to see available variables, responses, inputs
-- **Import from Postman** — convert existing Postman collections automatically
-- Auto-save to browser (never lose work)
-- Live JSON preview with one-click export to file
+- **Auto-save** to browser (never lose work)
+- **Live JSON preview** with one-click export to file
 
 ### 3. Programmatic API
 
