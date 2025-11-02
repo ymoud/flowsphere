@@ -10,14 +10,15 @@ Features listed in priority order (highest to lowest):
 
 | Priority | Feature | Status |
 |----------|---------|--------|
-| 1 | Node Templates & Import System | Planned |
-| 2 | Response Headers Access | Planned |
-| 3 | OAuth Callback Auto-Capture | Planned |
-| 4 | Try it Out - Individual Node Testing | Planned |
-| 5 | Execution Log Visualizer | Planned |
-| 6 | Swagger/OpenAPI Import | Planned |
-| 7 | Enhanced Postman Import | Planned |
-| 8 | Export to Postman Collection/Environment | Planned |
+| 1 | Publish to NPM | Planned |
+| 2 | Node Templates & Import System | Planned |
+| 3 | Response Headers Access | Planned |
+| 4 | OAuth Callback Auto-Capture | Planned |
+| 5 | Try it Out - Individual Node Testing | Planned |
+| 6 | Execution Log Visualizer | Planned |
+| 7 | Swagger/OpenAPI Import | Planned |
+| 8 | Enhanced Postman Import | Planned |
+| 9 | Export to Postman Collection/Environment | Planned |
 
 ### Completed & External Features
 
@@ -31,6 +32,133 @@ Features listed in priority order (highest to lowest):
 ---
 
 ## Detailed Feature Specifications
+
+## Distribution & Publishing
+
+### Publish to NPM
+
+**Status:** Planned
+
+Publish FlowSphere as an official npm package to enable global installation and widespread adoption.
+
+**Current State:**
+- Node.js implementation is complete ✅
+- Package.json is configured with proper metadata
+- CLI entry point (`bin/flowsphere.js`) is ready
+- Studio bundled and functional
+- All features working in local development
+
+**What's Needed:**
+
+**1. NPM Account Setup:**
+- Create/verify npm account for publishing
+- Configure 2FA for security
+- Determine package namespace: `flowsphere` or `@yitworks/flowsphere`
+
+**2. Package Preparation:**
+- Verify package.json metadata:
+  - Name, version, description
+  - Keywords for discoverability
+  - Repository, homepage, bugs URLs
+  - License (MIT confirmed)
+  - Author information
+- Review `.npmignore` to exclude unnecessary files:
+  - Development files (tests, docs, examples)
+  - Git files (.git, .gitignore)
+  - IDE configs (.vscode, .idea)
+  - CI/CD configs
+  - Large files not needed for runtime
+
+**3. Pre-publish Checklist:**
+- [ ] Test local installation: `npm pack` → `npm install -g flowsphere-*.tgz`
+- [ ] Verify CLI works globally after install: `flowsphere --version`
+- [ ] Test Studio launches: `flowsphere studio`
+- [ ] Run all examples successfully: `flowsphere examples/config-simple.json`
+- [ ] Ensure README.md renders correctly on npm (it becomes the package homepage)
+- [ ] Verify all dependencies are in `dependencies` (not `devDependencies`)
+- [ ] Test on clean environment (fresh VM or Docker container)
+- [ ] Cross-platform testing: Windows, macOS, Linux
+
+**4. Version Strategy:**
+- Start with `1.0.0` (semantic versioning)
+- Or `0.9.0` if considering pre-release
+- Follow semver going forward: MAJOR.MINOR.PATCH
+
+**5. Publication Steps:**
+```bash
+# Login to npm
+npm login
+
+# Dry run to see what will be published
+npm publish --dry-run
+
+# Actually publish (use --access public if scoped package)
+npm publish
+
+# Or if scoped package under @yitworks
+npm publish --access public
+```
+
+**6. Post-publish Tasks:**
+- [ ] Verify package appears on npmjs.com
+- [ ] Test installation from npm: `npm install -g flowsphere`
+- [ ] Update README installation instructions to use npm
+- [ ] Add npm badge to README: `![npm version](https://img.shields.io/npm/v/flowsphere.svg)`
+- [ ] Announce on social media / relevant communities
+- [ ] Consider adding to package manager registries (Homebrew, Chocolatey, etc.)
+
+**7. Ongoing Maintenance:**
+- Set up automated publishing via CI/CD (GitHub Actions)
+- Tag releases in git: `git tag v1.0.0 && git push --tags`
+- Keep CHANGELOG.md updated
+- Respond to npm package issues/questions
+
+**Benefits:**
+
+**For Users:**
+- ✅ Simple installation: `npm install -g flowsphere`
+- ✅ Automatic updates: `npm update -g flowsphere`
+- ✅ Version management: Install specific versions as needed
+- ✅ No manual git clone required
+
+**For Project:**
+- ✅ Increased discoverability (searchable on npmjs.com)
+- ✅ Professional distribution channel
+- ✅ Download metrics and analytics
+- ✅ Versioned releases with semver
+- ✅ Easier to integrate into other projects
+
+**For Ecosystem:**
+- ✅ Use as dependency in other npm packages
+- ✅ Integrate into CI/CD workflows easily
+- ✅ Available in Docker containers via npm install
+- ✅ Compatible with package managers (npx, yarn, pnpm)
+
+**Package Name Options:**
+
+**Option 1: Unscoped (Simpler)**
+- Package name: `flowsphere`
+- Installation: `npm install -g flowsphere`
+- Usage: `flowsphere config.json`
+- Requires name to be available on npm
+
+**Option 2: Scoped (Namespaced)**
+- Package name: `@yitworks/flowsphere`
+- Installation: `npm install -g @yitworks/flowsphere`
+- Usage: `flowsphere config.json` (bin name can still be `flowsphere`)
+- Guaranteed availability under your namespace
+
+**Recommended:** Try `flowsphere` first (unscoped). If taken, use `@yitworks/flowsphere`.
+
+**Success Criteria:**
+- ✅ Package published to npm registry
+- ✅ Global installation works: `npm install -g flowsphere`
+- ✅ CLI accessible globally: `flowsphere --version`
+- ✅ Studio launches correctly: `flowsphere studio`
+- ✅ All examples run successfully from npm-installed version
+- ✅ Cross-platform verified (Windows, macOS, Linux)
+- ✅ README renders correctly on npmjs.com
+- ✅ Package appears in npm search results
 
 ## FlowSphere Studio Enhancements
 
