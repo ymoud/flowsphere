@@ -645,6 +645,78 @@ async function launchStudio(port = 3737) {
     }
   });
 
+  // Template cache for performance
+  let templateCache = null;
+
+  // GET /api/templates/nodes - List all node templates
+  app.get('/api/templates/nodes', (req, res) => {
+    try {
+      // Return cached templates if available
+      if (templateCache) {
+        return res.json(templateCache);
+      }
+
+      const templatesDir = path.join(__dirname, '../studio/templates/nodes');
+
+      // Check if templates directory exists
+      if (!fs.existsSync(templatesDir)) {
+        return res.json({});
+      }
+
+      const categories = fs.readdirSync(templatesDir).filter(item => {
+        const itemPath = path.join(templatesDir, item);
+        return fs.statSync(itemPath).isDirectory();
+      });
+
+      const templates = {};
+      categories.forEach(category => {
+        const categoryPath = path.join(templatesDir, category);
+        const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.json'));
+
+        templates[category] = files.map(file => {
+          const content = JSON.parse(fs.readFileSync(path.join(categoryPath, file), 'utf8'));
+          return {
+            id: file.replace('.json', ''),
+            ...content
+          };
+        });
+      });
+
+      // Cache the templates
+      templateCache = templates;
+
+      res.json(templates);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // GET /api/templates/nodes/:category/:id - Get specific template
+  app.get('/api/templates/nodes/:category/:id', (req, res) => {
+    try {
+      const { category, id } = req.params;
+      const templatePath = path.join(__dirname, `../studio/templates/nodes/${category}/${id}.json`);
+
+      if (!fs.existsSync(templatePath)) {
+        return res.status(404).json({
+          success: false,
+          error: 'Template not found'
+        });
+      }
+
+      const template = JSON.parse(fs.readFileSync(templatePath, 'utf8'));
+      res.json(template);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Start server on specified port
   const server = app.listen(port, () => {
     const actualPort = server.address().port;

@@ -1,0 +1,23 @@
+{
+  "templateName": "Status + Extract Token",
+  "description": "Common auth response validation",
+  "category": "validation",
+  "requiredVariables": [],
+  "nodes": [
+    {
+      "id": "validated-auth",
+      "name": "Authenticated Request with Validation",
+      "method": "POST",
+      "url": "/auth/login",
+      "body": {
+        "username": "user",
+        "password": "pass"
+      },
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "jsonpath": ".token", "exists": true },
+        { "jsonpath": ".expiresIn", "greaterThan": 0 }
+      ]
+    }
+  ]
+}

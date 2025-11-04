@@ -1,0 +1,22 @@
+{
+  "templateName": "Bearer Token Authentication",
+  "description": "Simple login with token extraction",
+  "category": "auth",
+  "requiredVariables": ["apiUsername", "apiPassword"],
+  "nodes": [
+    {
+      "id": "authenticate",
+      "name": "Login with Bearer Token",
+      "method": "POST",
+      "url": "/auth/login",
+      "body": {
+        "username": "{{ .vars.apiUsername }}",
+        "password": "{{ .vars.apiPassword }}"
+      },
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "jsonpath": ".token", "exists": true }
+      ]
+    }
+  ]
+}

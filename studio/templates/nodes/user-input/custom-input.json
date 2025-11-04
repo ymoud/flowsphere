@@ -1,0 +1,23 @@
+{
+  "templateName": "Custom User Input",
+  "description": "Generic template for custom prompts",
+  "category": "user-input",
+  "requiredVariables": [],
+  "nodes": [
+    {
+      "id": "custom-input-step",
+      "name": "Custom Input Step",
+      "method": "POST",
+      "url": "/api/endpoint",
+      "userPrompts": {
+        "customValue": "Enter custom value:"
+      },
+      "body": {
+        "value": "{{ .input.customValue }}"
+      },
+      "validations": [
+        { "httpStatusCode": 200 }
+      ]
+    }
+  ]
+}

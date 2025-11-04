@@ -1,0 +1,21 @@
+{
+  "templateName": "Paginated Response",
+  "description": "Validate array length and pagination metadata",
+  "category": "validation",
+  "requiredVariables": [],
+  "nodes": [
+    {
+      "id": "fetch-paginated-data",
+      "name": "Fetch Paginated Data",
+      "method": "GET",
+      "url": "/api/items?page=1&limit=10",
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "jsonpath": ".items | length", "greaterThan": 0 },
+        { "jsonpath": ".items | length", "lessThanOrEqual": 10 },
+        { "jsonpath": ".totalPages", "exists": true },
+        { "jsonpath": ".currentPage", "equals": "1" }
+      ]
+    }
+  ]
+}

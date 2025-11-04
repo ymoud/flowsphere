@@ -1,0 +1,23 @@
+{
+  "templateName": "Multi-field Validation",
+  "description": "Multiple jsonpath validations example",
+  "category": "validation",
+  "requiredVariables": [],
+  "nodes": [
+    {
+      "id": "validate-user-data",
+      "name": "Validate User Data",
+      "method": "GET",
+      "url": "/api/user/profile",
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "jsonpath": ".id", "exists": true },
+        { "jsonpath": ".email", "exists": true },
+        { "jsonpath": ".name", "notEquals": "" },
+        { "jsonpath": ".age", "greaterThanOrEqual": 18 },
+        { "jsonpath": ".age", "lessThanOrEqual": 120 },
+        { "jsonpath": ".active", "equals": "true" }
+      ]
+    }
+  ]
+}

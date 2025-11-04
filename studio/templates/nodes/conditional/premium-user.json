@@ -1,0 +1,25 @@
+{
+  "templateName": "Premium vs Free User",
+  "description": "Conditional execution based on user tier",
+  "category": "conditional",
+  "requiredVariables": [],
+  "nodes": [
+    {
+      "id": "premium-only-feature",
+      "name": "Premium Only Feature",
+      "method": "GET",
+      "url": "/api/premium/features",
+      "conditions": [
+        {
+          "source": "node",
+          "node": "get-user",
+          "field": ".isPremium",
+          "equals": "true"
+        }
+      ],
+      "validations": [
+        { "httpStatusCode": 200 }
+      ]
+    }
+  ]
+}

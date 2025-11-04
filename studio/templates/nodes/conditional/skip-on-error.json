@@ -1,0 +1,24 @@
+{
+  "templateName": "Skip on Error",
+  "description": "Graceful error handling pattern",
+  "category": "conditional",
+  "requiredVariables": [],
+  "nodes": [
+    {
+      "id": "optional-cleanup",
+      "name": "Optional Cleanup Step",
+      "method": "DELETE",
+      "url": "/api/temp/resource",
+      "conditions": [
+        {
+          "source": "node",
+          "node": "create-resource",
+          "httpStatusCode": 201
+        }
+      ],
+      "validations": [
+        { "httpStatusCode": 200 }
+      ]
+    }
+  ]
+}

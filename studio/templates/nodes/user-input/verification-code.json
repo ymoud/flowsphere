@@ -1,0 +1,24 @@
+{
+  "templateName": "Verification Code Input",
+  "description": "2FA/MFA code prompt",
+  "category": "user-input",
+  "requiredVariables": [],
+  "nodes": [
+    {
+      "id": "verify-2fa",
+      "name": "Verify 2FA Code",
+      "method": "POST",
+      "url": "/auth/verify",
+      "userPrompts": {
+        "verificationCode": "Enter the verification code from your authenticator app:"
+      },
+      "body": {
+        "code": "{{ .input.verificationCode }}"
+      },
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "jsonpath": ".verified", "equals": "true" }
+      ]
+    }
+  ]
+}

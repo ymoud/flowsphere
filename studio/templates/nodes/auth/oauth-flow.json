@@ -1,0 +1,46 @@
+{
+  "templateName": "OAuth 2.0 Flow",
+  "description": "Two-step OAuth authentication with browser launch",
+  "category": "auth",
+  "requiredVariables": ["clientId", "clientSecret", "redirectUri"],
+  "nodes": [
+    {
+      "id": "oauth-get-url",
+      "name": "Get OAuth Authorization URL",
+      "method": "POST",
+      "url": "/oauth/authorize",
+      "body": {
+        "client_id": "{{ .vars.clientId }}",
+        "redirect_uri": "{{ .vars.redirectUri }}",
+        "response_type": "code",
+        "scope": "read write"
+      },
+      "launchBrowser": ".authorizationUrl",
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "jsonpath": ".authorizationUrl", "exists": true }
+      ]
+    },
+    {
+      "id": "oauth-exchange-code",
+      "name": "Exchange Code for Access Token",
+      "method": "POST",
+      "url": "/oauth/token",
+      "userPrompts": {
+        "authCode": "Enter the authorization code from browser:"
+      },
+      "body": {
+        "code": "{{ .input.authCode }}",
+        "client_id": "{{ .vars.clientId }}",
+        "client_secret": "{{ .vars.clientSecret }}",
+        "redirect_uri": "{{ .vars.redirectUri }}",
+        "grant_type": "authorization_code"
+      },
+      "validations": [
+        { "httpStatusCode": 200 },
+        { "jsonpath": ".access_token", "exists": true },
+        { "jsonpath": ".token_type", "equals": "Bearer" }
+      ]
+    }
+  ]
+}

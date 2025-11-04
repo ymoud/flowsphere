@@ -1,0 +1,20 @@
+{
+  "templateName": "API Key Header",
+  "description": "Static API key in request headers",
+  "category": "auth",
+  "requiredVariables": ["apiKey"],
+  "nodes": [
+    {
+      "id": "api-call-with-key",
+      "name": "API Call with Key",
+      "method": "GET",
+      "url": "/api/data",
+      "headers": {
+        "X-API-Key": "{{ .vars.apiKey }}"
+      },
+      "validations": [
+        { "httpStatusCode": 200 }
+      ]
+    }
+  ]
+}
