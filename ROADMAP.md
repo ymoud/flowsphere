@@ -10,10 +10,11 @@ Features listed in priority order (highest to lowest):
 
 | Priority | Feature | Status |
 |----------|---------|--------|
-| 1 | Execution Log Visualizer | Planned |
-| 2 | Swagger/OpenAPI Import | Planned |
-| 3 | Enhanced Postman Import | Planned |
-| 4 | Export to Postman Collection/Environment | Planned |
+| 1 | Flow Runner - Pause/Resume/Stop Controls | In Progress |
+| 2 | Execution Log Visualizer | Planned |
+| 3 | Swagger/OpenAPI Import | Planned |
+| 4 | Enhanced Postman Import | Planned |
+| 5 | Export to Postman Collection/Environment | Planned |
 
 ### Completed & External Features
 
@@ -22,7 +23,7 @@ Features listed in priority order (highest to lowest):
 | Publish to NPM | ✅ Completed (v0.1.0) |
 | Node Templates & Import System | ✅ Completed |
 | Try it Out - Individual Node Testing (Engage Node) | ✅ Completed |
-| Test Execution with Proxy (Bypass CORS) | ✅ Completed |
+| Flow Runner - Live Execution Engine | ✅ Completed |
 | JavaScript/Node.js Version & NPM Package | ✅ Completed |
 | Plug-and-Play UI Architecture | ✅ Completed |
 | MCP Server for Code Generation | [External Repository](https://github.com/ymoud/flowsphere-mcp) |
@@ -1185,7 +1186,7 @@ FlowSphere displays:
 - ✅ Single-use callback prevents replay attacks
 - ✅ Works with all major OAuth providers (GitHub, Google, Azure, custom SSO)
 
-### Test Execution with Proxy (Bypass CORS)
+### Flow Runner - Live Execution Engine
 
 **Status:** ✅ Completed
 
@@ -1202,15 +1203,18 @@ FlowSphere displays:
   - ✅ Color-coded highlighting: green for variables, purple for dynamic values, blue for responses, yellow for user input
   - ✅ Hover tooltips show original placeholder syntax
 
-Add a proxy endpoint to the FlowSphere Studio Express server to enable direct API testing from the browser without CORS restrictions.
+A comprehensive live execution engine for FlowSphere Studio that enables real-time API testing directly from the browser with streaming updates, user interaction, and detailed execution logging.
 
-**Current Problem:**
-- Studio runs in browser (client-side only)
-- Direct API calls from browser hit CORS restrictions
-- Can't test sequences live without running CLI separately
+**Key Innovation:**
+Complete browser-based execution environment with:
+- Real-time streaming execution using Server-Sent Events (SSE)
+- Interactive user input prompts during flow execution
+- OAuth flow support with embedded browser
+- Variable substitution highlighting and tracking
+- Execution log capture and download
 
-**Solution:**
-Now that Studio is served via Express (Node.js), add an endpoint that:
+**Architecture:**
+Express server endpoint that:
 1. Receives config from browser
 2. Uses the existing execution module (same code as CLI)
 3. Returns execution results with full logs
@@ -1358,6 +1362,479 @@ Proxy middleware with security checks including invalid URL scheme blocking and 
 - Comparison view (multiple runs)
 - Security hardening (if exposing publicly)
 - Performance metrics
+
+### Flow Runner - Pause/Resume/Stop Controls
+
+**Status:** In Progress
+
+Add fine-grained execution control to the Flow Runner with pause, resume, and stop capabilities for better debugging and workflow management.
+
+**Benefits:**
+- ✅ Pause execution between steps to inspect responses
+- ✅ Resume execution from pause point without re-running completed steps
+- ✅ Stop execution cleanly at any point
+- ✅ Better debugging workflow for long sequences
+- ✅ Inspect intermediate state before continuing
+- ✅ Prevent wasted API calls when issues are detected early
+
+**Depends on:** Flow Runner - Live Execution Engine
+
+**Key Features:**
+
+**1. Execution States**
+```
+┌─────────┐  Run    ┌─────────┐  Pause   ┌────────┐
+│  Idle   │────────>│ Running │─────────>│ Paused │
+└─────────┘         └─────────┘          └────────┘
+                         │                    │
+                         │ Stop          Resume│
+                         ↓                    ↓
+                    ┌────────┐          ┌─────────┐
+                    │Stopped │          │ Running │
+                    └────────┘          └─────────┘
+                         ↑                    │
+                         │                    │
+                         └────────────────────┘
+                              Complete/Fail
+```
+
+**State Definitions:**
+- **Idle**: No execution in progress, ready to start
+- **Running**: Actively executing steps, SSE stream active
+- **Paused**: Execution paused between steps, can resume
+- **Stopped**: Execution terminated, cannot resume (must re-run)
+- **Completed**: All steps finished successfully
+- **Failed**: Execution failed (validation, timeout, network error)
+
+**2. Control Buttons UI**
+
+**Button States:**
+```
+State: Idle
+[▶ Run Sequence] [⏸ Pause (disabled)] [⏹ Stop (disabled)] [Clear Results]
+
+State: Running (Step 3 of 7)
+[▶ Run (disabled)] [⏸ Pause] [⏹ Stop] [Clear Results (disabled)]
+
+State: Paused (After Step 3 of 7)
+[▶ Resume] [⏸ Pause (disabled)] [⏹ Stop] [Clear Results (disabled)]
+
+State: Stopped (At Step 3 of 7)
+[▶ Re-run] [⏸ Pause (disabled)] [⏹ Stop (disabled)] [Clear Results]
+
+State: Completed (7 of 7 steps)
+[▶ Re-run] [⏸ Pause (disabled)] [⏹ Stop (disabled)] [Clear Results]
+
+State: Failed (At Step 3 of 7)
+[▶ Re-run] [⏸ Pause (disabled)] [⏹ Stop (disabled)] [Clear Results]
+```
+
+**Button Behavior:**
+- **Run/Resume/Re-run**: Context-aware button that starts, resumes, or re-runs
+  - Label changes based on current state
+  - Green color when active
+  - Disabled during running state
+
+- **Pause**: Pauses after current step completes
+  - Only enabled during running state
+  - Yellow/orange color
+  - Shows "Pausing..." during step completion
+
+- **Stop**: Terminates execution immediately
+  - Only enabled during running/paused state
+  - Red color
+  - Shows confirmation dialog: "Stop execution? Progress will be lost."
+
+- **Clear Results**: Clears execution history and resets to idle
+  - Only enabled when not running
+  - Gray color
+
+**3. Execution Progress Indicator**
+
+Show clear status during execution:
+```
+┌────────────────────────────────────────────────────────┐
+│ 🟢 Running Step 3 of 7: Get User Profile              │
+├────────────────────────────────────────────────────────┤
+│ Progress: ████████░░░░░░░░░░░░ (43%)                 │
+│ Elapsed: 2.4s                                          │
+└────────────────────────────────────────────────────────┘
+```
+
+**Status Indicators:**
+- 🟢 **Running**: Green dot, active execution
+- 🟡 **Paused**: Yellow dot, execution paused
+- 🔴 **Stopped**: Red dot, execution stopped
+- ✅ **Completed**: Green checkmark, all steps done
+- ❌ **Failed**: Red X, validation/error occurred
+
+**4. Pause Behavior**
+
+**When user clicks Pause:**
+1. Current step continues to completion (cannot interrupt mid-request)
+2. Button shows "Pausing..." with spinner
+3. After step completes, execution pauses
+4. State changes to "Paused"
+5. Resume button becomes active
+6. User can inspect the latest response before continuing
+
+**UI During Pause:**
+```
+┌────────────────────────────────────────────────────────┐
+│ 🟡 Paused After Step 3 of 7: Get User Profile         │
+├────────────────────────────────────────────────────────┤
+│ Next: Step 4: Create Resource                          │
+│ Progress: ████████░░░░░░░░░░░░ (43%)                 │
+│                                                        │
+│ [▶ Resume Execution] [⏹ Stop]                         │
+└────────────────────────────────────────────────────────┘
+
+Step 3: Get User Profile ✅ (200 OK) - 234ms
+  Response: { "id": 123, "name": "John Doe" }
+  [Expand Details ▼]
+```
+
+**5. Resume Behavior**
+
+**When user clicks Resume:**
+1. Execution continues from next step (not current step)
+2. State changes to "Running"
+3. SSE stream continues with remaining steps
+4. Responses from before pause are preserved
+5. Execution log includes pause timestamps
+
+**6. Stop Behavior**
+
+**When user clicks Stop:**
+1. Show confirmation dialog (if execution is running)
+2. If confirmed, immediately terminate execution
+3. Close SSE connection
+4. State changes to "Stopped"
+5. Partial execution log is saved/downloadable
+6. Can start fresh with "Re-run" button
+
+**Confirmation Dialog:**
+```
+┌────────────────────────────────────────────────────────┐
+│ Stop Execution?                                        │
+├────────────────────────────────────────────────────────┤
+│ Execution is currently running (Step 3 of 7).          │
+│                                                        │
+│ If you stop now:                                       │
+│ • Current step will be interrupted                     │
+│ • Progress will be lost                                │
+│ • You will need to re-run from the beginning          │
+│                                                        │
+│ Partial execution log will be available for download. │
+│                                                        │
+│         [Continue Running] [Stop Execution]            │
+└────────────────────────────────────────────────────────┘
+```
+
+**Architecture Implementation:**
+
+**1. Backend - Execution Session Management**
+
+**New Endpoint: /api/execution/control**
+```javascript
+POST /api/execution/control
+Body: {
+  "sessionId": "exec-uuid-123",
+  "action": "pause" | "resume" | "stop"
+}
+```
+
+**Execution State Storage:**
+```javascript
+// In-memory execution sessions (or Redis for production)
+const executionSessions = new Map();
+
+{
+  sessionId: "exec-uuid-123",
+  status: "running" | "paused" | "stopped",
+  config: { /* full config */ },
+  currentStepIndex: 3,
+  responses: [ /* responses from completed steps */ ],
+  userInput: { /* collected user input */ },
+  startTime: Date.now(),
+  pauseTime: Date.now() | null,
+  pauseRequested: false,
+  stopRequested: false
+}
+```
+
+**2. Backend - Modified Executor**
+
+**Executor needs to check for control signals between steps:**
+
+```javascript
+// In lib/executor.js - runSequence function
+async function runSequence(config, emitEvent, sessionId) {
+  const session = executionSessions.get(sessionId);
+
+  for (let i = session.currentStepIndex || 0; i < nodes.length; i++) {
+    // Check for stop request
+    if (session.stopRequested) {
+      emitEvent('stopped', { stepIndex: i, reason: 'User stopped execution' });
+      return { status: 'stopped', stepIndex: i };
+    }
+
+    // Check for pause request
+    if (session.pauseRequested) {
+      session.status = 'paused';
+      session.currentStepIndex = i;
+      session.pauseTime = Date.now();
+      emitEvent('paused', { stepIndex: i });
+      return { status: 'paused', stepIndex: i };
+    }
+
+    // Execute step normally
+    const result = await executeStep(node, ...);
+    emitEvent('step-complete', { ...result });
+  }
+
+  emitEvent('complete', { ... });
+  return { status: 'completed' };
+}
+```
+
+**3. Frontend - Control Button Handlers**
+
+**Pause Handler:**
+```javascript
+async function pauseExecution() {
+  if (currentState !== 'running') return;
+
+  // Update UI immediately
+  pauseButton.innerHTML = '<i class="bi bi-hourglass-split"></i> Pausing...';
+  pauseButton.disabled = true;
+
+  // Send pause request to server
+  await fetch('/api/execution/control', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: currentSessionId,
+      action: 'pause'
+    })
+  });
+
+  // Server will send 'paused' event via SSE when step completes
+}
+```
+
+**Resume Handler:**
+```javascript
+async function resumeExecution() {
+  if (currentState !== 'paused') return;
+
+  // Update UI
+  updateControlButtons('running');
+
+  // Send resume request to server
+  await fetch('/api/execution/control', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: currentSessionId,
+      action: 'resume'
+    })
+  });
+
+  // Execution will continue via existing SSE connection
+}
+```
+
+**Stop Handler:**
+```javascript
+async function stopExecution() {
+  if (currentState !== 'running' && currentState !== 'paused') return;
+
+  // Show confirmation if running
+  if (currentState === 'running') {
+    const confirmed = await showStopConfirmation();
+    if (!confirmed) return;
+  }
+
+  // Send stop request
+  await fetch('/api/execution/control', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: currentSessionId,
+      action: 'stop'
+    })
+  });
+
+  // Update UI
+  updateControlButtons('stopped');
+}
+```
+
+**4. SSE Event Handling**
+
+**New SSE Events:**
+- `paused`: Execution paused after current step
+- `resumed`: Execution resumed from pause point
+- `stopped`: Execution stopped by user
+- `status`: Periodic status updates (current step, progress)
+
+**Event Handlers:**
+```javascript
+eventSource.addEventListener('paused', (event) => {
+  const data = JSON.parse(event.data);
+  currentState = 'paused';
+  updateControlButtons('paused');
+  showPausedStatus(data.stepIndex, data.stepName);
+});
+
+eventSource.addEventListener('resumed', (event) => {
+  currentState = 'running';
+  updateControlButtons('running');
+  showRunningStatus();
+});
+
+eventSource.addEventListener('stopped', (event) => {
+  const data = JSON.parse(event.data);
+  currentState = 'stopped';
+  updateControlButtons('stopped');
+  showStoppedStatus(data.stepIndex, data.reason);
+  eventSource.close();
+});
+```
+
+**5. Execution Log Enhancement**
+
+**Log should include pause/resume/stop events:**
+```json
+{
+  "status": "stopped",
+  "startTime": "2025-01-28T14:30:22.000Z",
+  "endTime": "2025-01-28T14:32:45.000Z",
+  "totalDuration": 143000,
+  "steps": [
+    {
+      "stepIndex": 0,
+      "name": "Login",
+      "status": "completed",
+      "duration": 234
+    },
+    {
+      "stepIndex": 1,
+      "name": "Get Profile",
+      "status": "completed",
+      "duration": 156
+    },
+    {
+      "stepIndex": 2,
+      "name": "Create Resource",
+      "status": "paused",
+      "pauseTime": "2025-01-28T14:31:30.000Z"
+    }
+  ],
+  "controlEvents": [
+    {
+      "type": "pause",
+      "timestamp": "2025-01-28T14:31:25.000Z",
+      "afterStep": 2
+    },
+    {
+      "type": "resume",
+      "timestamp": "2025-01-28T14:32:00.000Z",
+      "fromStep": 3
+    },
+    {
+      "type": "stop",
+      "timestamp": "2025-01-28T14:32:45.000Z",
+      "atStep": 4,
+      "reason": "User stopped execution"
+    }
+  ]
+}
+```
+
+**Implementation Phases:**
+
+**Phase 1 - Backend Session Management:**
+- Create execution session storage (Map or Redis)
+- Add /api/execution/control endpoint
+- Implement pause/resume/stop signal handling
+- Modify executor to check control signals between steps
+- Add new SSE events (paused, resumed, stopped)
+- Test with curl/Postman
+
+**Phase 2 - Frontend Control Buttons:**
+- Add pause, stop buttons to Flow Runner UI
+- Implement button state management
+- Connect buttons to control endpoint
+- Handle SSE control events
+- Update UI based on execution state
+- Test basic pause/resume/stop flow
+
+**Phase 3 - UI Polish & Feedback:**
+- Add progress indicator with current step
+- Show "Pausing..." state during step completion
+- Add stop confirmation dialog
+- Update button labels (Run/Resume/Re-run)
+- Show paused status clearly
+- Display elapsed time during execution
+
+**Phase 4 - Execution Log Enhancement:**
+- Include control events in execution log
+- Add pause timestamps
+- Show partial logs for stopped executions
+- Download option for incomplete executions
+- Resume point indicator in logs
+
+**Phase 5 - Advanced Features:**
+- Auto-pause on validation failure (optional setting)
+- Breakpoints - pause at specific steps automatically
+- Step-forward mode (pause after each step)
+- Keyboard shortcuts (Space = pause/resume, Esc = stop)
+- Remember pause points for debugging repeated runs
+
+**User Workflows:**
+
+**Workflow 1 - Debugging Long Sequence:**
+1. Start execution of 20-step sequence
+2. Pause after step 5 to inspect response
+3. Review step 5 response data
+4. Resume execution
+5. Stop at step 12 when error detected
+6. Download partial execution log
+7. Fix config and re-run
+
+**Workflow 2 - Conditional Continuation:**
+1. Start execution
+2. Pause after OAuth flow step
+3. Verify browser authorization completed
+4. Resume to continue with authenticated requests
+5. Complete sequence successfully
+
+**Workflow 3 - Early Termination:**
+1. Start long sequence
+2. Realize config has wrong baseUrl
+3. Stop execution immediately
+4. Update baseUrl in config
+5. Re-run from beginning
+
+**Testing Checklist:**
+
+- [ ] Pause during running execution
+- [ ] Resume from paused state
+- [ ] Stop during running execution
+- [ ] Stop during paused state
+- [ ] Button states update correctly
+- [ ] Progress indicator shows current step
+- [ ] Pause completes current step before pausing
+- [ ] Resume continues from next step (not current)
+- [ ] Stop shows confirmation dialog
+- [ ] Execution log includes control events
+- [ ] Partial logs downloadable after stop
+- [ ] Session cleanup after completion/stop
+- [ ] Multiple concurrent sessions don't interfere
+- [ ] SSE connection closes properly on stop
+- [ ] UI handles network errors gracefully
 
 ### Try it Out - Individual Node Testing (Engage Node)
 
