@@ -1837,3 +1837,149 @@ textarea.form-control {
     background-color: rgba(255, 200, 87, 0.25);
     border-bottom-color: rgba(255, 200, 87, 0.6);
 }
+
+/* ========================================
+   IMPORT NODES MODAL
+   ======================================== */
+
+/* Modal container */
+.import-nodes-modal {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Category sections */
+.import-nodes-modal .category-section {
+    margin-bottom: 1.5rem;
+}
+
+.import-nodes-modal .category-header {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+}
+
+.import-nodes-modal .category-header i {
+    color: var(--text-primary);
+}
+
+/* Templates list */
+.import-nodes-modal .templates-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* Template cards */
+.import-nodes-modal .template-card {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-surface);
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+}
+
+.import-nodes-modal .template-card:hover {
+    border-color: var(--success);
+    background-color: var(--bg-surface-hover);
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0, 200, 150, 0.2);
+}
+
+.import-nodes-modal .template-card:active {
+    transform: translateX(2px);
+}
+
+/* Template card content */
+.import-nodes-modal .template-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.import-nodes-modal .template-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.import-nodes-modal .template-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.import-nodes-modal .template-meta .badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .import-nodes-modal .template-card {
+    background-color: #ffffff;
+}
+
+[data-theme="light"] .import-nodes-modal .template-card:hover {
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 8px rgba(0, 200, 150, 0.15);
+}
+
+/* ========================================
+   NEWLY ADDED NODE HIGHLIGHT
+   ======================================== */
+
+/* More specific selector to override step-method borders */
+#stepsAccordion .accordion-item.newly-added {
+    animation: highlightFade 3s ease-out;
+    border: 3px solid var(--success) !important;
+    box-shadow: 0 4px 16px rgba(0, 200, 150, 0.4) !important;
+}
+
+@keyframes highlightFade {
+    0% {
+        background-color: rgba(0, 200, 150, 0.25);
+        border-color: var(--success) !important;
+        box-shadow: 0 4px 16px rgba(0, 200, 150, 0.4);
+    }
+    50% {
+        background-color: rgba(0, 200, 150, 0.15);
+        border-color: var(--success) !important;
+        box-shadow: 0 4px 16px rgba(0, 200, 150, 0.3);
+    }
+    100% {
+        background-color: transparent;
+        border-color: var(--border-color);
+        box-shadow: none;
+    }
+}
+
+/* Light theme highlight */
+[data-theme="light"] #stepsAccordion .accordion-item.newly-added {
+    animation: highlightFadeLightTheme 3s ease-out;
+}
+
+@keyframes highlightFadeLightTheme {
+    0% {
+        background-color: rgba(0, 200, 150, 0.2);
+        border-color: var(--success) !important;
+        box-shadow: 0 4px 16px rgba(0, 200, 150, 0.3);
+    }
+    50% {
+        background-color: rgba(0, 200, 150, 0.1);
+        border-color: var(--success) !important;
+        box-shadow: 0 4px 16px rgba(0, 200, 150, 0.2);
+    }
+    100% {
+        background-color: #ffffff;
+        border-color: var(--border-color);
+        box-shadow: none;
+    }
+}

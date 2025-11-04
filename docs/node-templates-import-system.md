@@ -423,7 +423,7 @@ When nodes are successfully imported, the system will:
    - **Notification**: Alert user of all auto-actions taken
 
 5. **Visual Feedback**
-   - Add `newly-added` CSS class to imported nodes using `data-node-index` attribute
+   - Add `newly-added` CSS class to imported nodes using `data-step-index` attribute
    - Auto-scroll to first imported node
    - Remove highlight class after 3 seconds
    - Notifications stack vertically with unique IDs to prevent overlap
