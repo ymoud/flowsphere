@@ -114,6 +114,29 @@ window.addEventListener('DOMContentLoaded', function() {
         reader.readAsText(file);
     });
 
+    // FlowSphere JSON file input event listener
+    const flowsphereJsonFileInput = document.getElementById('flowsphereJsonFile');
+    if (flowsphereJsonFileInput) {
+        flowsphereJsonFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const fileNameSpan = document.getElementById('flowsphereJsonFileName');
+            if (file && fileNameSpan) {
+                fileNameSpan.textContent = file.name;
+                fileNameSpan.style.color = '#059669';
+
+                const newFileNameInput = document.getElementById('newFileName');
+                if (newFileNameInput && file.name) {
+                    newFileNameInput.value = file.name;
+                }
+            }
+
+            // Enable/disable Load Config button
+            if (typeof updateLoadConfigButtonState === 'function') {
+                updateLoadConfigButtonState('flowsphere-json');
+            }
+        });
+    }
+
     // Postman file input event listener
     const postmanFileInput = document.getElementById('postmanCollectionFile');
     if (postmanFileInput) {
@@ -133,6 +156,11 @@ window.addEventListener('DOMContentLoaded', function() {
                         .toLowerCase();
                     newFileNameInput.value = `config-${baseName}.json`;
                 }
+            }
+
+            // Enable/disable Load Config button
+            if (typeof updateLoadConfigButtonState === 'function') {
+                updateLoadConfigButtonState('postman');
             }
         });
     }

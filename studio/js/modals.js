@@ -1230,8 +1230,14 @@ if (!window.selectTemplate) {
             radio.checked = true;
         }
 
-        // Show/hide Postman import section
+        // Show/hide import sections based on selection
+        const flowsphereJsonSection = document.getElementById('flowsphereJsonImportSection');
         const postmanSection = document.getElementById('postmanImportSection');
+
+        if (flowsphereJsonSection) {
+            flowsphereJsonSection.style.display = templateType === 'flowsphere-json' ? 'block' : 'none';
+        }
+
         if (postmanSection) {
             postmanSection.style.display = templateType === 'postman' ? 'block' : 'none';
         }
@@ -1241,8 +1247,76 @@ if (!window.selectTemplate) {
 
 if (!window.confirmNewConfig) {
     function confirmNewConfig() {
-        const templateType = document.querySelector('input[name="template"]:checked')?.value || 'empty';
+        const templateType = document.querySelector('input[name="template"]:checked')?.value || 'flowsphere-json';
         const newFileName = document.getElementById('newFileName').value.trim() || 'config.json';
+
+        // Check if we need to show confirmation (only if config already exists with nodes)
+        const configExists = config && config.nodes && config.nodes.length > 0;
+
+        if (configExists) {
+            // Show confirmation dialog
+            const confirmed = confirm('This will replace your current flow. Continue?');
+            if (!confirmed) {
+                return; // User cancelled
+            }
+        }
+
+        if (templateType === 'flowsphere-json') {
+            const fileInput = document.getElementById('flowsphereJsonFile');
+            const file = fileInput?.files[0];
+
+            if (!file) {
+                alert('Please select a FlowSphere configuration file');
+                return;
+            }
+
+            // Close modal first
+            closeNewConfigModal();
+
+            // Show loader
+            showLoader('Loading configuration...');
+
+            // Read and parse FlowSphere JSON config
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                setTimeout(() => {
+                    try {
+                        const loadedConfig = JSON.parse(e.target.result);
+
+                        // Set config and filename
+                        config = loadedConfig;
+                        fileName = newFileName;
+
+                        // Update UI
+                        updateFileNameDisplay();
+                        saveToLocalStorage();
+                        renderEditor();
+                        updatePreview();
+
+                        // Scroll JSON preview to top
+                        if (typeof scrollJsonPreviewToTop === 'function') {
+                            scrollJsonPreviewToTop();
+                        }
+
+                        // Show file actions dropdown
+                        const fileActionsDropdown = document.getElementById('fileActionsDropdown');
+                        if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
+
+                        // Hide loader
+                        hideLoader();
+                    } catch (err) {
+                        hideLoader();
+                        alert('Error parsing configuration file: ' + err.message);
+                    }
+                }, 50);
+            };
+            reader.onerror = function() {
+                hideLoader();
+                alert('Error reading configuration file');
+            };
+            reader.readAsText(file);
+            return;
+        }
 
         if (templateType === 'postman') {
             const fileInput = document.getElementById('postmanCollectionFile');
@@ -1311,32 +1385,8 @@ if (!window.confirmNewConfig) {
             return;
         }
 
-        // Get template from templates.js
-        const template = typeof getTemplate === 'function' ? getTemplate(templateType) : null;
-        if (!template) {
-            alert('Template not found');
-            return;
-        }
-
-        // Set config and filename
-        config = template;
-        fileName = newFileName;
-
-        // Update UI
-        closeNewConfigModal();
-        updateFileNameDisplay();
-        saveToLocalStorage();
-        renderEditor();
-        updatePreview();
-
-        // Scroll JSON preview to top when creating new config
-        if (typeof scrollJsonPreviewToTop === 'function') {
-            scrollJsonPreviewToTop();
-        }
-
-        // Show file actions dropdown
-        const fileActionsDropdown = document.getElementById('fileActionsDropdown');
-        if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
+        // Unknown template type
+        alert('Please select a valid import source');
     }
     window.confirmNewConfig = confirmNewConfig;
 }
