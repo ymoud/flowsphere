@@ -10,21 +10,20 @@ Features listed in priority order (highest to lowest):
 
 | Priority | Feature | Status |
 |----------|---------|--------|
-| 1 | Publish to NPM | ✅ Completed |
-| 2 | Node Templates & Import System | Planned |
-| 3 | Response Headers Access | Planned |
-| 4 | OAuth Callback Auto-Capture | Planned |
-| 5 | Try it Out - Individual Node Testing | Planned |
-| 6 | Execution Log Visualizer | Planned |
-| 7 | Swagger/OpenAPI Import | Planned |
-| 8 | Enhanced Postman Import | Planned |
-| 9 | Export to Postman Collection/Environment | Planned |
+| 1 | Response Headers Access | Planned |
+| 2 | OAuth Callback Auto-Capture | Planned |
+| 3 | Try it Out - Individual Node Testing | Planned |
+| 4 | Execution Log Visualizer | Planned |
+| 5 | Swagger/OpenAPI Import | Planned |
+| 6 | Enhanced Postman Import | Planned |
+| 7 | Export to Postman Collection/Environment | Planned |
 
 ### Completed & External Features
 
 | Feature | Status |
 |---------|--------|
 | Publish to NPM | ✅ Completed (v0.1.0) |
+| Node Templates & Import System | ✅ Completed |
 | Test Execution with Proxy (Bypass CORS) | ✅ Completed |
 | JavaScript/Node.js Version & NPM Package | ✅ Completed |
 | Plug-and-Play UI Architecture | ✅ Completed |
@@ -165,9 +164,20 @@ npm publish --access public
 
 ### Node Templates & Import System
 
-**Status:** Planned
+**Status:** ✅ Completed
 
 Replace the current template system with a more flexible two-button approach that separates "starting fresh" from "adding to existing work".
+
+**Implemented:**
+- ✅ 11 categorized node templates (auth, user-input, validation, conditional)
+- ✅ "Import Nodes" button with modal UI for adding templates to existing flow
+- ✅ "Load Config" button restructured with three import sources
+- ✅ Smart variable auto-creation with placeholders
+- ✅ Automatic ID conflict resolution with suffix numbering
+- ✅ Visual highlighting of newly added nodes (3-second fade animation)
+- ✅ API endpoints for template serving (`/api/templates/nodes`)
+- ✅ Confirmation modal when replacing existing configurations
+- ✅ File input validation and button state management
 
 **Problem with Current System:**
 - The "New" button dropdown mixes complete templates with individual patterns
