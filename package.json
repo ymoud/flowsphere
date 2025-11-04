@@ -1,6 +1,6 @@
 {
   "name": "flowsphere",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Automate sequential HTTP workflows through JSON configuration. Create, edit and execute via visual Studio or CLI. Supports conditional execution, response chaining, user input prompts, and validations.",
   "main": "lib/index.js",
   "bin": {
