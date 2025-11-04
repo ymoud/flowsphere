@@ -10,7 +10,7 @@ Features listed in priority order (highest to lowest):
 
 | Priority | Feature | Status |
 |----------|---------|--------|
-| 1 | Publish to NPM | Planned |
+| 1 | Publish to NPM | ✅ Completed |
 | 2 | Node Templates & Import System | Planned |
 | 3 | Response Headers Access | Planned |
 | 4 | OAuth Callback Auto-Capture | Planned |
@@ -24,6 +24,7 @@ Features listed in priority order (highest to lowest):
 
 | Feature | Status |
 |---------|--------|
+| Publish to NPM | ✅ Completed (v0.1.0) |
 | Test Execution with Proxy (Bypass CORS) | ✅ Completed |
 | JavaScript/Node.js Version & NPM Package | ✅ Completed |
 | Plug-and-Play UI Architecture | ✅ Completed |

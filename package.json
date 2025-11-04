@@ -1,10 +1,10 @@
 {
   "name": "flowsphere",
-  "version": "1.0.0",
-  "description": "HTTP sequence runner with conditional execution and variable substitution",
+  "version": "0.1.0",
+  "description": "Automate sequential HTTP workflows through JSON configuration. Create, edit and execute via visual Studio or CLI. Supports conditional execution, response chaining, user input prompts, and validations.",
   "main": "lib/index.js",
   "bin": {
-    "flowsphere": "./bin/flowsphere.js"
+    "flowsphere": "bin/flowsphere.js"
   },
   "scripts": {
     "test": "node tests/test-suite.js",
@@ -22,7 +22,7 @@
     "postman",
     "newman"
   ],
-  "author": "Yiannis Moudilos",
+  "author": "ymoud",
   "license": "MIT",
   "engines": {
     "node": ">=14.17.0"
@@ -38,15 +38,14 @@
     "lib/",
     "studio/",
     "examples/",
-    "README.md",
-    "CLAUDE.md"
+    "README.md"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/flowsphere.git"
+    "url": "git+https://github.com/ymoud/flowsphere.git"
   },
-  "homepage": "https://github.com/yourusername/flowsphere#readme",
+  "homepage": "https://github.com/ymoud/flowsphere#readme",
   "bugs": {
-    "url": "https://github.com/yourusername/flowsphere/issues"
+    "url": "https://github.com/ymoud/flowsphere/issues"
   }
 }

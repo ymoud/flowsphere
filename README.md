@@ -1,5 +1,9 @@
 # API FlowSphere
 
+[![npm version](https://img.shields.io/npm/v/flowsphere.svg)](https://www.npmjs.com/package/flowsphere)
+[![npm downloads](https://img.shields.io/npm/dm/flowsphere.svg)](https://www.npmjs.com/package/flowsphere)
+[![license](https://img.shields.io/npm/l/flowsphere.svg)](https://github.com/ymoud/flowsphere/blob/main/LICENSE)
+
 **Design in Studio. Execute Anywhere.**
 
 ---

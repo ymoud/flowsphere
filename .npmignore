@@ -1,14 +1,30 @@
 # Exclude from npm package
+
+# Git files
 .git
 .gitignore
+
+# IDE and editor configs
+.vscode/
+.idea/
 .claude
-flowsphere
+
+# Development and testing
 tests/
 scenarios/
 Postman/
 postman-tools/
 prompts/
+legacy/
+
+# Logs and temporary files
 logs/
+*.log
 *.txt
 .DS_Store
+
+# Dependencies (will be installed by user)
 node_modules/
+
+# Build artifacts
+flowsphere
