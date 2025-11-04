@@ -388,6 +388,50 @@ node postman-tools/parse-postman.js
 - Always wait for the user to test and verify changes before committing
 - Only create commits when the user explicitly asks (e.g., "commit it", "commit this", "commit the changes")
 
+**Technical Design Documents:**
+
+For each new feature in the roadmap, create a technical design document in `/docs` before implementation:
+
+**Focus on Architecture, Not Implementation:**
+- Describe **what** the feature does and **how it integrates**, not detailed code
+- Document state management integration points (e.g., "uses global `config` from state.js")
+- Specify existing functions to call (e.g., "trigger re-render with `renderEditor()`")
+- Identify data structures and where they're stored (e.g., "nodes array in `config.nodes`")
+- Describe UI interactions and user workflows
+- Note edge cases and error handling approaches
+
+**Avoid:**
+- Detailed code snippets showing exact implementation
+- Function internals or algorithm specifics
+- Line-by-line implementation details
+
+**Include:**
+- Integration with existing systems (state management, UI rendering, APIs)
+- Data flow between components
+- Function names to call for specific actions
+- Expected behavior and acceptance criteria
+- Dependencies on existing code/modules
+
+**Example - Good:**
+```
+**State Management Integration:**
+- Must integrate with Studio's global `config` variable from state.js
+- Modifications update `config.nodes` array directly
+- Trigger UI update with `renderEditor()` function
+- Variables added to `config.variables`, rendered with `renderGlobalVariables()`
+```
+
+**Example - Bad:**
+```javascript
+function addNode(node) {
+  if (!config.nodes) {
+    config.nodes = [];
+  }
+  config.nodes.push(node);
+  renderEditor();
+}
+```
+
 **When modifying Node.js code:**
 - Maintain cross-platform compatibility (use `path.join()` for file paths)
 - Use native Node.js modules when possible (avoid shell commands)
@@ -594,3 +638,4 @@ const substitutionsHtml = result.substitutions.map(sub => {
 - `headers.sandboxId` → "request header sandboxId: {{ .vars.sandboxId }} → Yannis-Test (variable)"
 - `body.payload.id` → "request body: payload.id: {{ $guid }} → abc-123 (dynamic-guid)"
 - `url` → "request URL: {{ .vars.baseUrl }} → https://api.example.com (variable)"
+- for each feature of the roadmap I want you to create a technical design md file in directory /docs with implementation plan and details before you start implementing it

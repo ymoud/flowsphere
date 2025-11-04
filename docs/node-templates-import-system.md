@@ -380,6 +380,13 @@ When nodes are successfully imported, the system will:
 
 **File:** `studio/js/import-nodes.js`
 
+**State Management Integration:**
+- **Critical**: Must integrate with existing Studio state management system
+- Studio uses a global `config` variable declared in `state.js` (not `window.currentConfig`)
+- All modifications must update this global `config` object directly
+- After modifying config, trigger UI re-render using `renderEditor()` function
+- Variables must be added to `config.variables` and rendered with `renderGlobalVariables()`
+
 **Module Responsibilities:**
 
 1. **Template Management**
@@ -402,32 +409,38 @@ When nodes are successfully imported, the system will:
    - Process template with smart features:
      - Detect missing variables → auto-create with placeholders
      - Detect ID conflicts → auto-rename with suffix
-   - Add processed nodes to config
+   - Add processed nodes to **global `config` object** (from state.js)
+   - Trigger UI re-render via `renderEditor()`
    - Highlight newly added nodes
    - Show notifications for auto-actions
    - Close modal
 
 4. **Smart Processing**
    - **Variable Detection**: Scan template nodes for `{{ .vars.* }}` patterns
-   - **Variable Creation**: Add missing variables to config.variables with placeholder values
-   - **ID Conflict Detection**: Check if node IDs exist in current flow
+   - **Variable Creation**: Add missing variables to `config.variables` with placeholder values
+   - **ID Conflict Detection**: Check if node IDs exist in `config.nodes`
    - **ID Renaming**: Append `-2`, `-3` suffix until unique
    - **Notification**: Alert user of all auto-actions taken
 
 5. **Visual Feedback**
-   - Add `newly-added` CSS class to imported nodes
+   - Add `newly-added` CSS class to imported nodes using `data-node-index` attribute
    - Auto-scroll to first imported node
    - Remove highlight class after 3 seconds
+   - Notifications stack vertically with unique IDs to prevent overlap
 
 **Acceptance Criteria:**
 - [ ] Modal opens with categorized template list
 - [ ] Templates display name, description, and node count
 - [ ] Clicking template imports it successfully
-- [ ] Missing variables auto-created with placeholders
+- [ ] Nodes added to global `config.nodes` array
+- [ ] Missing variables auto-created in `config.variables`
+- [ ] UI re-renders to show new nodes and variables
 - [ ] Conflicting IDs auto-renamed
 - [ ] Notifications shown for auto-actions (with clear messages)
+- [ ] Notifications stack properly and auto-dismiss
 - [ ] Newly added nodes highlighted for 3 seconds
 - [ ] Modal closes automatically after successful import
+- [ ] Works only when config is loaded (shows warning otherwise)
 
 ---
 
