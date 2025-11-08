@@ -10,13 +10,13 @@ Features listed in priority order (highest to lowest):
 
 | Priority | Feature | Status | Details |
 |----------|---------|--------|---------|
-| 1 | Flow Runner - Execution Controls | In Progress (Phase 1 ✅) | [View Details](features/flow-runner-execution-controls.md) |
+| 1 | Flow Runner - Execution Controls | In Progress (Phase 1 ✅) | [View Details](docs/features/flow-runner-execution-controls.md) |
 | 2 | Config Validation & Schema Enforcement | Planned | See below |
-| 3 | Execution Log Visualizer | Planned | [View Details](features/execution-log-visualizer.md) |
-| 4 | Swagger/OpenAPI Import | Planned | [View Details](features/swagger-openapi-import.md) |
-| 5 | Enhanced Postman Import | Planned | [View Details](features/enhanced-postman-import.md) |
-| 6 | Export to Postman Collection/Environment | Planned | [View Details](features/export-to-postman.md) |
-| 7 | Visual Workflow Storytelling & Export | Planned | [View Details](features/visual-workflow-storytelling-export.md) |
+| 3 | Execution Log Visualizer | Planned | [View Details](docs/features/execution-log-visualizer.md) |
+| 4 | Swagger/OpenAPI Import | Planned | [View Details](docs/features/swagger-openapi-import.md) |
+| 5 | Enhanced Postman Import | Planned | [View Details](docs/features/enhanced-postman-import.md) |
+| 6 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
+| 7 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
 
 ### Completed & External Features
 
@@ -49,7 +49,7 @@ Add execution controls to the Flow Runner with **step-by-step execution modes** 
 **Why the change from pause/resume?**
 The original pause/resume approach had UX issues due to signal lag between client and server. The new step-by-step approach provides clearer, more predictable behavior without timing confusion.
 
-➡️ [Full Feature Specification](features/flow-runner-execution-controls.md)
+➡️ [Full Feature Specification](docs/features/flow-runner-execution-controls.md)
 
 ---
 
@@ -124,7 +124,7 @@ A visual interface for exploring, analyzing, and comparing execution logs with r
 - Export as HTML/PDF
 - Standalone CLI and Studio integration
 
-➡️ [Full Feature Specification](features/execution-log-visualizer.md)
+➡️ [Full Feature Specification](docs/features/execution-log-visualizer.md)
 
 ---
 
@@ -141,7 +141,7 @@ Import API specifications directly into FlowSphere Studio for automatic config g
 - Extract authentication schemes
 - Variable detection and mapping
 
-➡️ [Full Feature Specification](features/swagger-openapi-import.md)
+➡️ [Full Feature Specification](docs/features/swagger-openapi-import.md)
 
 ---
 
@@ -158,7 +158,7 @@ Improve the existing Postman import with multi-environment support and better va
 - Multiple collection merging
 - Batch editing before import
 
-➡️ [Full Feature Specification](features/enhanced-postman-import.md)
+➡️ [Full Feature Specification](docs/features/enhanced-postman-import.md)
 
 ---
 
@@ -175,7 +175,7 @@ Convert FlowSphere configs back into Postman collection and environment files fo
 - Convert conditions to pre-request scripts
 - ZIP download with README
 
-➡️ [Full Feature Specification](features/export-to-postman.md)
+➡️ [Full Feature Specification](docs/features/export-to-postman.md)
 
 ---
 
@@ -206,13 +206,13 @@ An **animated workflow storytelling tool** that turns API integrations into beau
 - Documenting API integrations visually
 - Sharing workflows with non-technical people
 
-➡️ [Full Feature Specification](features/visual-workflow-storytelling-export.md)
+➡️ [Full Feature Specification](docs/features/visual-workflow-storytelling-export.md)
 
 ---
 
 ## How to Contribute
 
-See individual feature documents in the `/features` directory for detailed specifications, implementation phases, and acceptance criteria.
+See individual feature documents in the `/docs/features` directory for detailed specifications, implementation phases, and acceptance criteria.
 
 Each feature document includes:
 - Overview and benefits
@@ -225,7 +225,7 @@ Each feature document includes:
 
 ## Feature Request Process
 
-1. Check existing feature documents in `/features` directory
+1. Check existing feature documents in `/docs/features` directory
 2. If feature doesn't exist, create a new issue on GitHub
 3. Discuss scope and approach before implementation
 4. Create feature document if approved
