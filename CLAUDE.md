@@ -44,10 +44,6 @@ flowsphere examples/config-simple.json
 - `config-test-defaults.json` - Tests defaults merging behavior
 - `config-test-comparisons.json` - Tests numeric comparison validations
 
-**Production scenarios (in `scenarios/` folder):**
-- `config-onboarding.json` - NBG onboarding API sequence for QA environment (generated from Postman)
-- `config-onboarding-sbx.json` - NBG onboarding sandbox environment
-
 **Prerequisites:**
 - Node.js 14.17.0 or higher
 - npm (comes with Node.js)
