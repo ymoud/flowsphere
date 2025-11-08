@@ -11,16 +11,18 @@ Features listed in priority order (highest to lowest):
 | Priority | Feature | Status | Details |
 |----------|---------|--------|---------|
 | 1 | Flow Runner - Execution Controls | In Progress | [View Details](features/flow-runner-execution-controls.md) |
-| 2 | Execution Log Visualizer | Planned | [View Details](features/execution-log-visualizer.md) |
-| 3 | Swagger/OpenAPI Import | Planned | [View Details](features/swagger-openapi-import.md) |
-| 4 | Enhanced Postman Import | Planned | [View Details](features/enhanced-postman-import.md) |
-| 5 | Export to Postman Collection/Environment | Planned | [View Details](features/export-to-postman.md) |
-| 6 | Visual Workflow Storytelling & Export | Planned | [View Details](features/visual-workflow-storytelling-export.md) |
+| 2 | Config Validation & Schema Enforcement | Planned | See below |
+| 3 | Execution Log Visualizer | Planned | [View Details](features/execution-log-visualizer.md) |
+| 4 | Swagger/OpenAPI Import | Planned | [View Details](features/swagger-openapi-import.md) |
+| 5 | Enhanced Postman Import | Planned | [View Details](features/enhanced-postman-import.md) |
+| 6 | Export to Postman Collection/Environment | Planned | [View Details](features/export-to-postman.md) |
+| 7 | Visual Workflow Storytelling & Export | Planned | [View Details](features/visual-workflow-storytelling-export.md) |
 
 ### Completed & External Features
 
 | Feature | Status |
 |---------|--------|
+| Persistent User Input Across Steps | ✅ Completed |
 | Publish to NPM | ✅ Completed (v0.1.0) |
 | Node Templates & Import System | ✅ Completed |
 | Try it Out - Individual Node Testing (Engage Node) | ✅ Completed |
@@ -51,7 +53,64 @@ The original pause/resume approach had UX issues due to signal lag between clien
 
 ---
 
-### 2. Execution Log Visualizer
+### 2. Config Validation & Schema Enforcement
+
+**Status:** Planned
+
+Validate configuration files before execution to catch errors early and provide clear, actionable error messages instead of runtime failures or freezes.
+
+**Problem:**
+- Invalid config syntax can cause app to freeze or fail silently
+- Runtime errors don't clearly explain what's wrong with the config
+- Users must wait for execution to discover config issues
+- No guidance on correct syntax for conditions, validations, etc.
+
+**Solution:**
+- Pre-execution validation of entire config file
+- JSON schema validation for structure
+- Semantic validation for logic (e.g., node ID references, condition syntax)
+- Clear error messages with line numbers and examples
+
+**Validation Checks:**
+- **Structure**: Valid JSON, required fields present
+- **Node IDs**: Unique IDs, no duplicate IDs
+- **References**: Node references exist (conditions, response substitution)
+- **Conditions**: Valid syntax (`input`, `variable`, or `node` with proper fields)
+- **Validations**: Valid jsonpath expressions, proper comparison types
+- **Substitutions**: Valid placeholder syntax (`{{ .responses.nodeId.field }}`)
+- **User Prompts**: Valid prompt definitions
+- **HTTP Methods**: Valid methods (GET, POST, PUT, DELETE, PATCH)
+- **URLs**: Proper URL format (absolute or relative with baseUrl)
+
+**Error Message Format:**
+```
+❌ Config Validation Failed
+
+Error in node "get-premium-data" (line 87):
+  Invalid condition syntax: { "variable": "input", "field": ".userType" }
+
+  To check user input, use:
+    { "input": "userType", "equals": "premium" }
+
+  To check a global variable, use:
+    { "variable": "varName", "equals": "value" }
+```
+
+**Benefits:**
+- Fail fast with clear errors before execution starts
+- Better developer experience with helpful error messages
+- Prevent app freezes from invalid configs
+- Guide users to correct syntax
+
+**Implementation:**
+- Create `lib/validator-config.js` module
+- Add validation step before execution in `runSequence()`
+- Integrate with Studio for real-time validation
+- Add `--validate` CLI flag for config validation without execution
+
+---
+
+### 3. Execution Log Visualizer
 
 **Status:** Planned
 
@@ -69,7 +128,7 @@ A visual interface for exploring, analyzing, and comparing execution logs with r
 
 ---
 
-### 3. Swagger/OpenAPI Import
+### 4. Swagger/OpenAPI Import
 
 **Status:** Planned
 
@@ -86,7 +145,7 @@ Import API specifications directly into FlowSphere Studio for automatic config g
 
 ---
 
-### 4. Enhanced Postman Import
+### 5. Enhanced Postman Import
 
 **Status:** Planned
 
@@ -103,7 +162,7 @@ Improve the existing Postman import with multi-environment support and better va
 
 ---
 
-### 5. Export to Postman Collection/Environment
+### 6. Export to Postman Collection/Environment
 
 **Status:** Planned
 
@@ -120,7 +179,7 @@ Convert FlowSphere configs back into Postman collection and environment files fo
 
 ---
 
-### 6. Visual Workflow Storytelling & Export
+### 7. Visual Workflow Storytelling & Export
 
 **Status:** Planned
 

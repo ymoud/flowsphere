@@ -1,0 +1,277 @@
+{
+  "enableDebug": false,
+  "variables": {
+    "apiVersion": "v1",
+    "environment": "demo",
+    "maxRetries": 3
+  },
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "timeout": 30,
+    "headers": {
+      "Content-Type": "application/json",
+      "User-Agent": "FlowSphere-Demo/1.0"
+    },
+    "validations": [
+      {
+        "httpStatusCode": 200
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "user-login",
+      "name": "User Login (with User Input)",
+      "method": "POST",
+      "url": "/posts",
+      "userPrompts": {
+        "username": "Enter your username:",
+        "userType": "Enter user type (basic/premium):"
+      },
+      "body": {
+        "username": "{{ .input.username }}",
+        "userType": "{{ .input.userType }}",
+        "loginTime": "{{ $timestamp }}",
+        "sessionId": "{{ $guid }}"
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        },
+        {
+          "jsonpath": ".id",
+          "exists": true,
+          "greaterThan": 0
+        }
+      ],
+      "skipDefaultValidations": true
+    },
+    {
+      "id": "get-user-profile",
+      "name": "Get User Profile (Using Global Variable)",
+      "method": "GET",
+      "url": "/users/1",
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "exists": true
+        },
+        {
+          "jsonpath": ".name",
+          "exists": true,
+          "notEquals": ""
+        },
+        {
+          "jsonpath": ".email",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "id": "premium-check",
+      "name": "Check Premium Features (Always runs for demo)",
+      "method": "GET",
+      "url": "/users/1/albums",
+      "validations": [
+        {
+          "jsonpath": ". | length",
+          "greaterThan": 0
+        }
+      ]
+    },
+    {
+      "id": "get-premium-data",
+      "name": "Get Premium User Data (Conditional - runs if userType is premium)",
+      "method": "GET",
+      "url": "/users/{{ .responses.get-user-profile.id }}/todos",
+      "conditions": [
+        {
+          "input": "userType",
+          "equals": "premium"
+        }
+      ],
+      "validations": [
+        {
+          "jsonpath": ". | length",
+          "greaterThanOrEqual": 1
+        }
+      ]
+    },
+    {
+      "id": "create-post",
+      "name": "Create New Post (with Dynamic Values)",
+      "method": "POST",
+      "url": "/posts",
+      "body": {
+        "userId": "{{ .responses.get-user-profile.id }}",
+        "title": "Post created by {{ .input.username }} at {{ $timestamp }}",
+        "body": "This is a test post created by FlowSphere. Session: {{ $guid }}",
+        "environment": "{{ .vars.environment }}"
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        },
+        {
+          "jsonpath": ".id",
+          "exists": true,
+          "greaterThan": 100
+        },
+        {
+          "jsonpath": ".userId",
+          "exists": true
+        },
+        {
+          "jsonpath": ".title",
+          "exists": true,
+          "notEquals": ""
+        }
+      ],
+      "skipDefaultValidations": true
+    },
+    {
+      "id": "verify-post-created",
+      "name": "Get Existing Post (Simulating Verification)",
+      "method": "GET",
+      "url": "/posts/1",
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "exists": true
+        },
+        {
+          "jsonpath": ".userId",
+          "exists": true
+        },
+        {
+          "jsonpath": ".title",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "id": "add-comment",
+      "name": "Add Comment to Post (Conditional - only if post verified)",
+      "method": "POST",
+      "url": "/comments",
+      "conditions": [
+        {
+          "node": "verify-post-created",
+          "field": ".id",
+          "exists": true
+        }
+      ],
+      "body": {
+        "postId": "{{ .responses.verify-post-created.id }}",
+        "name": "{{ .responses.get-user-profile.name }}",
+        "email": "{{ .responses.get-user-profile.email }}",
+        "body": "Great post! Comment added at {{ $timestamp }}"
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        },
+        {
+          "jsonpath": ".id",
+          "exists": true,
+          "greaterThan": 500
+        },
+        {
+          "jsonpath": ".postId",
+          "exists": true
+        }
+      ],
+      "skipDefaultValidations": true
+    },
+    {
+      "id": "update-post",
+      "name": "Update Existing Post Title (Simulating Update)",
+      "method": "PUT",
+      "url": "/posts/1",
+      "body": {
+        "id": 1,
+        "userId": "{{ .responses.get-user-profile.id }}",
+        "title": "UPDATED: Post modified at {{ $timestamp }}",
+        "body": "This post was updated by FlowSphere demo"
+      },
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "id": "get-all-posts",
+      "name": "Get All Posts (with Array Length Validation)",
+      "method": "GET",
+      "url": "/posts",
+      "validations": [
+        {
+          "jsonpath": ". | length",
+          "greaterThan": 50,
+          "lessThan": 200
+        },
+        {
+          "jsonpath": ".[0].id",
+          "exists": true
+        },
+        {
+          "jsonpath": ".[0].title",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "id": "basic-user-action",
+      "name": "Basic User Action (Conditional - runs if userType is basic)",
+      "method": "GET",
+      "url": "/posts/1",
+      "conditions": [
+        {
+          "input": "userType",
+          "equals": "basic"
+        }
+      ],
+      "validations": [
+        {
+          "jsonpath": ".id",
+          "equals": "1"
+        },
+        {
+          "jsonpath": ".userId",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "id": "delete-post",
+      "name": "Delete Post (Conditional - only for premium users)",
+      "method": "DELETE",
+      "url": "/posts/1",
+      "conditions": [
+        {
+          "input": "userType",
+          "equals": "premium"
+        }
+      ]
+    },
+    {
+      "id": "final-verification",
+      "name": "Final Verification (Multiple Conditions - always skipped for demo)",
+      "method": "GET",
+      "url": "/posts/999999",
+      "conditions": [
+        {
+          "input": "userType",
+          "equals": "admin"
+        },
+        {
+          "node": "delete-post",
+          "field": ".id",
+          "exists": true
+        }
+      ]
+    }
+  ]
+}

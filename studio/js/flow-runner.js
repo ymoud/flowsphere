@@ -249,6 +249,8 @@ async function runSequence() {
                     // Show a clickable placeholder instead of immediately showing modal
                     // This allows user to complete previous step (e.g., OAuth flow in browser)
 
+                    console.log('[Flow Runner] input_required event received:', data);
+
                     // Set paused state and modal title BEFORE showing placeholder
                     setModalTitle('Flow Paused', 'Awaiting User Calibration');
                     updateProgressIndicator('paused', currentStep, totalSteps);
@@ -256,34 +258,59 @@ async function runSequence() {
                     // Loop until user provides input
                     let userInput = null;
                     while (!userInput) {
+                        console.log('[Flow Runner] Showing input placeholder for step:', data.step);
+
                         // Show placeholder with "click to provide input" message
                         // Use data.step as the unique ID (not currentStep, to avoid double-counting)
                         await showInputPendingPlaceholder(data, data.step, totalSteps);
 
+                        console.log('[Flow Runner] Collecting user input...');
+
                         // Wait for user to click and provide input
                         userInput = await collectUserInputForStep(data);
+
+                        console.log('[Flow Runner] User input received:', userInput ? 'yes' : 'no (modal closed)');
 
                         // If modal was closed without submitting (returns null), loop again
                         // This allows user to reopen by clicking the placeholder
                     }
 
-                    // Restore running state after user provides input
-                    setModalTitle('Flow in Motion', 'Executing nodes sequentially');
-                    updateProgressIndicator('running', currentStep, totalSteps);
+                    console.log('[Flow Runner] Sending input to server:', userInput);
 
                     // Remove the placeholder
                     removeInputPendingPlaceholder(data.step);
 
                     // Send input back to server
-                    await fetch('/api/provide-input', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            executionId: data.executionId,
-                            stepIndex: data.stepIndex,
-                            userInput: userInput
-                        })
-                    });
+                    try {
+                        const inputResponse = await fetch('/api/provide-input', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                executionId: data.executionId,
+                                stepIndex: data.stepIndex,
+                                userInput: userInput
+                            })
+                        });
+
+                        console.log('[Flow Runner] Input response status:', inputResponse.status);
+
+                        const inputResult = await inputResponse.json();
+                        console.log('[Flow Runner] Input response:', inputResult);
+
+                        if (!inputResult.success) {
+                            console.error('[Flow Runner] Failed to send input:', inputResult.error);
+                        }
+
+                        // Restore running state after user provides input
+                        setModalTitle('Flow in Motion', 'Executing nodes sequentially');
+                        updateProgressIndicator('running', currentStep, totalSteps);
+
+                        console.log('[Flow Runner] Resumed execution after user input');
+
+                    } catch (error) {
+                        console.error('[Flow Runner] Error sending input to server:', error);
+                        showAlert('error', 'Failed to send user input: ' + error.message);
+                    }
                 } else if (eventType === 'step') {
                     // Check if we have a pending step
                     const pending = pendingSteps.get(data.step);

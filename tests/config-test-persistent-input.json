@@ -1,0 +1,89 @@
+{
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "timeout": 30,
+    "validations": [
+      {
+        "httpStatusCode": 200
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "collect-username",
+      "name": "Step 1: Collect username",
+      "method": "GET",
+      "url": "/users/1",
+      "userPrompts": {
+        "username": "Enter your username:"
+      }
+    },
+    {
+      "id": "collect-user-type",
+      "name": "Step 2: Collect user type",
+      "method": "GET",
+      "url": "/users/2",
+      "userPrompts": {
+        "userType": "Enter user type (premium/basic):"
+      }
+    },
+    {
+      "id": "use-both-inputs",
+      "name": "Step 3: Use both username and userType in request",
+      "method": "POST",
+      "url": "/posts",
+      "body": {
+        "title": "Hello from {{ .input.username }}",
+        "body": "User type: {{ .input.userType }}",
+        "userId": 1
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        }
+      ],
+      "skipDefaultValidations": true
+    },
+    {
+      "id": "premium-only-step",
+      "name": "Step 4: Execute only for premium users",
+      "method": "GET",
+      "url": "/posts/1",
+      "conditions": [
+        {
+          "input": "userType",
+          "equals": "premium"
+        }
+      ]
+    },
+    {
+      "id": "basic-only-step",
+      "name": "Step 5: Execute only for basic users",
+      "method": "GET",
+      "url": "/posts/2",
+      "conditions": [
+        {
+          "input": "userType",
+          "equals": "basic"
+        }
+      ]
+    },
+    {
+      "id": "final-step",
+      "name": "Step 6: Final step using username again",
+      "method": "POST",
+      "url": "/posts",
+      "body": {
+        "title": "Goodbye from {{ .input.username }}",
+        "body": "This demonstrates that input persists to the end",
+        "userId": 1
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        }
+      ],
+      "skipDefaultValidations": true
+    }
+  ]
+}

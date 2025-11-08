@@ -394,6 +394,7 @@ async function launchStudio(port = 3737) {
         const executionLog = [];
         let stepsExecuted = 0;
         let stepsSkipped = 0;
+        let userInput = {}; // Persistent across all steps
 
         // Execute each node and stream results
         for (let i = 0; i < nodes.length; i++) {
@@ -425,7 +426,6 @@ async function launchStudio(port = 3737) {
           }
 
           // Check if step requires user input
-          let userInput = {};
           if (node.userPrompts && Object.keys(node.userPrompts).length > 0) {
             // Send input_required event
             sendEvent('input_required', {
@@ -437,10 +437,13 @@ async function launchStudio(port = 3737) {
             });
 
             // Wait for user input
-            userInput = await new Promise((resolve) => {
+            const newInput = await new Promise((resolve) => {
               const key = `${executionId}-${i}`;
               pendingInputRequests.set(key, resolve);
             });
+
+            // Merge new input with existing input (later keys override earlier ones)
+            userInput = { ...userInput, ...newInput };
           }
 
           // Evaluate conditions
