@@ -560,13 +560,40 @@ function updateStep(index, field, value) {
 }
 
 function updateStepJSON(index, field, value) {
+    const errorId = `json-error-${field}-${index}`;
+    const textareaId = `json-textarea-${field}-${index}`;
+    const errorContainer = document.getElementById(errorId);
+    const textarea = document.getElementById(textareaId);
+
     try {
         const parsed = JSON.parse(value || '{}');
         config.nodes[index][field] = parsed;
         saveToLocalStorage();
         updatePreview();
+
+        // Clear error message and styling on success
+        if (errorContainer) {
+            errorContainer.style.display = 'none';
+            errorContainer.textContent = '';
+        }
+        if (textarea) {
+            textarea.classList.remove('is-invalid');
+        }
     } catch (err) {
         console.error('Invalid JSON:', err);
+
+        // Show inline error message below textarea
+        if (errorContainer) {
+            errorContainer.style.display = 'block';
+            errorContainer.textContent = `⚠ Invalid JSON: ${err.message}`;
+        }
+
+        // Add error styling to textarea (Bootstrap's is-invalid class adds red border)
+        if (textarea) {
+            textarea.classList.add('is-invalid');
+        }
+
+        // Note: The invalid JSON is NOT saved to config - the field keeps its previous valid value
     }
 }
 

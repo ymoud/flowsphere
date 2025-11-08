@@ -130,6 +130,11 @@ function confirmNewConfig() {
                     updateImportNodesButton();
                 }
 
+                // Show Validate button
+                if (typeof updateValidateButton === 'function') {
+                    updateValidateButton();
+                }
+
                 // Scroll JSON preview to top
                 if (typeof scrollJsonPreviewToTop === 'function') {
                     scrollJsonPreviewToTop();
@@ -138,6 +143,11 @@ function confirmNewConfig() {
                 // Show file actions dropdown
                 const fileActionsDropdown = document.getElementById('fileActionsDropdown');
                 if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
+
+                // Auto-validate loaded config (silent mode - shows badge only)
+                if (typeof validateConfig === 'function') {
+                    validateConfig(true);
+                }
 
                 // Clear file input and reset UI
                 resetLoadConfigModal();
@@ -191,6 +201,11 @@ function confirmNewConfig() {
                     updateImportNodesButton();
                 }
 
+                // Show Validate button
+                if (typeof updateValidateButton === 'function') {
+                    updateValidateButton();
+                }
+
                 // Scroll JSON preview to top
                 if (typeof scrollJsonPreviewToTop === 'function') {
                     scrollJsonPreviewToTop();
@@ -199,6 +214,11 @@ function confirmNewConfig() {
                 // Show file actions dropdown
                 const fileActionsDropdown = document.getElementById('fileActionsDropdown');
                 if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
+
+                // Auto-validate loaded config (silent mode - shows badge only)
+                if (typeof validateConfig === 'function') {
+                    validateConfig(true);
+                }
 
                 // Clear file input and reset UI
                 resetLoadConfigModal();

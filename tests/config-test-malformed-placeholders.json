@@ -1,0 +1,40 @@
+{
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com"
+  },
+  "nodes": [
+    {
+      "id": "user-login",
+      "name": "Valid node",
+      "method": "GET",
+      "url": "/posts/1"
+    },
+    {
+      "id": "malformed-placeholder",
+      "name": "Missing closing braces",
+      "method": "POST",
+      "url": "/posts",
+      "body": {
+        "text": "{{ .responses.user-login.test"
+      }
+    },
+    {
+      "id": "another-malformed",
+      "name": "Missing opening braces",
+      "method": "POST",
+      "url": "/posts",
+      "body": {
+        "text": ".responses.user-login.test }}"
+      }
+    },
+    {
+      "id": "valid-placeholder",
+      "name": "Valid placeholder",
+      "method": "POST",
+      "url": "/posts",
+      "body": {
+        "text": "{{ .responses.user-login.title }}"
+      }
+    }
+  ]
+}

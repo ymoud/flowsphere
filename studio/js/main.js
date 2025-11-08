@@ -87,6 +87,11 @@ window.addEventListener('DOMContentLoaded', function() {
                         updateImportNodesButton();
                     }
 
+                    // Show Validate button
+                    if (typeof updateValidateButton === 'function') {
+                        updateValidateButton();
+                    }
+
                     // Scroll JSON preview to top when loading a file
                     if (typeof scrollJsonPreviewToTop === 'function') {
                         scrollJsonPreviewToTop();
@@ -95,6 +100,11 @@ window.addEventListener('DOMContentLoaded', function() {
                     // Show file actions dropdown
                     const fileActionsDropdown = document.getElementById('fileActionsDropdown');
                     if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
+
+                    // Auto-validate loaded config (silent mode - shows badge only)
+                    if (typeof validateConfig === 'function') {
+                        validateConfig(true);
+                    }
 
                     // Clear input to allow re-selecting the same file
                     fileInput.value = '';
@@ -176,6 +186,11 @@ window.addEventListener('DOMContentLoaded', function() {
     // Initialize Import Nodes button visibility
     if (typeof updateImportNodesButton === 'function') {
         updateImportNodesButton();
+    }
+
+    // Initialize Validate button visibility
+    if (typeof updateValidateButton === 'function') {
+        updateValidateButton();
     }
 
     // Load from localStorage with loader if config exists

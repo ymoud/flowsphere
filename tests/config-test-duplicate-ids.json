@@ -1,0 +1,28 @@
+{
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "validations": [
+      { "httpStatusCode": 200 }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "test-node",
+      "name": "First node",
+      "method": "GET",
+      "url": "/posts/1"
+    },
+    {
+      "id": "test-node",
+      "name": "Duplicate ID node (should fail validation)",
+      "method": "GET",
+      "url": "/posts/2"
+    },
+    {
+      "id": "another-node",
+      "name": "Valid node",
+      "method": "GET",
+      "url": "/users/{{ .responses.nonexistent.id }}"
+    }
+  ]
+}

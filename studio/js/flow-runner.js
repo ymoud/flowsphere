@@ -269,6 +269,44 @@ async function runSequence() {
             return;
         }
 
+        // Validate config before execution
+        try {
+            const validationResponse = await fetch('/api/validate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ config: config })
+            });
+
+            if (!validationResponse.ok) {
+                throw new Error(`Validation request failed: ${validationResponse.statusText}`);
+            }
+
+            const validationResult = await validationResponse.json();
+
+            // If validation failed, show errors and abort execution
+            if (!validationResult.valid) {
+                console.log('[Flow Runner] Validation failed, aborting execution');
+
+                // Show validation modal with errors (non-silent mode)
+                if (typeof showConfigValidationResults === 'function') {
+                    showConfigValidationResults(validationResult);
+                } else {
+                    // Fallback: show basic alert
+                    const errorCount = validationResult.errors.length;
+                    showAlert('error', `Config validation failed with ${errorCount} error${errorCount > 1 ? 's' : ''}. Please fix the errors before running.`);
+                }
+                return; // Abort execution
+            }
+
+            console.log('[Flow Runner] Validation passed, proceeding with execution');
+        } catch (validationError) {
+            console.error('[Flow Runner] Validation error:', validationError);
+            showAlert('error', `Failed to validate config: ${validationError.message}`);
+            return; // Abort execution
+        }
+
         // Reset state for new execution
         currentStepNumber = 0;
         totalStepsCount = config.nodes.length;

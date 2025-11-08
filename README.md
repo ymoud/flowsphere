@@ -84,6 +84,9 @@ flowsphere examples/config-simple.json
 
 **Advanced:**
 ```bash
+# Validate config without executing (check for errors)
+flowsphere config.json --validate
+
 # Resume from a specific step (useful for debugging)
 flowsphere examples/config.json --start-step 6
 
@@ -163,16 +166,79 @@ await FlowSphere.run('config.json', {
 |---------|-------------|
 | **Dual Execution Modes** | Run flows via CLI (terminal) or Studio UI (browser) with identical results |
 | **Live Flow Runner** | Execute sequences in browser with real-time streaming, color-coded highlighting, and detailed logs |
+| **Config Validation** | Pre-execution validation catches errors early with clear, actionable messages; CLI `--validate` flag and Studio UI integration |
 | **Dynamic Variables** | Generate UUIDs and timestamps: `{{ $guid }}`, `{{ $timestamp }}` |
 | **Smart Data Passing** | Reference any field from previous responses: `{{ .responses.login.token }}` |
 | **Variable Highlighting** | Color-coded visualization of substituted values (variables, responses, dynamic values, user input) |
 | **Conditional Logic** | Execute steps based on previous results with AND logic (e.g., premium vs. free user flows) |
 | **User Interaction** | Prompt for input (passwords, codes) or auto-launch browser (OAuth flows) |
-| **Validation** | Verify status codes and response fields; fail fast on errors |
+| **Response Validation** | Verify status codes and response fields; fail fast on errors |
 | **Flexible Formats** | JSON and form-urlencoded bodies supported |
 | **Visual Feedback** | Clear status indicators: ✅ success / ❌ failed / ⊘ skipped |
 | **Execution Logging** | Save detailed logs of all requests/responses for debugging and audit trails |
 | **Cross-Platform** | Native Windows, macOS, Linux support (no WSL needed) |
+
+## Config Validation System
+
+FlowSphere includes a comprehensive validation system that catches configuration errors **before execution**, saving time and preventing confusing runtime failures.
+
+### Features
+
+- **Pre-Execution Validation** — Every flow is validated before running (CLI and Studio)
+- **Manual Validation** — CLI `--validate` flag and Studio "Validate" button
+- **Auto-Validation** — Silent validation on file load with badge indicator (✅ valid / 🔴 error count)
+- **Inline JSON Feedback** — Real-time error highlighting for invalid JSON in textareas
+- **Clear Error Messages** — Actionable suggestions for fixing issues
+
+### CLI Usage
+
+```bash
+# Validate without executing
+flowsphere config.json --validate
+
+# Example output
+❌ Config Validation Failed (2 errors)
+
+Error 1:
+  Node: "get-premium-data" (nodes[3])
+  Field: nodes[3].id
+  Issue: Duplicate node ID: "get-premium-data"
+  Fix: Each node must have a unique ID
+
+Error 2:
+  Node: "another-node" (nodes[4])
+  Field: nodes[4].body.text
+  Issue: Malformed placeholder: Found 1 opening "{{" but 0 closing "}}"
+  Fix: Check: "{{ .responses.user-login.test" - all placeholders need both {{ and }}
+```
+
+### Studio UI
+
+- **Validate Button** — Manually check config with detailed error modal
+- **Auto-Validation** — Silent check on file load shows badge (✅ / 🔴)
+- **Inline JSON Errors** — Real-time feedback with red borders and error messages
+- **Pre-Execution Check** — Blocks execution if validation fails
+
+### What It Validates
+
+**Structure Validations** (external file loads):
+- Missing required fields (id, method, url)
+- Invalid HTTP methods
+- Invalid field types
+- Malformed placeholder syntax
+
+**Value Validations** (all loads):
+- ✅ Duplicate node IDs
+- ✅ Non-existent node references in placeholders
+- ✅ Malformed placeholders (missing `{{` or `}}`)
+- ✅ JSON body type mismatch with Content-Type header
+- ✅ Invalid condition syntax
+- ✅ Invalid validation rules
+- ✅ Circular references in JSON bodies
+
+**Two-Tier System:** Studio's UI prevents structure errors, but users can still create value errors (e.g., delete a node that's referenced elsewhere). FlowSphere validates both.
+
+➡️ See [Technical Design](docs/technical/config-validation-system.md) for architecture details.
 
 ## Examples
 
@@ -329,7 +395,7 @@ Execute nodes conditionally based on previous responses. Uses **AND logic** — 
 - `variable` - Check global variable
 - `input` - Check user input value
 
-### Validation
+### Response Validation
 
 Validations are specified as an array. Each validation can check HTTP status code or JSON path criteria:
 

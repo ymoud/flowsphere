@@ -11,17 +11,19 @@ Features listed in priority order (highest to lowest):
 | Priority | Feature | Status | Details |
 |----------|---------|--------|---------|
 | 1 | Flow Runner - Execution Controls | In Progress (Phase 1 ✅) | [View Details](docs/features/flow-runner-execution-controls.md) |
-| 2 | Config Validation & Schema Enforcement | Planned | See below |
-| 3 | Execution Log Visualizer | Planned | [View Details](docs/features/execution-log-visualizer.md) |
-| 4 | Swagger/OpenAPI Import | Planned | [View Details](docs/features/swagger-openapi-import.md) |
-| 5 | Enhanced Postman Import | Planned | [View Details](docs/features/enhanced-postman-import.md) |
-| 6 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
-| 7 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
+| 2 | Config Validation & Schema Enforcement | ✅ Complete | [Technical Design](docs/technical/config-validation-system.md) |
+| 3 | JSON Beautify for Request Bodies | Planned | See below |
+| 4 | Execution Log Visualizer | Planned | [View Details](docs/features/execution-log-visualizer.md) |
+| 5 | Swagger/OpenAPI Import | Planned | [View Details](docs/features/swagger-openapi-import.md) |
+| 6 | Enhanced Postman Import | Planned | [View Details](docs/features/enhanced-postman-import.md) |
+| 7 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
+| 8 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
 
 ### Completed & External Features
 
 | Feature | Status |
 |---------|--------|
+| Config Validation & Schema Enforcement | ✅ Completed |
 | Persistent User Input Across Steps | ✅ Completed |
 | Publish to NPM | ✅ Completed (v0.1.0) |
 | Node Templates & Import System | ✅ Completed |
@@ -55,49 +57,71 @@ The original pause/resume approach had UX issues due to signal lag between clien
 
 ### 2. Config Validation & Schema Enforcement
 
-**Status:** Planned
+**Status:** ✅ Complete
 
-Validate configuration files before execution to catch errors early and provide clear, actionable error messages instead of runtime failures or freezes.
+Comprehensive validation system that catches errors before execution with clear, actionable error messages.
 
-**Problem:**
-- Invalid config syntax can cause app to freeze or fail silently
-- Runtime errors don't clearly explain what's wrong with the config
-- Users must wait for execution to discover config issues
-- No guidance on correct syntax for conditions, validations, etc.
-
-**Solution:**
-- Pre-execution validation of entire config file
-- JSON schema validation for structure
-- Semantic validation for logic (e.g., node ID references, condition syntax)
-- Clear error messages with line numbers and examples
+**Implemented Features:**
+- **Two-Tier Validation System**: Separates structure vs value validations
+  - Structure: Fields that Studio UI prevents from breaking (types, required fields)
+  - Value: Fields that users can break in Studio (duplicate IDs, broken references)
+- **Pre-Execution Validation**: Automatic validation before running flows (CLI + Studio)
+- **Manual Validation**: "Validate" button with detailed error modal
+- **Auto-Validation**: Silent validation on file load with badge indicator
+- **Inline JSON Validation**: Real-time feedback for invalid JSON in textareas
+- **CLI Support**: `--validate` flag for standalone validation
 
 **Validation Checks:**
-- **Structure**: Valid JSON, required fields present
-- **Node IDs**: Unique IDs, no duplicate IDs
-- **References**: Node references exist (conditions, response substitution)
-- **Conditions**: Valid syntax (`input`, `variable`, or `node` with proper fields)
-- **Validations**: Valid jsonpath expressions, proper comparison types
-- **Substitutions**: Valid placeholder syntax (`{{ .responses.nodeId.field }}`)
-- **User Prompts**: Valid prompt definitions
-- **HTTP Methods**: Valid methods (GET, POST, PUT, DELETE, PATCH)
-- **URLs**: Proper URL format (absolute or relative with baseUrl)
+- ✅ Duplicate node IDs
+- ✅ Missing required fields (id, method, url)
+- ✅ Invalid HTTP methods
+- ✅ Invalid URLs (absolute vs relative with baseUrl)
+- ✅ Malformed placeholders (missing `{{` or `}}`)
+- ✅ Non-existent node references in placeholders
+- ✅ Invalid condition syntax (node/variable/input sources)
+- ✅ Invalid validation rules (httpStatusCode, jsonpath)
+- ✅ JSON body type mismatch with Content-Type header
+- ✅ Unserializable JSON bodies (circular references)
 
-**Error Message Format:**
+**Error Message Example:**
 ```
-❌ Config Validation Failed
+❌ Config Validation Failed (2 errors)
 
-Error in node "get-premium-data" (line 87):
-  Invalid condition syntax: { "variable": "input", "field": ".userType" }
+Error 1:
+  Node: "get-premium-data" (nodes[3])
+  Field: nodes[3].id
+  Issue: Duplicate node ID: "get-premium-data"
+  Fix: Each node must have a unique ID
 
-  To check user input, use:
-    { "input": "userType", "equals": "premium" }
-
-  To check a global variable, use:
-    { "variable": "varName", "equals": "value" }
+Error 2:
+  Node: "another-node" (nodes[4])
+  Field: nodes[4].body.text
+  Issue: Malformed placeholder: Found 1 opening "{{" but 0 closing "}}"
+  Fix: Check: "{{ .responses.user-login.test" - all placeholders need both {{ and }}
 ```
+
+➡️ [Technical Design Documentation](docs/technical/config-validation-system.md)
+
+---
+
+### 3. JSON Beautify for Request Bodies
+
+**Status:** Planned
+
+Add a "Beautify" button next to JSON request body textareas in Studio to format/prettify malformed or minified JSON with one click.
+
+**Problem:**
+- Users paste minified JSON from APIs or other sources
+- Manual formatting is tedious and error-prone
+- Ugly JSON is hard to read and edit
+
+**Solution:**
+- Add "Beautify JSON" button next to body textarea
+- One-click formatting with proper indentation (2 spaces)
+- Preserves existing valid JSON structure
+- Shows error if JSON is invalid (doesn't corrupt textarea)
 
 **Benefits:**
-- Fail fast with clear errors before execution starts
 - Better developer experience with helpful error messages
 - Prevent app freezes from invalid configs
 - Guide users to correct syntax

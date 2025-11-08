@@ -1337,6 +1337,11 @@ if (!window.confirmNewConfig) {
                         const fileActionsDropdown = document.getElementById('fileActionsDropdown');
                         if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
 
+                        // Auto-validate loaded config (silent mode - shows badge only)
+                        if (typeof validateConfig === 'function') {
+                            validateConfig(true);
+                        }
+
                         // Hide loader
                         hideLoader();
                     } catch (err) {
@@ -1400,6 +1405,11 @@ if (!window.confirmNewConfig) {
                             updateImportNodesButton();
                         }
 
+                        // Show Validate button
+                        if (typeof updateValidateButton === 'function') {
+                            updateValidateButton();
+                        }
+
                         // Scroll JSON preview to top when creating new config
                         if (typeof scrollJsonPreviewToTop === 'function') {
                             scrollJsonPreviewToTop();
@@ -1408,6 +1418,11 @@ if (!window.confirmNewConfig) {
                         // Show file actions dropdown
                         const fileActionsDropdown = document.getElementById('fileActionsDropdown');
                         if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
+
+                        // Auto-validate loaded config (silent mode - shows badge only)
+                        if (typeof validateConfig === 'function') {
+                            validateConfig(true);
+                        }
 
                         // Hide loader
                         hideLoader();

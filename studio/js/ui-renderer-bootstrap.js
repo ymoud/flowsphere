@@ -886,8 +886,9 @@ function renderStepForm(step, index) {
 
             <div class="mb-3" id="bodySection_${index}">
                 <label class="form-label">Request Body (JSON)</label>
-                <textarea class="form-control form-control-sm font-monospace" rows="10"
+                <textarea id="json-textarea-body-${index}" class="form-control form-control-sm font-monospace" rows="10"
                           onchange="updateStepJSON(${index}, 'body', this.value)">${JSON.stringify(step.body || {}, null, 2)}</textarea>
+                <div id="json-error-body-${index}" class="text-danger small mt-1" style="display: none;"></div>
                 <div class="form-text">Format auto-detected from Content-Type header. Use flat object for form-urlencoded, nested for JSON.</div>
             </div>
         </div>

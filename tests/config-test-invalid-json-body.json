@@ -1,0 +1,59 @@
+{
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "nodes": [
+    {
+      "id": "valid-json-body",
+      "name": "Valid - object body with JSON content-type",
+      "method": "POST",
+      "url": "/posts",
+      "body": {
+        "title": "foo",
+        "body": "bar",
+        "userId": 1
+      }
+    },
+    {
+      "id": "invalid-string-body",
+      "name": "Invalid - string body with JSON content-type",
+      "method": "POST",
+      "url": "/posts",
+      "body": "this is a string, not JSON!"
+    },
+    {
+      "id": "invalid-number-body",
+      "name": "Invalid - number body with JSON content-type",
+      "method": "POST",
+      "url": "/posts",
+      "body": 12345
+    },
+    {
+      "id": "invalid-null-body",
+      "name": "Invalid - null body with JSON content-type",
+      "method": "POST",
+      "url": "/posts",
+      "body": null
+    },
+    {
+      "id": "valid-array-body",
+      "name": "Valid - array body with JSON content-type",
+      "method": "POST",
+      "url": "/posts",
+      "body": [1, 2, 3, 4]
+    },
+    {
+      "id": "valid-string-body-text-type",
+      "name": "Valid - string body with text/plain content-type",
+      "method": "POST",
+      "url": "/posts",
+      "headers": {
+        "Content-Type": "text/plain"
+      },
+      "body": "this is fine for text/plain"
+    }
+  ]
+}

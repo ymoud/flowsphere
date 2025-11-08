@@ -56,6 +56,14 @@ function updateImportNodesButton() {
     btn.style.display = config ? 'inline-block' : 'none';
 }
 
+function updateValidateButton() {
+    const btn = document.getElementById('validateConfigBtn');
+    if (!btn) return;
+
+    // Show button only if config is loaded
+    btn.style.display = config ? 'inline-block' : 'none';
+}
+
 function renameFile() {
     if (!config) {
         alert('No file is currently open');
@@ -150,6 +158,9 @@ function closeFile() {
         // Hide Import Nodes button
         updateImportNodesButton();
 
+        // Hide Validate button
+        updateValidateButton();
+
         // Hide file actions dropdown
         const fileActionsDropdown = document.getElementById('fileActionsDropdown');
         if (fileActionsDropdown) fileActionsDropdown.style.display = 'none';
@@ -177,6 +188,9 @@ function loadFromLocalStorage() {
 
             // Show Import Nodes button
             updateImportNodesButton();
+
+            // Show Validate button
+            updateValidateButton();
 
             // Scroll JSON preview to top when loading from localStorage
             if (typeof scrollJsonPreviewToTop === 'function') {

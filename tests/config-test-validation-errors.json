@@ -1,0 +1,70 @@
+{
+  "variables": {
+    "apiKey": "test-key"
+  },
+  "defaults": {
+    "baseUrl": "https://jsonplaceholder.typicode.com",
+    "validations": [
+      { "httpStatusCode": 200 }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "test-node-1",
+      "name": "Valid node",
+      "method": "GET",
+      "url": "/posts/1"
+    },
+    {
+      "id": "test-node-1",
+      "name": "Duplicate ID (should fail)",
+      "method": "POST",
+      "url": "/posts"
+    },
+    {
+      "id": "missing-method",
+      "name": "No method field (should fail)",
+      "url": "/users/1"
+    },
+    {
+      "id": "invalid-method",
+      "name": "Invalid HTTP method (should fail)",
+      "method": "PATCH_INVALID",
+      "url": "/posts/1"
+    },
+    {
+      "id": "bad-reference",
+      "name": "References non-existent node (should fail)",
+      "method": "GET",
+      "url": "/users/{{ .responses.nonexistent.id }}"
+    },
+    {
+      "id": "bad-condition",
+      "name": "Invalid condition syntax (should fail)",
+      "method": "GET",
+      "url": "/posts/1",
+      "conditions": [
+        {
+          "variable": "apiKey"
+        }
+      ]
+    },
+    {
+      "id": "bad-validation",
+      "name": "Invalid validation (should fail)",
+      "method": "GET",
+      "url": "/posts/1",
+      "validations": [
+        {
+          "jsonpath": "missing-dot"
+        }
+      ]
+    },
+    {
+      "id": "bad-placeholder",
+      "name": "Invalid placeholder syntax (should fail)",
+      "method": "GET",
+      "url": "/posts/{{ .invalid }}"
+    }
+  ]
+}

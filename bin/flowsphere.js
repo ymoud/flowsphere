@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const { runSequence } = require('../lib/executor');
 const { promptSaveLog } = require('../lib/logger');
+const { validateConfig, formatErrors } = require('../lib/config-validator');
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
@@ -30,6 +31,7 @@ COMMANDS:
 
 OPTIONS:
   --start-step <n>     Start execution from step n (1-indexed)
+  --validate           Validate config file without executing
   --port <n>           Port for Studio server (default: 3737)
   --version            Show version number
   --help               Show this help message
@@ -38,6 +40,7 @@ EXAMPLES:
   flowsphere config.json
   flowsphere examples/config-simple.json
   flowsphere config.json --start-step 5
+  flowsphere config.json --validate
   flowsphere studio
   flowsphere studio --port 8080
 
@@ -724,6 +727,34 @@ async function launchStudio(port = 3737) {
     }
   });
 
+  // POST /api/validate - Validate config without executing
+  app.post('/api/validate', (req, res) => {
+    try {
+      const { config } = req.body;
+
+      if (!config) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing config in request body'
+        });
+      }
+
+      const { validateConfig } = require('../lib/config-validator');
+      const result = validateConfig(config);
+
+      res.json({
+        valid: result.valid,
+        errors: result.errors
+      });
+
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Template cache for performance
   let templateCache = null;
 
@@ -908,11 +939,34 @@ async function main() {
 
   // Parse options
   let startStep = 0;
+  let validateOnly = false;
 
   for (let i = 1; i < args.length; i++) {
     if (args[i] === '--start-step' && args[i + 1]) {
       startStep = parseInt(args[i + 1]) - 1; // Convert to 0-indexed
       i++; // Skip next argument
+    } else if (args[i] === '--validate') {
+      validateOnly = true;
+    }
+  }
+
+  // If --validate flag is present, validate and exit
+  if (validateOnly) {
+    try {
+      const configContent = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      const result = validateConfig(configContent);
+
+      if (result.valid) {
+        console.log('✓ Config validation passed');
+        console.log(`  ${configContent.nodes.length} node(s) validated successfully`);
+        process.exit(0);
+      } else {
+        console.error(formatErrors(result.errors));
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to validate config: ${error.message}`);
+      process.exit(1);
     }
   }
 
