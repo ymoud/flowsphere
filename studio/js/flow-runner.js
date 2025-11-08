@@ -475,6 +475,7 @@ function updateModalWithStep(stepData, currentStep, totalSteps) {
                     aria-expanded="false"
                     aria-controls="details${currentStep}"
                  ` : ''}>
+                <span class="badge bg-secondary bg-opacity-75 me-1">#${currentStep}</span>
                 <span>${statusIcon}</span>
                 <span class="text-muted small">${stepData.method}</span>
                 <span class="flex-grow-1 small text-truncate" title="${escapeHtml(stepData.url)}">${displayUrl}</span>
@@ -560,6 +561,7 @@ function showStepPlaceholder(stepData, currentStep, totalSteps) {
     const placeholderHtml = `
         <div class="step-card-animated mb-2" id="step-${currentStep}">
             <div class="d-flex align-items-center gap-2 py-2 px-3 bg-info bg-opacity-10 border border-info rounded">
+                <span class="badge bg-secondary bg-opacity-75 me-1">#${currentStep}</span>
                 <div class="spinner-border spinner-border-sm text-info" role="status">
                     <span class="visually-hidden">Executing...</span>
                 </div>
@@ -650,6 +652,7 @@ function replaceStepPlaceholder(stepData, stepNumber, totalSteps) {
                 aria-expanded="false"
                 aria-controls="details${stepNumber}"
              ` : ''}>
+            <span class="badge bg-secondary bg-opacity-75 me-1">#${stepNumber}</span>
             <span>${statusIcon}</span>
             <span class="text-muted small">${stepData.method}</span>
             <span class="flex-grow-1 small text-truncate" title="${escapeHtml(stepData.url)}">${displayUrl}</span>
