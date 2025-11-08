@@ -1395,6 +1395,11 @@ if (!window.confirmNewConfig) {
                         renderEditor();
                         updatePreview();
 
+                        // Show Import Nodes button
+                        if (typeof updateImportNodesButton === 'function') {
+                            updateImportNodesButton();
+                        }
+
                         // Scroll JSON preview to top when creating new config
                         if (typeof scrollJsonPreviewToTop === 'function') {
                             scrollJsonPreviewToTop();

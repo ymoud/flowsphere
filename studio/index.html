@@ -85,17 +85,17 @@
                             <button class="btn btn-primary btn-sm" onclick="createNew()">
                                 <i class="bi bi-folder-open"></i> Load Config
                             </button>
-                            <button class="btn btn-success btn-sm" onclick="ImportNodesModal.open()">
+                            <button class="btn btn-success btn-sm" id="importNodesBtn" onclick="ImportNodesModal.open()">
                                 <i class="bi bi-plus-circle"></i> Import Nodes
                             </button>
                             <button class="btn btn-success btn-sm" onclick="runSequence()" id="runSequenceBtn" style="display: none;">
                                 <i class="bi bi-water"></i> Go with the <em>Flow</em>
                             </button>
                             <div class="ms-auto d-flex align-items-center gap-2">
-                                <div id="fileNameContainer" class="d-flex align-items-center gap-1">
+                                <div id="fileNameContainer" class="align-items-center gap-1" style="display: none;">
                                     <span id="currentFileName" class="text-muted small d-flex align-items-center gap-2">
                                         <i class="bi bi-file-earmark-text"></i>
-                                        <span id="fileNameText">config.json</span>
+                                        <span id="fileNameText">-</span>
                                     </span>
                                     <div class="dropdown" id="fileActionsDropdown" style="display: none;">
                                         <button class="btn btn-sm file-actions-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="File actions">

@@ -25,15 +25,35 @@ function updateAutoSaveIndicator() {
 
 function updateFileNameDisplay() {
     const fileNameElement = document.getElementById('fileNameText');
+    const fileNameContainer = document.getElementById('fileNameContainer');
+
     if (fileNameElement) {
         if (config) {
             fileNameElement.textContent = fileName;
             fileNameElement.style.color = '#374151';
+            // Show file name container by adding d-flex class
+            if (fileNameContainer) {
+                fileNameContainer.classList.add('d-flex');
+                fileNameContainer.style.display = '';
+            }
         } else {
-            fileNameElement.textContent = 'No file open';
+            fileNameElement.textContent = '-';
             fileNameElement.style.color = '#9ca3af';
+            // Hide file name container by removing d-flex class and setting display none
+            if (fileNameContainer) {
+                fileNameContainer.classList.remove('d-flex');
+                fileNameContainer.style.display = 'none';
+            }
         }
     }
+}
+
+function updateImportNodesButton() {
+    const btn = document.getElementById('importNodesBtn');
+    if (!btn) return;
+
+    // Show button only if config is loaded
+    btn.style.display = config ? 'inline-block' : 'none';
 }
 
 function renameFile() {
@@ -127,6 +147,9 @@ function closeFile() {
             updateRunSequenceButton();
         }
 
+        // Hide Import Nodes button
+        updateImportNodesButton();
+
         // Hide file actions dropdown
         const fileActionsDropdown = document.getElementById('fileActionsDropdown');
         if (fileActionsDropdown) fileActionsDropdown.style.display = 'none';
@@ -151,6 +174,9 @@ function loadFromLocalStorage() {
             updateFileNameDisplay();
             renderEditor();
             updatePreview();
+
+            // Show Import Nodes button
+            updateImportNodesButton();
 
             // Scroll JSON preview to top when loading from localStorage
             if (typeof scrollJsonPreviewToTop === 'function') {

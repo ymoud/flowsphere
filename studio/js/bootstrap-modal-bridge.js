@@ -125,6 +125,11 @@ function confirmNewConfig() {
                 renderEditor();
                 updatePreview();
 
+                // Show Import Nodes button
+                if (typeof updateImportNodesButton === 'function') {
+                    updateImportNodesButton();
+                }
+
                 // Scroll JSON preview to top
                 if (typeof scrollJsonPreviewToTop === 'function') {
                     scrollJsonPreviewToTop();
@@ -180,6 +185,11 @@ function confirmNewConfig() {
                 saveToLocalStorage();
                 renderEditor();
                 updatePreview();
+
+                // Show Import Nodes button
+                if (typeof updateImportNodesButton === 'function') {
+                    updateImportNodesButton();
+                }
 
                 // Scroll JSON preview to top
                 if (typeof scrollJsonPreviewToTop === 'function') {

@@ -82,6 +82,11 @@ window.addEventListener('DOMContentLoaded', function() {
                     renderEditor();
                     updatePreview();
 
+                    // Show Import Nodes button
+                    if (typeof updateImportNodesButton === 'function') {
+                        updateImportNodesButton();
+                    }
+
                     // Scroll JSON preview to top when loading a file
                     if (typeof scrollJsonPreviewToTop === 'function') {
                         scrollJsonPreviewToTop();
@@ -167,6 +172,11 @@ window.addEventListener('DOMContentLoaded', function() {
 
     // Restore JSON preview collapse state from localStorage
     restoreJsonPreviewState();
+
+    // Initialize Import Nodes button visibility
+    if (typeof updateImportNodesButton === 'function') {
+        updateImportNodesButton();
+    }
 
     // Load from localStorage with loader if config exists
     const savedConfig = localStorage.getItem('apiseq_config');
