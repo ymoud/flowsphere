@@ -5,11 +5,11 @@
 
 ---
 
-## 🧭 Stage 1: Auto-Execution Begins
+## 🧭 Stage 1: Auto-Execution Running
 
-| State      | Button Text    | Icon              | Behavior                         | Notes                                                                                       |
-| ---------- | -------------- | ----------------- | -------------------------------- | ------------------------------------------------------------------------------------------- |
-| 🔵 Running | **Pause Flow** | `bi-pause-circle` | Suspends execution when pressed. | Replaces **Close Monitor** during execution. Keeps user engaged in the *precision process*. |
+| State      | Button Text       | Icon             | Behavior                        | Notes                                                                   |
+| ---------- | ----------------- | ---------------- | ------------------------------- | ----------------------------------------------------------------------- |
+| 🔵 Running | **Close Monitor** | `bi-door-closed` | Closes modal (execution continues). | Available during execution. User can close modal and return to config. |
 
 **Status Message:**
 
@@ -17,60 +17,15 @@
 
 ---
 
-## ⏸ Stage 2: Flow Paused
+## 🧩 Stage 2: User Input Required (Paused for Calibration)
 
-| State     | Button Text     | Icon             | Behavior                                 | Notes                                                 |
-| --------- | --------------- | ---------------- | ---------------------------------------- | ----------------------------------------------------- |
-| ▶️ Resume | **Resume Flow** | `bi-play-circle` | Continues the flow from paused node.     | Same placement; subtle accent pulse to invite action. |
-| ⛔ Stop    | **Stop Flow**   | `bi-stop-circle` | Halts execution and locks further edits. | When clicked, log options appear.                     |
+When a node requires additional data from the user (via `userPrompts`), the flow **pauses automatically** and shows input form.
 
 **Status Message:**
 
 > *Flow paused — awaiting user calibration...*
 
----
-
-## 🧾 Stage 3: Flow Stopped
-
-| State        | Button Text             | Icon                         | Behavior                              | Notes                                      |
-| ------------ | ----------------------- | ---------------------------- | ------------------------------------- | ------------------------------------------ |
-| 💾 Save Logs | **Save Execution Logs** | `bi-file-earmark-arrow-down` | Exports or downloads the session log. | Automatically shown after Stop is pressed. |
-| 🔚 Close     | **Close Monitor**       | `bi-door-closed`             | Returns to configuration panel.       | Resets modal to idle state.                |
-
-**Status Message:**
-
-> *Flow terminated — logs ready for inspection.*
-
----
-
-## ✅ Stage 4: Flow Success
-
-| State        | Button Text        | Icon              | Behavior                                     | Notes                           |
-| ------------ | ------------------ | ----------------- | -------------------------------------------- | ------------------------------- |
-| 🎯 Re-Engage | **Re-Engage Flow** | `bi-arrow-repeat` | Offers to rerun the same flow configuration. | Appears after a successful run. |
-| 🔚 Close     | **Close Monitor**  | `bi-door-closed`  | Returns to configuration panel.              | Ends execution session.         |
-
-**Status Message:**
-
-> *Flow complete — precision achieved.*
-
----
-
-## ⚠️ Stage 5: Flow Failure
-
-| State        | Button Text           | Icon                    | Behavior                               | Notes                             |
-| ------------ | --------------------- | ----------------------- | -------------------------------------- | --------------------------------- |
-| 🔁 Retry     | **Retry Flow**        | `bi-arrow-clockwise`    | Re-executes from start or failed node. | Offers immediate recovery option. |
-| 💾 Save Logs | **Save Failure Logs** | `bi-file-earmark-excel` | Exports diagnostic information.        | Encourages post-analysis.         |
-| 🔚 Close     | **Close Monitor**     | `bi-door-closed`        | Returns to configuration panel.        | Ends failed session.              |
-
-**Status Message:**
-
-> *Flow interrupted — integrity check required.*
-
----
-
-# 🧩 Separate Modal — Node Input (User Data Prompt)
+### Separate Modal — Node Input (User Data Prompt)
 
 When a node requires additional data from the user, a **dedicated input modal** appears. This modal temporarily overlays the Flow Execution Monitor.
 
@@ -79,7 +34,7 @@ When a node requires additional data from the user, a **dedicated input modal** 
 | **Title**                 | **Node Calibration Required**                         | `bi-sliders`       | Conveys a technical adjustment phase rather than an error. Feels deliberate and mechanical.        |
 | **Subtitle (optional)**   | *Manual input needed to proceed with flow execution.* | —                  | Keeps communication neutral, operator-like.                                                        |
 | **Primary Action Button** | **Apply & Engage**                                    | `bi-check2-circle` | Submits user-provided values and resumes the flow. Connects with the *Go with the Flow* narrative. |
-| **Secondary Button**      | **Cancel Calibration**                                | `bi-x-circle`      | Cancels input and safely pauses flow execution.                                                    |
+| **Secondary Button**      | **Cancel Calibration**                                | `bi-x-circle`      | Cancels input and safely stops flow execution.                                                     |
 
 **Status Message (after Apply):**
 
@@ -93,16 +48,44 @@ When a node requires additional data from the user, a **dedicated input modal** 
 
 ---
 
+## ✅ Stage 3: Flow Success
+
+| State        | Button Text             | Icon                         | Behavior                                     | Notes                                      |
+| ------------ | ----------------------- | ---------------------------- | -------------------------------------------- | ------------------------------------------ |
+| 💾 Save Logs | **Save Execution Logs** | `bi-file-earmark-arrow-down` | Exports or downloads the session log.        | Automatically shown after completion.      |
+| 🎯 Re-Engage | **Re-Engage Flow**      | `bi-arrow-repeat`            | Offers to rerun the same flow configuration. | Appears after a successful run.            |
+| 🔚 Close     | **Close Monitor**       | `bi-door-closed`             | Returns to configuration panel.              | Ends execution session.                    |
+
+**Status Message:**
+
+> *Flow complete — precision achieved.*
+
+---
+
+## ⚠️ Stage 4: Flow Failure
+
+| State        | Button Text           | Icon                    | Behavior                               | Notes                             |
+| ------------ | --------------------- | ----------------------- | -------------------------------------- | --------------------------------- |
+| 🔁 Retry     | **Retry Flow**        | `bi-arrow-clockwise`    | Re-executes from start.                | Offers immediate recovery option. |
+| 💾 Save Logs | **Save Failure Logs** | `bi-file-earmark-excel` | Exports diagnostic information.        | Encourages post-analysis.         |
+| 🔚 Close     | **Close Monitor**     | `bi-door-closed`        | Returns to configuration panel.        | Ends failed session.              |
+
+**Status Message:**
+
+> *Flow interrupted — integrity check required.*
+
+---
+
 ## ✨ Behavioral Design Principles
 
 * **Mechanical rhythm:** Transitions should be crisp and controlled — slide or fade with no bouncy easing.
 * **Fixed control zone:** Buttons remain anchored in the bottom-right corner, reflecting an operator console layout.
 * **Color discipline:**
 
-  * **Active (Run/Pause/Resume):** accent `#FF4C29`
-  * **Neutral (Stop/Close):** secondary `#2E3A59`
+  * **Active (Run/Re-Engage):** accent `#FF4C29`
+  * **Neutral (Close):** secondary `#2E3A59`
   * **Confirmations:** subtle glow or accent outline.
-* **Text consistency:** Each label starts with an *action verb* — *Pause*, *Resume*, *Stop*, *Save*, *Close*, *Apply*.
+* **Text consistency:** Each label starts with an *action verb* — *Save*, *Close*, *Apply*, *Re-Engage*.
 
 ---
 
@@ -117,5 +100,29 @@ When a node requires additional data from the user, a **dedicated input modal** 
 
 ---
 
-> **Tagline Reminder:** “Precision in every flow.”
+> **Tagline Reminder:** "Precision in every flow."
 > This interaction design reflects that promise — each button, modal, and message mirrors the lifecycle of a real, calibrated system.
+
+---
+
+## 📝 Notes on Execution States
+
+**Current Implementation:**
+
+- **`idle`**: No execution, ready to start
+- **`loading`**: Initial setup, preparing to execute
+- **`running`**: Actively executing steps
+- **`paused`**: Waiting for user input (userPrompts) - NOT manual pause
+- **`completed`**: All steps finished successfully
+- **`failed`**: Execution failed (validation, timeout, network error)
+
+**Important:** The `paused` state is ONLY used when a node has `userPrompts` and requires manual input. There is no manual pause/resume functionality. Users can close the modal during execution and it will continue in the background.
+
+**Future Execution Controls (Planned):**
+
+See `features/flow-runner-execution-controls.md` for planned execution control features:
+- Phase 1: Stop/Cancel button
+- Phase 2: Step-by-Step execution mode
+- Phase 3: Auto-Step with configurable delay
+
+These features will be added in future updates but are not currently implemented.
