@@ -28,6 +28,15 @@ flowsphere examples/config-simple.json
 - `config-oauth-example.json` - OAuth flow example with browser launch and user input
 - `config-test-features.json` - Demonstrates user input prompts and variable substitution
 - `config-user-input.json` - User input demonstration
+- `config-comprehensive-demo.json` - **Comprehensive demo with ALL features** (12 nodes)
+  - User input prompts (username, userType)
+  - Conditional execution (premium vs basic users)
+  - Multiple validation types (exists, equals, greaterThan, lessThan, etc.)
+  - Variable substitution (global vars, responses, user input)
+  - Dynamic placeholders ($guid, $timestamp)
+  - All HTTP methods (GET, POST, PUT, DELETE)
+  - Skipped steps based on conditions
+  - Array length validations
 
 **Test configs (in `tests/` folder):**
 - `config-test-variables.json` - Demonstrates global variables feature
@@ -388,9 +397,47 @@ node postman-tools/parse-postman.js
 - Always wait for the user to test and verify changes before committing
 - Only create commits when the user explicitly asks (e.g., "commit it", "commit this", "commit the changes")
 
-**Technical Design Documents:**
+## Documentation Structure
 
-For each new feature in the roadmap, create a technical design document in `/docs` before implementation:
+FlowSphere uses an organized documentation structure in the `/docs` directory:
+
+```
+ROADMAP.md                  (root level - high visibility for users)
+
+docs/
+├── features/               Feature specifications
+├── technical/              Architecture & technical designs
+├── implementation/         Implementation status & tracking
+└── INTERNAL-TASKS.md       Internal improvements & tooling
+```
+
+### docs/features/ - Feature Specifications
+
+**Purpose:** User-facing feature specifications that define WHAT we're building.
+
+**Content:**
+- **Overview:** What the feature does and why it's valuable
+- **Problem Statement:** What user problem does this solve?
+- **Solution:** High-level approach to solving the problem
+- **Key Features:** Bulleted list of capabilities
+- **UI/UX Design:** Mockups, wireframes, user workflows
+- **Implementation Phases:** Break large features into phases
+- **Acceptance Criteria:** Testable requirements for completion
+- **Benefits:** Value to users and use cases
+
+**Example Files:**
+- `flow-runner-execution-controls.md` - Execution modes (stop, step-by-step, auto-step)
+- `swagger-openapi-import.md` - Import Swagger/OpenAPI specs
+- `execution-log-visualizer.md` - Visual log analysis tool
+
+**When to Create:**
+- New user-facing feature in ROADMAP.md
+- Feature requires multiple implementation phases
+- Feature needs stakeholder/community review
+
+### docs/technical/ - Architecture & Technical Designs
+
+**Purpose:** Technical architecture documents that explain HOW systems work and integrate.
 
 **Focus on Architecture, Not Implementation:**
 - Describe **what** the feature does and **how it integrates**, not detailed code
@@ -431,6 +478,57 @@ function addNode(node) {
   renderEditor();
 }
 ```
+
+**Example Files:**
+- `flow-execution-architecture.md` - How client-server SSE communication works
+
+**When to Create:**
+- Complex architectural patterns (e.g., SSE streaming, state management)
+- System integration points (client-server communication)
+- Design decisions that need documentation for future developers
+- Cross-cutting concerns (authentication, error handling, etc.)
+
+### docs/implementation/ - Implementation Status & Tracking
+
+**Purpose:** Track implementation progress and document what was actually built.
+
+**Content:**
+- **Status:** Percentage complete or phase status
+- **What Was Implemented:** Concrete changes made (client-side, server-side, etc.)
+- **Current Issues:** Known bugs or blockers
+- **Testing:** Test results and acceptance criteria checks
+- **Files Modified:** List of changed files with line ranges
+- **Next Steps:** What needs to be done next
+
+**Example Files:**
+- `phase1-stop-implementation-status.md` - Status of graceful interruption feature
+
+**When to Create:**
+- Multi-phase feature implementation tracking
+- Complex features with multiple developers
+- Features that need status updates for stakeholders
+- Post-implementation documentation of what was actually built
+
+**Note:** These are temporary documents - once implementation is complete, key information should be moved to feature specs or technical docs, and implementation docs can be archived.
+
+### docs/INTERNAL-TASKS.md - Internal Improvements
+
+**Purpose:** Track internal/infrastructure tasks that aren't user-facing features.
+
+**What Belongs Here:**
+- Infrastructure improvements (debug mode, logging)
+- Developer experience (testing, CI/CD, tooling)
+- Code quality (refactoring, documentation)
+- Performance optimizations
+- Security improvements
+
+**What DOESN'T Belong Here:**
+- User-facing features (belongs in ROADMAP.md)
+- Feature specifications (belongs in docs/features/)
+
+---
+
+## Development Guidelines
 
 **When modifying Node.js code:**
 - Maintain cross-platform compatibility (use `path.join()` for file paths)
