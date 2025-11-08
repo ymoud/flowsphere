@@ -48,35 +48,84 @@ Instead of pause/resume, implement three distinct execution modes that give user
 
 ### Phase 1: Stop/Cancel Functionality
 
-**Goal:** Allow users to cleanly abort execution at any point.
+**Goal:** Allow users to cleanly abort execution at any point with graceful completion of in-flight requests.
+
+**Philosophy: Graceful Interruption**
+- Stop flag is set immediately when user clicks Stop
+- Current step executes to completion (HTTP request + validations)
+- Execution halts before starting the next step
+- No partial/interrupted nodes - all executed steps have complete results
 
 **Features:**
 - Add "Stop" button during execution
-- Cleanly abort SSE stream
+- Graceful stop: let current step finish, don't start next
+- Different behavior for HTTP requests vs user input
+- Button state feedback during interruption
 - Save partial execution log
-- Show "Execution Stopped" state
+- Show "Execution Interrupted" state
 - Enable "Re-run" option
 
 **UI:**
+
+**Button States:**
 ```
 During execution:
-[▶ Run (disabled)]  [⏹ Stop]  [Clear Results (disabled)]
+[▶ Run (disabled)]  [Stop]  [Clear Results (disabled)]
 
-After stopping:
-[▶ Re-run]  [⏹ Stop (disabled)]  [Clear Results]
+During interruption (waiting for current step):
+[▶ Run (disabled)]  [Interrupting the flow...] (disabled)  [Clear Results (disabled)]
+
+After interrupted:
+[▶ Re-run]  [Clear Results]
 ```
+
+**Stop Behavior:**
+
+**1. During HTTP Request Execution:**
+- User clicks Stop → Button changes to "Interrupting the flow..." (disabled)
+- Wait for HTTP request to complete (respects timeout, 1-30s)
+- Show step result (success/failure) normally
+- Don't start next step
+- Final message: "⊗ Execution interrupted after Step 3 of 12"
+
+**2. During User Input Modal:**
+- User clicks Stop → Immediately close input modal
+- No HTTP request to wait for
+- Final message: "⊗ Execution interrupted after Step 2 of 12"
+
+**3. Between Steps:**
+- User clicks Stop → Immediate interruption
+- Final message: "⊗ Execution interrupted after Step 3 of 12"
 
 **Backend:**
 - No session management needed
-- Client simply closes SSE connection
-- Server detects closed connection and stops
+- Check `executionCancelled` flag ONLY after step completes, before next iteration
+- During user input: if cancelled, send `interrupted` event instead of waiting
+- Server detects SSE connection close via `res.on('close')` handler
+- Send final event: `{type: 'interrupted', lastCompletedStep: i, totalSteps: nodes.length}`
+
+**Client:**
+- `stopExecution()` disables button and changes text to "Interrupting the flow..."
+- Remove `markExecutingStepAsStopped()` - steps complete naturally
+- Handle `interrupted` event type
+- During input: check `stopRequested` before sending input
+
+**Execution Messages:**
+- ✅ Success: "✓ Flow completed successfully - All 12 steps executed"
+- ⊗ Interrupted: "⊗ Execution interrupted after Step 3 of 12"
+- ✗ Error: "✗ Flow failed at Step 5 of 12: [error message]"
 
 **Acceptance Criteria:**
 - ✅ Stop button appears during execution
-- ✅ Clicking Stop immediately aborts execution
+- ✅ Clicking Stop sets flag and changes button to "Interrupting the flow..."
+- ✅ Current HTTP request completes before stopping (waits for timeout if needed)
+- ✅ User input stops immediately (no waiting)
+- ✅ Last executed step shows complete results (no interrupted state)
+- ✅ Execution stops before starting next step
 - ✅ Partial execution log is saved and downloadable
-- ✅ Re-run button appears after stopping
-- ✅ Clear message "Execution stopped at Step X of Y"
+- ✅ Re-run button appears after interruption
+- ✅ Clear message "⊗ Execution interrupted after Step X of Y"
+- ✅ Button disabled during interruption prevents double-clicks
 
 ---
 

@@ -8,9 +8,16 @@ let lastExecutionLog = null;
 let lastExecutionResult = null;
 
 // Execution state
-let executionState = 'idle'; // 'idle', 'running', 'completed', 'failed'
+let executionState = 'idle'; // 'idle', 'running', 'completed', 'failed', 'stopped'
 let currentStepNumber = 0;
 let totalStepsCount = 0;
+
+// Execution control
+let currentReader = null; // SSE reader for stopping execution
+let currentAbortController = null; // AbortController for aborting fetch
+let stopRequested = false; // Flag to track if user requested stop
+let currentExecutionId = null; // Track current execution to ignore old events
+let pendingPlaceholderResolve = null; // Resolve function for pending placeholder click
 
 /**
  * Update Run Sequence button visibility based on config state
@@ -37,7 +44,7 @@ function updateProgressIndicator(state, stepNumber, totalSteps) {
     if (!progressBarContainer || !progressIcon) return;
 
     // Show progress bar during active states
-    if (state === 'loading' || state === 'running' || state === 'paused' || state === 'completed' || state === 'failed') {
+    if (state === 'loading' || state === 'running' || state === 'paused' || state === 'completed' || state === 'failed' || state === 'stopped') {
         progressBarContainer.style.display = 'flex';
 
         // Update icon and progress bar based on state
@@ -55,6 +62,12 @@ function updateProgressIndicator(state, stepNumber, totalSteps) {
         } else if (state === 'paused') {
             progressIcon.innerHTML = '<i class="bi bi-pause-circle-fill text-warning fs-5"></i>';
             progressBar.className = 'progress-bar bg-warning';
+            const percentage = totalSteps > 0 ? (stepNumber / totalSteps * 100) : 0;
+            progressBar.style.width = percentage + '%';
+            if (progressSteps) progressSteps.textContent = `${stepNumber} / ${totalSteps}`;
+        } else if (state === 'stopped') {
+            progressIcon.innerHTML = '<i class="bi bi-stop-circle-fill text-danger fs-5"></i>';
+            progressBar.className = 'progress-bar bg-danger';
             const percentage = totalSteps > 0 ? (stepNumber / totalSteps * 100) : 0;
             progressBar.style.width = percentage + '%';
             if (progressSteps) progressSteps.textContent = `${stepNumber} / ${totalSteps}`;
@@ -85,12 +98,12 @@ function setModalTitle(title, subtitle = null) {
     const modalSubtitle = document.getElementById('resultsModalSubtitle');
 
     if (modalTitle) {
-        modalTitle.textContent = title;
+        modalTitle.innerHTML = title;
     }
 
     if (modalSubtitle) {
         if (subtitle) {
-            modalSubtitle.textContent = subtitle;
+            modalSubtitle.innerHTML = subtitle;
             modalSubtitle.style.display = 'block';
         } else {
             modalSubtitle.style.display = 'none';
@@ -110,7 +123,7 @@ function updateRunButton(newState) {
 
     // Update toolbar Run button
     if (runBtn) {
-        if (executionState === 'idle' || executionState === 'completed' || executionState === 'failed') {
+        if (executionState === 'idle' || executionState === 'completed' || executionState === 'failed' || executionState === 'stopped') {
             runBtn.disabled = false;
             runBtn.innerHTML = '<i class="bi bi-water"></i> Go with the <em>Flow</em>';
         } else if (executionState === 'running') {
@@ -129,6 +142,10 @@ function clearResults() {
     totalStepsCount = 0;
     lastExecutionLog = null;
     lastExecutionResult = null;
+    stopRequested = false;
+    currentReader = null;
+    currentAbortController = null;
+    pendingPlaceholderResolve = null;
 
     // Update button and progress to idle state
     updateRunButton('idle');
@@ -145,9 +162,104 @@ function clearResults() {
 }
 
 /**
+ * Stop the currently running execution
+ */
+function stopExecution() {
+    console.log('[Flow Runner] Stop requested');
+
+    // Set stop flag
+    stopRequested = true;
+
+    // Update Stop button to show "Interrupting the Flow..." and disable it
+    const stopBtn = document.getElementById('stopExecutionBtn');
+    if (stopBtn) {
+        stopBtn.innerHTML = 'Interrupting the <em>Flow</em>...';
+        stopBtn.disabled = true;
+        stopBtn.classList.add('disabled');
+    }
+
+    // DON'T abort fetch or cancel reader - let current step complete gracefully
+    // The event loop will receive the final step event, display it, then stop
+    // This implements "graceful interruption" - current step finishes, next step becomes "Not Run"
+    console.log('[Flow Runner] Waiting for current step to complete gracefully...');
+
+    // Resolve pending placeholder click if waiting
+    if (pendingPlaceholderResolve) {
+        console.log('[Flow Runner] Resolving pending placeholder click');
+        pendingPlaceholderResolve();
+        pendingPlaceholderResolve = null;
+    }
+
+    // Close any open input modal (userInputModal is the ID from collectUserInputForStep)
+    const userInputModalEl = document.getElementById('userInputModal');
+    if (userInputModalEl) {
+        const userInputModal = bootstrap.Modal.getInstance(userInputModalEl);
+        if (userInputModal) {
+            userInputModal.hide();
+            console.log('[Flow Runner] Closed user input modal due to stop');
+        }
+    }
+
+    // Note: UI updates will happen when we receive the 'interrupted' event from server
+    // or when the event loop detects stopRequested and breaks
+}
+
+
+/**
+ * Show the Stop Execution button
+ */
+function showStopButton() {
+    const stopBtn = document.getElementById('stopExecutionBtn');
+    if (stopBtn) {
+        stopBtn.style.display = 'inline-block';
+        // Reset button state to default
+        stopBtn.innerHTML = '<i class="bi bi-stop-circle"></i> Interrupt the <em>Flow</em>';
+        stopBtn.disabled = false;
+        stopBtn.classList.remove('disabled');
+    }
+}
+
+/**
+ * Hide the Stop Execution button
+ */
+function hideStopButton() {
+    const stopBtn = document.getElementById('stopExecutionBtn');
+    if (stopBtn) {
+        stopBtn.style.display = 'none';
+        // Reset button state when hiding
+        stopBtn.innerHTML = '<i class="bi bi-stop-circle"></i> Interrupt the <em>Flow</em>';
+        stopBtn.disabled = false;
+        stopBtn.classList.remove('disabled');
+    }
+}
+
+/**
+ * Hide the Close Monitor button during execution
+ */
+function hideCloseMonitorButton() {
+    const closeBtn = document.getElementById('closeMonitorBtn');
+    if (closeBtn) {
+        closeBtn.style.display = 'none';
+    }
+}
+
+/**
+ * Show the Close Monitor button after execution
+ */
+function showCloseMonitorButton() {
+    const closeBtn = document.getElementById('closeMonitorBtn');
+    if (closeBtn) {
+        closeBtn.style.display = 'inline-block';
+    }
+}
+
+/**
  * Run the current sequence configuration with real-time streaming
  */
 async function runSequence() {
+    // Declare executionLog at function scope so catch block can access it
+    let executionLog = [];
+
     try {
         // Get current config from state
         const config = getCurrentConfig();
@@ -160,6 +272,12 @@ async function runSequence() {
         // Reset state for new execution
         currentStepNumber = 0;
         totalStepsCount = config.nodes.length;
+        stopRequested = false;
+        currentReader = null;
+        currentAbortController = new AbortController();
+        currentExecutionId = null; // Will be set when we receive 'start' event
+        pendingPlaceholderResolve = null;
+        executionLog = []; // Reset for new execution
 
         // Hide post-execution buttons
         hidePostExecutionButtons();
@@ -169,6 +287,10 @@ async function runSequence() {
 
         // Now update to running state (after modal exists)
         updateRunButton('running');
+
+        // Show stop button and hide close button during execution
+        showStopButton();
+        hideCloseMonitorButton();
 
         // Use streaming API endpoint
         const response = await fetch('/api/execute-stream', {
@@ -182,7 +304,8 @@ async function runSequence() {
                     startStep: 0,
                     enableDebug: false
                 }
-            })
+            }),
+            signal: currentAbortController.signal
         });
 
         if (!response.ok) {
@@ -191,6 +314,7 @@ async function runSequence() {
 
         // Read the streaming response
         const reader = response.body.getReader();
+        currentReader = reader; // Store for stop functionality
         const decoder = new TextDecoder();
         let buffer = '';
 
@@ -198,10 +322,40 @@ async function runSequence() {
         let currentStep = 0;
         const steps = [];
         const pendingSteps = new Map(); // Track steps waiting for completion
+        // executionLog already declared at function scope
 
         while (true) {
+            // Check if stop was requested
+            if (stopRequested) {
+                console.log('[Flow Runner] Stop detected, breaking execution loop');
+                // Save partial execution log
+                lastExecutionLog = executionLog;
+                lastExecutionResult = {
+                    success: false,
+                    interrupted: true,
+                    lastCompletedStep: currentStepNumber,
+                    totalSteps: totalStepsCount,
+                    executionLog: executionLog
+                };
+
+                // Update UI to show interrupted state
+                updateRunButton('stopped');
+                updateProgressIndicator('stopped', currentStepNumber, totalStepsCount);
+                const nextStep = currentStepNumber + 1;
+                setModalTitle('<em>Flow</em> Interrupted', currentStepNumber > 0
+                    ? `User had second thoughts just before node ${nextStep} could be part of the <em>Flow</em>`
+                    : `User had second thoughts...`);
+                hideStopButton();
+                showCloseMonitorButton();
+                showPostExecutionButtons(false);
+                break;
+            }
+
             const { done, value } = await reader.read();
             if (done) break;
+
+            // Don't check stopRequested here - let events be processed first for graceful interruption
+            // The check after processing 'step' events will handle graceful stop
 
             // Decode chunk and add to buffer
             buffer += decoder.decode(value, { stream: true });
@@ -229,6 +383,18 @@ async function runSequence() {
 
                 const data = JSON.parse(eventData);
 
+                // Capture execution ID from first event that has it
+                if (data.executionId && !currentExecutionId) {
+                    currentExecutionId = data.executionId;
+                    console.log('[Flow Runner] Captured execution ID:', currentExecutionId);
+                }
+
+                // Ignore events from old/stopped executions
+                if (stopRequested && data.executionId && data.executionId !== currentExecutionId) {
+                    console.log('[Flow Runner] Ignoring event from old execution:', data.executionId);
+                    continue;
+                }
+
                 // Handle different event types
                 if (eventType === 'start') {
                     totalSteps = data.totalSteps;
@@ -246,23 +412,35 @@ async function runSequence() {
                     // Store timeout so we can clear it if step completes quickly
                     pendingSteps.set(data.step, { timeoutId, placeholderShown: false });
                 } else if (eventType === 'input_required') {
+                    // Ignore input requests from stopped executions
+                    if (stopRequested) {
+                        console.log('[Flow Runner] Ignoring input_required from stopped execution');
+                        continue;
+                    }
+
                     // Show a clickable placeholder instead of immediately showing modal
                     // This allows user to complete previous step (e.g., OAuth flow in browser)
 
                     console.log('[Flow Runner] input_required event received:', data);
 
                     // Set paused state and modal title BEFORE showing placeholder
-                    setModalTitle('Flow Paused', 'Awaiting User Calibration');
+                    setModalTitle('<em>Flow</em> Paused', 'Awaiting User Calibration');
                     updateProgressIndicator('paused', currentStep, totalSteps);
 
-                    // Loop until user provides input
+                    // Loop until user provides input or execution is stopped
                     let userInput = null;
-                    while (!userInput) {
+                    while (!userInput && !stopRequested) {
                         console.log('[Flow Runner] Showing input placeholder for step:', data.step);
 
                         // Show placeholder with "click to provide input" message
                         // Use data.step as the unique ID (not currentStep, to avoid double-counting)
                         await showInputPendingPlaceholder(data, data.step, totalSteps);
+
+                        // Check if stop was requested while waiting for placeholder click
+                        if (stopRequested) {
+                            console.log('[Flow Runner] Stop requested after placeholder, before modal');
+                            break;
+                        }
 
                         console.log('[Flow Runner] Collecting user input...');
 
@@ -271,8 +449,34 @@ async function runSequence() {
 
                         console.log('[Flow Runner] User input received:', userInput ? 'yes' : 'no (modal closed)');
 
+                        // Check if stop was requested during input collection
+                        if (stopRequested) {
+                            console.log('[Flow Runner] Stop requested, cancelling input collection');
+                            break;
+                        }
+
                         // If modal was closed without submitting (returns null), loop again
                         // This allows user to reopen by clicking the placeholder
+                    }
+
+                    // If execution was stopped, don't send input to server
+                    if (stopRequested) {
+                        console.log('[Flow Runner] Execution stopped, not sending input to server');
+
+                        // Update placeholder to show interrupted state
+                        const placeholder = document.getElementById(`step-${data.step}`);
+                        if (placeholder) {
+                            placeholder.innerHTML = `
+                                <div class="d-flex align-items-center gap-2 py-2 px-3 bg-secondary bg-opacity-10 border border-secondary rounded">
+                                    <span class="badge bg-secondary bg-opacity-75 me-1">#${data.step}</span>
+                                    <i class="bi bi-slash-circle text-muted"></i>
+                                    <span class="flex-grow-1 small text-truncate">${escapeHtml(data.name)}</span>
+                                    <span class="text-muted small fw-semibold">Not Run</span>
+                                </div>
+                            `;
+                        }
+
+                        continue;
                     }
 
                     console.log('[Flow Runner] Sending input to server:', userInput);
@@ -302,7 +506,7 @@ async function runSequence() {
                         }
 
                         // Restore running state after user provides input
-                        setModalTitle('Flow in Motion', 'Executing nodes sequentially');
+                        setModalTitle('<em>Flow</em> in Motion', 'Executing nodes sequentially');
                         updateProgressIndicator('running', currentStep, totalSteps);
 
                         console.log('[Flow Runner] Resumed execution after user input');
@@ -342,12 +546,75 @@ async function runSequence() {
                         updateModalWithStep(data, currentStep, totalSteps);
                     }
 
+                    // Add to execution log for partial saves
+                    executionLog.push(data);
+
                     // Update progress indicator with current step
                     updateProgressIndicator('running', currentStepNumber, totalSteps);
 
                     // Handle browser launch if step succeeded
                     if (data.status === 'completed' && data.launchBrowser && data.response) {
                         handleBrowserLaunch(data);
+                    }
+
+                    // Check if stop was requested - if so, this was the last step to execute
+                    // Show next step as "Not Run" then stop gracefully
+                    if (stopRequested) {
+                        console.log('[Flow Runner] Stop requested after step completed - showing next step as Not Run');
+
+                        const nextStepNumber = currentStepNumber + 1;
+                        if (nextStepNumber <= totalSteps) {
+                            // Get next node data from config
+                            const config = getCurrentConfig();
+                            const nextNode = config.nodes[nextStepNumber - 1];
+
+                            // Add "Not Run" placeholder for next step AFTER the current completed step
+                            const container = document.getElementById('flowStepsContainer');
+                            if (container && nextNode) {
+                                const notRunHtml = `
+                                    <div class="step-card-animated mb-2" id="step-${nextStepNumber}">
+                                        <div class="d-flex align-items-center gap-2 py-2 px-3 bg-secondary bg-opacity-10 border border-secondary rounded">
+                                            <span class="badge bg-secondary bg-opacity-75 me-1">#${nextStepNumber}</span>
+                                            <i class="bi bi-slash-circle text-muted"></i>
+                                            <span class="flex-grow-1 small text-truncate">${escapeHtml(nextNode.name || nextNode.url)}</span>
+                                            <span class="text-muted small fw-semibold">Not Run</span>
+                                        </div>
+                                    </div>
+                                `;
+
+                                // Insert at the beginning of the container (on top)
+                                container.insertAdjacentHTML('afterbegin', notRunHtml);
+                                console.log('[Flow Runner] Added Not Run placeholder at top');
+
+                                // Scroll it into view
+                                const notRunElement = document.getElementById(`step-${nextStepNumber}`);
+                                if (notRunElement) {
+                                    notRunElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                }
+                            }
+                        }
+
+                        // Save partial execution log
+                        lastExecutionLog = executionLog;
+                        lastExecutionResult = {
+                            success: false,
+                            interrupted: true,
+                            lastCompletedStep: currentStepNumber,
+                            totalSteps: totalSteps,
+                            executionLog: executionLog
+                        };
+
+                        // Update UI to interrupted state
+                        updateRunButton('stopped');
+                        updateProgressIndicator('stopped', currentStepNumber, totalSteps);
+                        setModalTitle('<em>Flow</em> Interrupted',
+                            `User had second thoughts just before node ${nextStepNumber} could be part of the <em>Flow</em>`);
+                        hideStopButton();
+                        showCloseMonitorButton();
+                        showPostExecutionButtons(false);
+
+                        // Break from event loop
+                        break;
                     }
                 } else if (eventType === 'end') {
                     // Flow completed
@@ -359,22 +626,57 @@ async function runSequence() {
                     const finalState = data.success ? 'completed' : 'failed';
                     updateRunButton(finalState);
                     updateProgressIndicator(finalState, currentStepNumber, totalStepsCount);
+                    hideStopButton();
+                    showCloseMonitorButton();
                     showPostExecutionButtons(data.success);
+                } else if (eventType === 'interrupted') {
+                    // Flow was interrupted by user
+                    lastExecutionLog = data.executionLog || [];
+                    lastExecutionResult = {
+                        success: false,
+                        interrupted: true,
+                        lastCompletedStep: data.lastCompletedStep,
+                        totalSteps: data.totalSteps,
+                        executionLog: data.executionLog
+                    };
+
+                    // Update UI to show interrupted state
+                    updateRunButton('stopped');
+                    updateProgressIndicator('stopped', data.lastCompletedStep, data.totalSteps);
+                    const nextStep = data.lastCompletedStep + 1;
+                    setModalTitle('<em>Flow</em> Interrupted', data.lastCompletedStep > 0
+                        ? `User had second thoughts just before node ${nextStep} could be part of the <em>Flow</em>`
+                        : `User had second thoughts...`);
+                    hideStopButton();
+                    showCloseMonitorButton();
+                    showPostExecutionButtons(false);
                 } else if (eventType === 'error') {
                     showExecutionError(new Error(data.message));
                     updateRunButton('failed');
                     updateProgressIndicator('failed', currentStepNumber, totalStepsCount);
+                    hideStopButton();
+                    showCloseMonitorButton();
                     showPostExecutionButtons(false);
                 }
+            }
+
+            // Check if we broke from event processing due to stop
+            if (stopRequested) {
+                console.log('[Flow Runner] Breaking from main loop after processing stop');
+                break;
             }
         }
 
     } catch (error) {
+        console.error('[Flow Runner] Execution error:', error);
+
+        // Show error UI (interrupted state is handled in event loop now)
         updateRunButton('failed');
         updateProgressIndicator('failed', currentStepNumber, totalStepsCount);
         showExecutionError(error);
         showPostExecutionButtons(false);
-        console.error('Execution error:', error);
+        hideStopButton();
+        showCloseMonitorButton();
     }
 }
 
@@ -408,7 +710,7 @@ function showLoadingModal(totalSteps) {
 
     // Update modal title with branded message
     // Stage 1: Auto-Execution Begins - "Flow in Motion — executing nodes sequentially..."
-    setModalTitle('Flow in Motion', 'Executing nodes sequentially');
+    setModalTitle('<em>Flow</em> in Motion', 'Executing nodes sequentially');
 
     // Initialize modal body with steps container
     const modalBody = document.getElementById('resultsModalBody');
@@ -755,8 +1057,12 @@ function replaceStepPlaceholder(stepData, stepNumber, totalSteps) {
  */
 function showInputPendingPlaceholder(stepData, stepNumber, totalSteps) {
     return new Promise((resolve) => {
+        // Store resolve function globally so stopExecution can unblock it
+        pendingPlaceholderResolve = resolve;
+
         const container = document.getElementById('flowStepsContainer');
         if (!container) {
+            pendingPlaceholderResolve = null;
             resolve();
             return;
         }
@@ -827,9 +1133,11 @@ function showInputPendingPlaceholder(stepData, stepNumber, totalSteps) {
                 btn.style.opacity = '0.6';
                 btn.style.pointerEvents = 'none';
                 btn.style.transform = 'scale(1)';
+                pendingPlaceholderResolve = null;
                 resolve();
             });
         } else {
+            pendingPlaceholderResolve = null;
             resolve();
         }
     });
@@ -853,10 +1161,10 @@ function updateModalWithSummary(result) {
     // Just update modal title with branded message
     if (result.success) {
         // Stage 4: Flow Success - "Flow complete — precision achieved."
-        setModalTitle('Flow Complete', 'Precision Achieved');
+        setModalTitle('<em>Flow</em> Complete', 'Precision Achieved');
     } else {
         // Stage 5: Flow Failure - "Flow interrupted — integrity check required."
-        setModalTitle('Flow Interrupted', 'Integrity Check Required');
+        setModalTitle('<em>Flow</em> Interrupted', 'Integrity Check Required');
     }
 
     // flowStepsContainer already has all the steps visible
@@ -869,7 +1177,7 @@ function showExecutionError(error) {
     // Progress indicator handles the error status
     // Just update modal title with branded message
     // Stage 5: Flow Failure - "Flow interrupted — integrity check required."
-    setModalTitle('Flow Interrupted', 'Integrity Check Required');
+    setModalTitle('<em>Flow</em> Interrupted', 'Integrity Check Required');
 
     // Error is already shown in the failed step card, no need for duplicate alert
 }
@@ -1001,28 +1309,34 @@ function createResultsModal() {
         <div class="modal fade" id="resultsModal" tabindex="-1" aria-labelledby="resultsModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
-                    <div class="modal-header">
-                        <div class="d-flex align-items-center gap-2">
-                            <span id="progressIcon"></span>
-                            <div>
+                    <div class="modal-header flex-column align-items-stretch">
+                        <!-- First row: Icon + Title on left, Progress bar on right, Close button -->
+                        <div class="d-flex align-items-center w-100">
+                            <div class="d-flex align-items-center gap-2">
+                                <span id="progressIcon"></span>
                                 <h5 class="modal-title mb-0" id="resultsModalLabel">Flow Monitor</h5>
-                                <div class="text-muted small" id="resultsModalSubtitle" style="display: none;"></div>
                             </div>
-                        </div>
-                        <div class="d-flex align-items-center gap-3 flex-grow-1 mx-3" id="progressBarContainer" style="display: none;">
-                            <div class="flex-grow-1">
-                                <div class="progress" style="height: 8px;">
-                                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            <div class="d-flex align-items-center gap-3 flex-grow-1 mx-3" id="progressBarContainer" style="display: none;">
+                                <div class="flex-grow-1">
+                                    <div class="progress" style="height: 8px;">
+                                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                                    </div>
                                 </div>
+                                <span id="progressSteps" class="text-muted small"></span>
                             </div>
-                            <span id="progressSteps" class="text-muted small"></span>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <!-- Second row: Subtitle (full width) -->
+                        <div class="text-muted small mt-1" id="resultsModalSubtitle" style="display: none;"></div>
                     </div>
-                    <div class="modal-body" id="resultsModalBody">
+                    <div class="modal-body" id="resultsModalBody" style="height: 60vh; overflow-y: auto;">
                         <!-- Results will be inserted here -->
                     </div>
                     <div class="modal-footer">
+                        <!-- Execution control buttons -->
+                        <button type="button" class="btn btn-danger" id="stopExecutionBtn" style="display: none;" onclick="stopExecution()">
+                            <i class="bi bi-stop-circle"></i> Interrupt the <em>Flow</em>
+                        </button>
                         <!-- Post-execution buttons -->
                         <button type="button" class="btn btn-primary" id="saveLogsBtn" style="display: none;" onclick="saveLogs()">
                             <i class="bi bi-file-earmark-arrow-down"></i> <span id="saveLogsBtnText">Save Execution Logs</span>
@@ -1030,7 +1344,7 @@ function createResultsModal() {
                         <button type="button" class="btn btn-success" id="rerunBtn" style="display: none;" onclick="rerunSequence()">
                             <i class="bi bi-arrow-repeat" id="rerunBtnIcon"></i> <span id="rerunBtnText">Re-Engage Flow</span>
                         </button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <button type="button" class="btn btn-secondary" id="closeMonitorBtn" data-bs-dismiss="modal">
                             <i class="bi bi-door-closed"></i> Close Monitor
                         </button>
                     </div>
@@ -1318,8 +1632,8 @@ async function collectUserInputForStep(stepData) {
 
         let submittedInput = null;
 
-        // Handle submit
-        document.getElementById('submitUserInputBtn').addEventListener('click', () => {
+        // Function to collect and submit input
+        const submitInput = () => {
             // Collect input values
             const userInput = {};
             const inputs = document.querySelectorAll('#userInputForm input');
@@ -1332,6 +1646,17 @@ async function collectUserInputForStep(stepData) {
 
             submittedInput = userInput;
             bootstrapModal.hide();
+        };
+
+        // Handle form submit (Enter key in input)
+        document.getElementById('userInputForm').addEventListener('submit', (e) => {
+            e.preventDefault(); // CRITICAL: Prevent form submission/page reload
+            submitInput();
+        });
+
+        // Handle button click
+        document.getElementById('submitUserInputBtn').addEventListener('click', () => {
+            submitInput();
         });
 
         // Handle modal being closed (via submit, X button, Esc, or clicking outside)
@@ -1586,12 +1911,12 @@ function showPostExecutionButtons(success = true) {
     if (success) {
         // Stage 4: Flow Success
         if (saveLogsBtnText) saveLogsBtnText.textContent = 'Save Execution Logs';
-        if (rerunBtnText) rerunBtnText.textContent = 'Re-Engage Flow';
+        if (rerunBtnText) rerunBtnText.innerHTML = '<em>Flow</em> once again';
         if (rerunBtnIcon) rerunBtnIcon.className = 'bi bi-arrow-repeat';
     } else {
         // Stage 5: Flow Failure
         if (saveLogsBtnText) saveLogsBtnText.textContent = 'Save Failure Logs';
-        if (rerunBtnText) rerunBtnText.textContent = 'Retry Flow';
+        if (rerunBtnText) rerunBtnText.innerHTML = '<em>Flow</em> once again';
         if (rerunBtnIcon) rerunBtnIcon.className = 'bi bi-arrow-clockwise';
     }
 

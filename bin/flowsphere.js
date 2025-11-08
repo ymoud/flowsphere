@@ -354,6 +354,8 @@ async function launchStudio(port = 3737) {
       // Generate unique execution ID
       const executionId = `exec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+      console.log(`[Server] Starting execution ${executionId}`);
+
       // Set up SSE headers
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -361,11 +363,37 @@ async function launchStudio(port = 3737) {
         'Connection': 'keep-alive'
       });
 
+      console.log(`[Server] SSE connection opened for ${executionId}`);
+
+      // Flag to track if execution should be cancelled
+      let executionCancelled = false;
+
       // Helper to send SSE events
       const sendEvent = (eventType, data) => {
-        res.write(`event: ${eventType}\n`);
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
+        if (executionCancelled) return; // Don't send if cancelled
+        try {
+          res.write(`event: ${eventType}\n`);
+          res.write(`data: ${JSON.stringify(data)}\n\n`);
+        } catch (error) {
+          console.log(`[Server] Failed to send event (connection likely closed): ${error.message}`);
+          executionCancelled = true;
+        }
       };
+
+      // Clean up pending input requests when connection closes
+      res.on('close', () => {
+        console.log(`[Server] Response stream closed, stopping execution ${executionId}`);
+        executionCancelled = true;
+
+        // Resolve pending input requests with empty object to unblock the loop
+        for (const [key, resolve] of pendingInputRequests.entries()) {
+          if (key.startsWith(executionId)) {
+            resolve({});  // Resolve with empty input to unblock
+            pendingInputRequests.delete(key);
+            console.log(`[Server] Resolved and cleaned up pending input request: ${key}`);
+          }
+        }
+      });
 
       // Create temp file for config
       const tempConfigPath = path.join(os.tmpdir(), `flowsphere-${Date.now()}.json`);
@@ -398,6 +426,12 @@ async function launchStudio(port = 3737) {
 
         // Execute each node and stream results
         for (let i = 0; i < nodes.length; i++) {
+          // Check if execution was cancelled (client disconnected)
+          if (executionCancelled) {
+            console.log(`[Server] Execution cancelled at step ${i + 1}, stopping loop`);
+            break;
+          }
+
           const stepNum = i + 1;
           let node = nodes[i];
           node = mergeWithDefaults(node, defaults);
@@ -442,6 +476,12 @@ async function launchStudio(port = 3737) {
               pendingInputRequests.set(key, resolve);
             });
 
+            // Check if execution was cancelled during user input
+            if (executionCancelled) {
+              console.log(`[Server] Execution cancelled during user input at step ${stepNum}, stopping`);
+              break;
+            }
+
             // Merge new input with existing input (later keys override earlier ones)
             userInput = { ...userInput, ...newInput };
           }
@@ -485,6 +525,8 @@ async function launchStudio(port = 3737) {
             url
           });
 
+          console.log(`[Server] Executing step ${stepNum}: ${method} ${url}`);
+
           try {
             const result = await executeStep(node, context);
             response = result.response;
@@ -492,6 +534,8 @@ async function launchStudio(port = 3737) {
             substitutions = result.substitutions || [];
             const endTime = Date.now();
             const duration = (endTime - startTime) / 1000;
+
+            console.log(`[Server] Step ${stepNum} completed: Status ${response.status} (${duration.toFixed(3)}s)`);
 
             // Validate response and get validation results
             try {
@@ -541,6 +585,12 @@ async function launchStudio(port = 3737) {
             executionLog.push(stepLog);
             stepsExecuted++;
 
+            // Check if cancelled during execution before sending result
+            if (executionCancelled) {
+              console.log(`[Server] Execution cancelled after step ${stepNum} completed, stopping`);
+              break;
+            }
+
             // Send step event
             sendEvent('step', stepLog);
 
@@ -583,6 +633,12 @@ async function launchStudio(port = 3737) {
 
             executionLog.push(stepLog);
 
+            // Check if execution was cancelled (don't send error for user-initiated stop)
+            if (executionCancelled) {
+              console.log(`[Server] Execution cancelled during error handling, stopping without sending error event`);
+              break;
+            }
+
             // Send step event
             sendEvent('step', stepLog);
 
@@ -601,43 +657,63 @@ async function launchStudio(port = 3737) {
             });
 
             // Clean up and close
-            fs.unlinkSync(tempConfigPath);
+            try {
+              fs.unlinkSync(tempConfigPath);
+            } catch (cleanupError) {
+              console.log(`[Server] Failed to cleanup temp file: ${cleanupError.message}`);
+            }
             res.end();
             return;
           }
         }
 
-        // All steps completed successfully
-        sendEvent('end', {
-          success: true,
-          stepsExecuted,
-          stepsSkipped,
-          stepsFailed: 0,
-          executionLog
-        });
-
         // Clean up temp file
-        fs.unlinkSync(tempConfigPath);
-        res.end();
+        try {
+          fs.unlinkSync(tempConfigPath);
+        } catch (cleanupError) {
+          console.log(`[Server] Failed to cleanup temp file: ${cleanupError.message}`);
+        }
+
+        // Send appropriate end event
+        if (!executionCancelled) {
+          // All steps completed successfully
+          sendEvent('end', {
+            success: true,
+            stepsExecuted,
+            stepsSkipped,
+            stepsFailed: 0,
+            executionLog
+          });
+          res.end();
+        } else {
+          // Execution was interrupted by user (connection already closed)
+          console.log(`[Server] Execution was interrupted, connection already closed by client`);
+          // Don't send event or call res.end() - connection is already closed
+        }
 
       } catch (error) {
-        // Send error event
-        sendEvent('error', {
-          message: error.message,
-          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
-        sendEvent('end', {
-          success: false,
-          error: error.message
-        });
-
         // Clean up temp file
         try {
           fs.unlinkSync(tempConfigPath);
         } catch (cleanupError) {
           // Ignore cleanup errors
         }
-        res.end();
+
+        // Only send error event if execution wasn't cancelled
+        if (!executionCancelled) {
+          sendEvent('error', {
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+          });
+          sendEvent('end', {
+            success: false,
+            error: error.message
+          });
+          res.end();
+        } else {
+          console.log(`[Server] Execution was cancelled during error, not sending error event`);
+          // Connection already closed by client
+        }
       }
 
     } catch (error) {

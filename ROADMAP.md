@@ -10,7 +10,7 @@ Features listed in priority order (highest to lowest):
 
 | Priority | Feature | Status | Details |
 |----------|---------|--------|---------|
-| 1 | Flow Runner - Execution Controls | In Progress | [View Details](features/flow-runner-execution-controls.md) |
+| 1 | Flow Runner - Execution Controls | In Progress (Phase 1 ✅) | [View Details](features/flow-runner-execution-controls.md) |
 | 2 | Config Validation & Schema Enforcement | Planned | See below |
 | 3 | Execution Log Visualizer | Planned | [View Details](features/execution-log-visualizer.md) |
 | 4 | Swagger/OpenAPI Import | Planned | [View Details](features/swagger-openapi-import.md) |
@@ -37,14 +37,14 @@ Features listed in priority order (highest to lowest):
 
 ### 1. Flow Runner - Execution Controls
 
-**Status:** In Progress
+**Status:** In Progress (Phase 1 ✅ Complete)
 
 Add execution controls to the Flow Runner with **step-by-step execution modes** (replacing the original pause/resume design).
 
 **Key Features:**
-- **Stop/Cancel**: Abort execution at any point (Phase 1)
-- **Step-by-Step**: Execute one step at a time with manual control (Phase 2)
-- **Auto-Step**: Execute steps with configurable auto-resume delay (Phase 3)
+- **Stop/Cancel**: Abort execution at any point (Phase 1) ✅ **COMPLETE**
+- **Step-by-Step**: Execute one step at a time with manual control (Phase 2) - Planned
+- **Auto-Step**: Execute steps with configurable auto-resume delay (Phase 3) - Planned
 
 **Why the change from pause/resume?**
 The original pause/resume approach had UX issues due to signal lag between client and server. The new step-by-step approach provides clearer, more predictable behavior without timing confusion.
