@@ -28,16 +28,28 @@ This document contains "chain of events" showing what files need updating for di
 - ✅ Complete dependency maps and file relationships
 - ✅ Common scenarios and quick reference guides
 
+🎛️ **[docs/technical/toggleable-features-guide.md](docs/technical/toggleable-features-guide.md)** - How to make features toggleable
+
+**⚠️ IMPORTANT: All new features should be toggleable by default.**
+
+This document explains the toggleable feature patterns used in FlowSphere:
+- ✅ When to make features toggleable (and when not to)
+- ✅ 4 implementation patterns: Feature Registry, Built-in Features, Config-Level, Node Properties
+- ✅ Naming conventions and testing requirements
+- ✅ Real-world examples from the codebase
+- ✅ Pattern selection flowchart and comparison table
+
 **Why this matters:**
 Agents frequently make preventable mistakes like accessing `window.config` (doesn't exist), forgetting to re-render the UI after config changes, or duplicating executor logic instead of reusing modules. They also often forget to update all necessary files when adding features (e.g., adding a config field but forgetting to update the validator, UI, docs, examples, and tests). Reading these documents first will save you time and prevent incomplete implementations.
 
 **Workflow:**
 1. Read `docs/technical/core-architecture.md` (Quick Start section)
 2. Read `docs/technical/change-impact-guide.md` (find your change type)
-3. Understand where config is stored and how to access it
-4. Identify all files that need updating for your change type
-5. Review relevant code files for your specific feature
-6. Implement using the correct patterns and update ALL required files
+3. **If adding a new feature**: Read `docs/technical/toggleable-features-guide.md` to implement toggleable pattern
+4. Understand where config is stored and how to access it
+5. Identify all files that need updating for your change type
+6. Review relevant code files for your specific feature
+7. Implement using the correct patterns and update ALL required files
 
 ---
 
