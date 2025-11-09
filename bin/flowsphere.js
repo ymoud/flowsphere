@@ -342,6 +342,233 @@ async function launchStudio(port = 3737) {
     }
   });
 
+  // Single-step execution endpoint (Phase 2: Step-by-Step mode)
+  app.post('/api/execute-step', async (req, res) => {
+    try {
+      const { config, stepIndex, responses = [], userInput = {} } = req.body;
+
+      if (!config) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing config in request body'
+        });
+      }
+
+      if (stepIndex === undefined || stepIndex === null) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing stepIndex in request body'
+        });
+      }
+
+      console.log(`[Server] Executing single step ${stepIndex + 1}`);
+
+      // Import required executor modules
+      const { readJSONFile, mergeWithDefaults, promptUserInput, executeStep } = require('../lib/executor');
+      const { validateResponse } = require('../lib/validator');
+      const { evaluateConditions } = require('../lib/conditions');
+
+      // Create temp file for config
+      const tempConfigPath = path.join(os.tmpdir(), `flowsphere-step-${Date.now()}.json`);
+      fs.writeFileSync(tempConfigPath, JSON.stringify(config, null, 2));
+
+      try {
+        // Load config
+        const loadedConfig = readJSONFile(tempConfigPath);
+        const defaults = loadedConfig.defaults || {};
+        const vars = loadedConfig.variables || {};
+        const nodes = loadedConfig.nodes || [];
+
+        if (stepIndex >= nodes.length) {
+          throw new Error(`Step index ${stepIndex} out of range (0-${nodes.length - 1})`);
+        }
+
+        const stepNum = stepIndex + 1;
+        let node = nodes[stepIndex];
+        node = mergeWithDefaults(node, defaults);
+
+        const { id, name, method, url, conditions, validations } = node;
+
+        // Check if step requires user input
+        if (node.userPrompts && Object.keys(node.userPrompts).length > 0) {
+          // Check if userInput was provided
+          const promptKeys = Object.keys(node.userPrompts);
+          const hasAllInputs = promptKeys.every(key => userInput.hasOwnProperty(key));
+
+          if (!hasAllInputs) {
+            // Return inputRequired response
+            return res.json({
+              success: true,
+              inputRequired: true,
+              stepIndex: stepIndex,
+              step: stepNum,
+              id: id,
+              name: name || `${method} ${url}`,
+              prompts: node.userPrompts
+            });
+          }
+        }
+
+        // Evaluate conditions
+        const context = { vars, responses, input: userInput, enableDebug: false };
+        const { shouldExecute, skipReason } = evaluateConditions(conditions, context);
+
+        if (!shouldExecute) {
+          // Step is skipped
+          const stepLog = {
+            step: stepNum,
+            id,
+            name,
+            method,
+            url,
+            status: 'skipped',
+            skipReason
+          };
+
+          // Clean up temp file
+          fs.unlinkSync(tempConfigPath);
+
+          return res.json({
+            success: true,
+            inputRequired: false,
+            ...stepLog
+          });
+        }
+
+        // Execute step
+        let response = null;
+        let validationResults = null;
+        let substitutions = [];
+        let requestDetails = null;
+        let startTime = Date.now();
+
+        console.log(`[Server] Executing step ${stepNum}: ${method} ${url}`);
+
+        try {
+          const result = await executeStep(node, context);
+          response = result.response;
+          requestDetails = result.requestDetails;
+          substitutions = result.substitutions || [];
+          const endTime = Date.now();
+          const duration = (endTime - startTime) / 1000;
+
+          console.log(`[Server] Step ${stepNum} completed: Status ${response.status} (${duration.toFixed(3)}s)`);
+
+          // Validate response and get validation results
+          try {
+            validationResults = validateResponse(response, validations, false);
+          } catch (validationError) {
+            // Validation failed, but extract results from error
+            validationResults = validationError.validationResults || null;
+            // Re-throw to be caught by outer catch
+            throw validationError;
+          }
+
+          // Create step log (use substituted values from requestDetails)
+          const stepLog = {
+            step: stepNum,
+            id,
+            name,
+            method: requestDetails.method,
+            url: requestDetails.url,
+            request: {
+              headers: requestDetails.headers || {},
+              body: requestDetails.body || {}
+            },
+            response: {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
+              body: response.body
+            },
+            substitutions: result.substitutions || [],
+            validations: validationResults,
+            duration: parseFloat(duration.toFixed(3)),
+            status: 'completed'
+          };
+
+          // Include launchBrowser config if present (for frontend to handle)
+          if (node.launchBrowser) {
+            stepLog.launchBrowser = node.launchBrowser;
+          }
+
+          // Clean up temp file
+          fs.unlinkSync(tempConfigPath);
+
+          return res.json({
+            success: true,
+            inputRequired: false,
+            ...stepLog
+          });
+
+        } catch (error) {
+          // Error handling - include whatever data we have
+          const endTime = Date.now();
+          const duration = (endTime - startTime) / 1000;
+
+          const stepLog = {
+            step: stepNum,
+            id,
+            name,
+            // Use substituted values if available, otherwise use originals
+            method: requestDetails ? requestDetails.method : method,
+            url: requestDetails ? requestDetails.url : url,
+            request: {
+              headers: requestDetails ? (requestDetails.headers || {}) : (node.headers || {}),
+              body: requestDetails ? (requestDetails.body || {}) : (node.body || {})
+            },
+            substitutions: substitutions,
+            status: 'failed',
+            error: error.message,
+            duration: parseFloat(duration.toFixed(3))
+          };
+
+          // If we have a response (validation failure), include it
+          if (response) {
+            stepLog.response = {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
+              body: response.body
+            };
+          }
+
+          // If we have validation results (partial validations before failure), include them
+          if (validationResults) {
+            stepLog.validations = validationResults;
+          }
+
+          // Clean up temp file
+          fs.unlinkSync(tempConfigPath);
+
+          return res.json({
+            success: true,  // Request succeeded, but step failed
+            inputRequired: false,
+            ...stepLog
+          });
+        }
+
+      } catch (error) {
+        // Clean up temp file
+        try {
+          fs.unlinkSync(tempConfigPath);
+        } catch (cleanupError) {
+          // Ignore cleanup errors
+        }
+
+        throw error; // Will be caught by outer catch
+      }
+
+    } catch (error) {
+      console.error('[Server] Execute-step error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  });
+
   // Streaming execution endpoint using Server-Sent Events (SSE)
   app.post('/api/execute-stream', async (req, res) => {
     try {
