@@ -10,20 +10,19 @@ Features listed in priority order (highest to lowest):
 
 | Priority | Feature | Status | Details |
 |----------|---------|--------|---------|
-| 1 | Flow Runner - Execution Controls | In Progress (Phase 1 ✅) | [View Details](docs/features/flow-runner-execution-controls.md) |
-| 2 | Config Validation & Schema Enforcement | ✅ Complete | [Technical Design](docs/technical/config-validation-system.md) |
-| 3 | JSON Beautify for Request Bodies | Planned | See below |
-| 4 | Enhanced Launch Browser with Expressions | Planned | See below |
-| 5 | Execution Log Visualizer | Planned | [View Details](docs/features/execution-log-visualizer.md) |
-| 6 | Swagger/OpenAPI Import | Planned | [View Details](docs/features/swagger-openapi-import.md) |
-| 7 | Enhanced Postman Import | Planned | [View Details](docs/features/enhanced-postman-import.md) |
-| 8 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
-| 9 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
+| 1 | JSON Beautify for Request Bodies | Planned | See below |
+| 2 | Enhanced Launch Browser with Expressions | Planned | See below |
+| 3 | Execution Log Visualizer | Planned | [View Details](docs/features/execution-log-visualizer.md) |
+| 4 | Swagger/OpenAPI Import | Planned | [View Details](docs/features/swagger-openapi-import.md) |
+| 5 | Enhanced Postman Import | Planned | [View Details](docs/features/enhanced-postman-import.md) |
+| 6 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
+| 7 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
 
 ### Completed & External Features
 
 | Feature | Status |
 |---------|--------|
+| Flow Runner - Execution Controls | ✅ Completed (All Phases) |
 | Config Validation & Schema Enforcement | ✅ Completed |
 | Persistent User Input Across Steps | ✅ Completed |
 | Publish to NPM | ✅ Completed (v0.1.0) |
@@ -38,74 +37,7 @@ Features listed in priority order (highest to lowest):
 
 ## Feature Summaries
 
-### 1. Flow Runner - Execution Controls
-
-**Status:** In Progress (Phase 1 ✅ Complete)
-
-Add execution controls to the Flow Runner with **step-by-step execution modes** (replacing the original pause/resume design).
-
-**Key Features:**
-- **Stop/Cancel**: Abort execution at any point (Phase 1) ✅ **COMPLETE**
-- **Step-by-Step**: Execute one step at a time with manual control (Phase 2) - Planned
-- **Auto-Step**: Execute steps with configurable auto-resume delay (Phase 3) - Planned
-
-**Why the change from pause/resume?**
-The original pause/resume approach had UX issues due to signal lag between client and server. The new step-by-step approach provides clearer, more predictable behavior without timing confusion.
-
-➡️ [Full Feature Specification](docs/features/flow-runner-execution-controls.md)
-
----
-
-### 2. Config Validation & Schema Enforcement
-
-**Status:** ✅ Complete
-
-Comprehensive validation system that catches errors before execution with clear, actionable error messages.
-
-**Implemented Features:**
-- **Two-Tier Validation System**: Separates structure vs value validations
-  - Structure: Fields that Studio UI prevents from breaking (types, required fields)
-  - Value: Fields that users can break in Studio (duplicate IDs, broken references)
-- **Pre-Execution Validation**: Automatic validation before running flows (CLI + Studio)
-- **Manual Validation**: "Validate" button with detailed error modal
-- **Auto-Validation**: Silent validation on file load with badge indicator
-- **Inline JSON Validation**: Real-time feedback for invalid JSON in textareas
-- **CLI Support**: `--validate` flag for standalone validation
-
-**Validation Checks:**
-- ✅ Duplicate node IDs
-- ✅ Missing required fields (id, method, url)
-- ✅ Invalid HTTP methods
-- ✅ Invalid URLs (absolute vs relative with baseUrl)
-- ✅ Malformed placeholders (missing `{{` or `}}`)
-- ✅ Non-existent node references in placeholders
-- ✅ Invalid condition syntax (node/variable/input sources)
-- ✅ Invalid validation rules (httpStatusCode, jsonpath)
-- ✅ JSON body type mismatch with Content-Type header
-- ✅ Unserializable JSON bodies (circular references)
-
-**Error Message Example:**
-```
-❌ Config Validation Failed (2 errors)
-
-Error 1:
-  Node: "get-premium-data" (nodes[3])
-  Field: nodes[3].id
-  Issue: Duplicate node ID: "get-premium-data"
-  Fix: Each node must have a unique ID
-
-Error 2:
-  Node: "another-node" (nodes[4])
-  Field: nodes[4].body.text
-  Issue: Malformed placeholder: Found 1 opening "{{" but 0 closing "}}"
-  Fix: Check: "{{ .responses.user-login.test" - all placeholders need both {{ and }}
-```
-
-➡️ [Technical Design Documentation](docs/technical/config-validation-system.md)
-
----
-
-### 3. JSON Beautify for Request Bodies
+### 1. JSON Beautify for Request Bodies
 
 **Status:** Planned
 
@@ -135,7 +67,7 @@ Add a "Beautify" button next to JSON request body textareas in Studio to format/
 
 ---
 
-### 4. Enhanced Launch Browser with Expressions
+### 2. Enhanced Launch Browser with Expressions
 
 **Status:** Planned
 
@@ -182,7 +114,7 @@ Allow `launchBrowser` to accept expressions with variable substitution:
 
 ---
 
-### 5. Execution Log Visualizer
+### 3. Execution Log Visualizer
 
 **Status:** Planned
 
@@ -200,7 +132,7 @@ A visual interface for exploring, analyzing, and comparing execution logs with r
 
 ---
 
-### 6. Swagger/OpenAPI Import
+### 4. Swagger/OpenAPI Import
 
 **Status:** Planned
 
@@ -217,7 +149,7 @@ Import API specifications directly into FlowSphere Studio for automatic config g
 
 ---
 
-### 7. Enhanced Postman Import
+### 5. Enhanced Postman Import
 
 **Status:** Planned
 
@@ -234,7 +166,7 @@ Improve the existing Postman import with multi-environment support and better va
 
 ---
 
-### 8. Export to Postman Collection/Environment
+### 6. Export to Postman Collection/Environment
 
 **Status:** Planned
 
@@ -251,7 +183,7 @@ Convert FlowSphere configs back into Postman collection and environment files fo
 
 ---
 
-### 9. Visual Workflow Storytelling & Export
+### 7. Visual Workflow Storytelling & Export
 
 **Status:** Planned
 

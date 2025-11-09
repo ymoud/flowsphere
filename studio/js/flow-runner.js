@@ -345,12 +345,15 @@ function showExecutionModeSelector() {
             <div class="modal fade" id="executionModeModal" tabindex="-1" aria-labelledby="executionModeModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="executionModeModalLabel">
-                                <i class="bi bi-diagram-3 me-2"></i>
-                                Select Flow Dynamics
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <div class="modal-header flex-column align-items-start">
+                            <div class="d-flex w-100 align-items-center">
+                                <h5 class="modal-title mb-0" id="executionModeModalLabel">
+                                    <i class="bi bi-diagram-3 me-2"></i>
+                                    Select Flow Dynamics
+                                </h5>
+                                <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="text-muted small mt-1">Control, calibrate, or automate — your choice.</div>
                         </div>
                         <div class="modal-body">
                             <div class="mb-3">
