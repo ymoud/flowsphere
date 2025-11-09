@@ -1,0 +1,269 @@
+{
+  "enableDebug": false,
+  "defaults": {
+    "baseUrl": "https://node-fake-api-server.herokuapp.com/",
+    "timeout": 10,
+    "headers": {
+      "Authorization": "Basic Og==",
+      "Content-Type": "application/json",
+      "X-FakeAPI-Action": "record"
+    },
+    "validations": [
+      {
+        "httpStatusCode": 200
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "create-user",
+      "name": "Create User",
+      "method": "POST",
+      "url": "",
+      "headers": {
+        "X-FakeAPI-Action": "register"
+      },
+      "body": {
+        "external_id": "postman"
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        }
+      ]
+    },
+    {
+      "id": "register-hello-world",
+      "name": "Register Hello World!",
+      "method": "PUT",
+      "url": "",
+      "body": {
+        "method": "get",
+        "path": "/hello-world",
+        "responses": [
+          {
+            "status": 200,
+            "content": "Hello world!",
+            "content_type": "text/plain"
+          }
+        ]
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        }
+      ]
+    },
+    {
+      "id": "register-delayed-hello-world",
+      "name": "Register Delayed Hello World!",
+      "method": "PUT",
+      "url": "",
+      "body": {
+        "method": "{{ .responses.register-hello-world.method }}",
+        "path": "/hello-world-delayed",
+        "responses": [
+          {
+            "status": 200,
+            "content": "Hello world!",
+            "content_type": "text/plain",
+            "delay": 3000
+          }
+        ]
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        }
+      ]
+    },
+    {
+      "id": "register-hello-bar",
+      "name": "Register Hello Bar!",
+      "method": "PUT",
+      "url": "",
+      "body": {
+        "method": "{{ .responses.register-delayed-hello-world.method }}",
+        "path": "/hello-world",
+        "query_parameters": {
+          "who": "bar"
+        },
+        "responses": [
+          {
+            "status": 200,
+            "content": "Hello bar!",
+            "content_type": "text/plain"
+          }
+        ]
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        }
+      ]
+    },
+    {
+      "id": "register-hello-baz",
+      "name": "Register Hello Baz!",
+      "method": "PUT",
+      "url": "",
+      "body": {
+        "method": "{{ .responses.register-hello-bar.method }}",
+        "path": "/hello-world",
+        "query_parameters": {
+          "whom": "baz"
+        },
+        "responses": [
+          {
+            "status": 200,
+            "content": "Hello baz!",
+            "content_type": "text/plain"
+          }
+        ]
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        }
+      ]
+    },
+    {
+      "id": "register-hello-incremental",
+      "name": "Register Hello Incremental!",
+      "method": "PUT",
+      "url": "",
+      "body": {
+        "method": "{{ .responses.register-hello-baz.method }}",
+        "path": "/hello-incremental",
+        "responses": [
+          {
+            "status": 200,
+            "content": "Hello Foo!",
+            "content_type": "text/plain"
+          },
+          {
+            "status": 200,
+            "content": "Hello Bar!",
+            "content_type": "text/plain"
+          },
+          {
+            "status": 200,
+            "content": "Hello Biz!",
+            "content_type": "text/plain"
+          },
+          {
+            "status": 200,
+            "content": "Hello Baz!",
+            "content_type": "text/plain"
+          },
+          {
+            "status": 200,
+            "content": "Hello Buzz!",
+            "content_type": "text/plain"
+          }
+        ]
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        }
+      ]
+    },
+    {
+      "id": "register-hello-random",
+      "name": "Register Hello Random!",
+      "method": "PUT",
+      "url": "",
+      "body": {
+        "method": "{{ .responses.register-hello-incremental.method }}",
+        "path": "/hello-random",
+        "response_mode": "random",
+        "responses": [
+          {
+            "status": 200,
+            "content": "Hello Foo!",
+            "content_type": "text/plain"
+          },
+          {
+            "status": 200,
+            "content": "Hello Bar!",
+            "content_type": "text/plain"
+          },
+          {
+            "status": 200,
+            "content": "Hello Biz!",
+            "content_type": "text/plain"
+          },
+          {
+            "status": 200,
+            "content": "Hello Baz!",
+            "content_type": "text/plain"
+          },
+          {
+            "status": 200,
+            "content": "Hello Buzz!",
+            "content_type": "text/plain"
+          }
+        ]
+      },
+      "validations": [
+        {
+          "httpStatusCode": 201
+        }
+      ]
+    },
+    {
+      "id": "hello-world",
+      "name": "Hello World!",
+      "method": "GET",
+      "url": "hello-world"
+    },
+    {
+      "id": "hello-world-post",
+      "name": "Hello World Post!",
+      "method": "POST",
+      "url": "hello-world"
+    },
+    {
+      "id": "delayed-hello-world",
+      "name": "Delayed Hello World!",
+      "method": "GET",
+      "url": "hello-world-delayed"
+    },
+    {
+      "id": "hello-bar",
+      "name": "Hello Bar!",
+      "method": "GET",
+      "url": "hello-world?who=bar"
+    },
+    {
+      "id": "hello-baz",
+      "name": "Hello Baz!",
+      "method": "GET",
+      "url": "hello-world?whom=baz"
+    },
+    {
+      "id": "hello-bar-and-baz",
+      "name": "Hello Bar and Baz!",
+      "method": "GET",
+      "url": "hello-world?who=bar&whom=baz",
+      "validations": [
+        {
+          "httpStatusCode": 400
+        }
+      ]
+    },
+    {
+      "id": "hello-incremental",
+      "name": "Hello Incremental!",
+      "method": "GET",
+      "url": "hello-incremental"
+    },
+    {
+      "id": "hello-random",
+      "name": "Hello Random!",
+      "method": "GET",
+      "url": "hello-random"
+    }
+  ]
+}
