@@ -337,6 +337,10 @@ function parsePostmanCollection(collection, environment = null) {
         // Make URL relative if it starts with baseUrl
         if (baseUrl && url.startsWith(baseUrl)) {
             url = url.substring(baseUrl.length);
+            // If URL becomes empty after removing baseUrl, use "/" for root path
+            if (url.length === 0 || url === '') {
+                url = '/';
+            }
         }
 
         node.url = url;
