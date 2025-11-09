@@ -258,6 +258,18 @@ function stopExecution() {
         countdownIntervalId = null;
     }
 
+    // Remove countdown UI elements (Continue Now button and countdown preview)
+    const continueBtn = document.getElementById('continueStepBtn');
+    const nextStepPreview = document.getElementById('nextStepPreview');
+    if (continueBtn) {
+        console.log('[Flow Runner] Removing Continue Now button');
+        continueBtn.remove();
+    }
+    if (nextStepPreview) {
+        console.log('[Flow Runner] Removing countdown preview');
+        nextStepPreview.remove();
+    }
+
     // Close any open input modal (userInputModal is the ID from collectUserInputForStep)
     const userInputModalEl = document.getElementById('userInputModal');
     if (userInputModalEl) {
@@ -728,7 +740,19 @@ async function runSequenceFullSpeed() {
                         } else {
                             // Subsequent attempts: wait for user to click placeholder
                             await showInputPendingPlaceholder(data, data.step, totalSteps);
+
+                            // Check if stop was requested during wait
+                            if (stopRequested) {
+                                console.log('[Flow Runner] Stop requested while waiting for placeholder click');
+                                break;
+                            }
+
                             console.log('[Flow Runner] Placeholder clicked, opening modal...');
+                        }
+
+                        // Check if stop was requested before showing modal
+                        if (stopRequested) {
+                            break;
                         }
 
                         // Collect user input
@@ -1665,7 +1689,6 @@ function createResultsModal() {
                                 </div>
                                 <span id="progressSteps" class="text-muted small"></span>
                             </div>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <!-- Second row: Subtitle (full width) -->
                         <div class="text-muted small mt-1" id="resultsModalSubtitle" style="display: none;"></div>
@@ -2424,9 +2447,16 @@ function rerunSequence() {
         }
     }
 
-    // Small delay to let modal close, then run again
+    // Small delay to let modal close, then run again with the same execution mode
     setTimeout(() => {
-        runSequence();
+        // Reuse the last selected execution mode instead of showing selector
+        if (executionMode === 'step-by-step') {
+            runSequenceStepByStep();
+        } else if (executionMode === 'auto-step') {
+            runSequenceAutoStep();
+        } else {
+            runSequenceFullSpeed();
+        }
     }, 300);
 }
 
@@ -2568,7 +2598,19 @@ async function runSequenceStepByStep() {
                         } else {
                             // Subsequent attempts: wait for user to click placeholder
                             await waitForPlaceholderClick();
+
+                            // Check if stop was requested during wait
+                            if (stopRequested) {
+                                console.log('[Flow Runner] Stop requested while waiting for placeholder click');
+                                break;
+                            }
+
                             console.log('[Flow Runner] Placeholder clicked, opening modal...');
+                        }
+
+                        // Check if stop was requested before showing modal
+                        if (stopRequested) {
+                            break;
                         }
 
                         // Collect user input
@@ -2632,8 +2674,8 @@ async function runSequenceStepByStep() {
                 // Add to execution log
                 executionLog.push(stepResult);
 
-                // Display step result
-                updateModalWithStep(stepResult, stepNumber, totalStepsCount);
+                // Display step result (replace placeholder if user input was collected)
+                replaceStepPlaceholder(stepResult, stepNumber, totalStepsCount);
                 updateProgressIndicator('running', stepNumber, totalStepsCount);
 
                 // Handle browser launch
@@ -2957,7 +2999,19 @@ async function runSequenceAutoStep() {
                         } else {
                             // Subsequent attempts: wait for user to click placeholder
                             await waitForPlaceholderClick();
+
+                            // Check if stop was requested during wait
+                            if (stopRequested) {
+                                console.log('[Flow Runner] Stop requested while waiting for placeholder click');
+                                break;
+                            }
+
                             console.log('[Flow Runner] Placeholder clicked, opening modal...');
+                        }
+
+                        // Check if stop was requested before showing modal
+                        if (stopRequested) {
+                            break;
                         }
 
                         // Collect user input
@@ -3021,8 +3075,8 @@ async function runSequenceAutoStep() {
                 // Add to execution log
                 executionLog.push(stepResult);
 
-                // Display step result
-                updateModalWithStep(stepResult, stepNumber, totalStepsCount);
+                // Display step result (replace placeholder if user input was collected)
+                replaceStepPlaceholder(stepResult, stepNumber, totalStepsCount);
                 updateProgressIndicator('running', stepNumber, totalStepsCount);
 
                 // Handle browser launch

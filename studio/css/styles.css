@@ -289,9 +289,9 @@ body > div.container-fluid {
 }
 
 .btn-primary:hover {
-    background: var(--primary-hover);
-    border: none;
-    color: #FFFFFF;
+    background: var(--primary-hover) !important;
+    border: none !important;
+    color: #FFFFFF !important;
 }
 
 .btn-primary:active {
@@ -313,9 +313,9 @@ body > div.container-fluid {
 }
 
 .btn-secondary:hover {
-    background: var(--secondary);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
+    background: var(--secondary-hover) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
 }
 
 .btn-secondary:active {
@@ -332,9 +332,9 @@ body > div.container-fluid {
 }
 
 .btn-success:hover {
-    background: #00B585;
-    border: none;
-    color: #FFFFFF;
+    background: #00B585 !important;
+    border: none !important;
+    color: #FFFFFF !important;
 }
 
 /* Danger Button */
@@ -345,9 +345,9 @@ body > div.container-fluid {
 }
 
 .btn-danger:hover {
-    background: #C72E3C;
-    border: none;
-    color: #FFFFFF;
+    background: #C72E3C !important;
+    border: none !important;
+    color: #FFFFFF !important;
 }
 
 .btn-danger:active {
@@ -363,9 +363,9 @@ body > div.container-fluid {
 }
 
 .btn-outline-light:hover {
-    background: var(--secondary-hover);
-    border-color: var(--border-color);
-    color: var(--text-primary);
+    background: var(--secondary-hover) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
 }
 
 /* Small buttons */
