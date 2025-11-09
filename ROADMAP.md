@@ -13,11 +13,12 @@ Features listed in priority order (highest to lowest):
 | 1 | Flow Runner - Execution Controls | In Progress (Phase 1 ✅) | [View Details](docs/features/flow-runner-execution-controls.md) |
 | 2 | Config Validation & Schema Enforcement | ✅ Complete | [Technical Design](docs/technical/config-validation-system.md) |
 | 3 | JSON Beautify for Request Bodies | Planned | See below |
-| 4 | Execution Log Visualizer | Planned | [View Details](docs/features/execution-log-visualizer.md) |
-| 5 | Swagger/OpenAPI Import | Planned | [View Details](docs/features/swagger-openapi-import.md) |
-| 6 | Enhanced Postman Import | Planned | [View Details](docs/features/enhanced-postman-import.md) |
-| 7 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
-| 8 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
+| 4 | Enhanced Launch Browser with Expressions | Planned | See below |
+| 5 | Execution Log Visualizer | Planned | [View Details](docs/features/execution-log-visualizer.md) |
+| 6 | Swagger/OpenAPI Import | Planned | [View Details](docs/features/swagger-openapi-import.md) |
+| 7 | Enhanced Postman Import | Planned | [View Details](docs/features/enhanced-postman-import.md) |
+| 8 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
+| 9 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
 
 ### Completed & External Features
 
@@ -134,7 +135,54 @@ Add a "Beautify" button next to JSON request body textareas in Studio to format/
 
 ---
 
-### 3. Execution Log Visualizer
+### 4. Enhanced Launch Browser with Expressions
+
+**Status:** Planned
+
+Enhance the `launchBrowser` field to support string expressions with variable substitution, not just simple JSONPath extraction.
+
+**Current Behavior:**
+- `launchBrowser` accepts a JSONPath (e.g., `.authorizationUrl`)
+- Extracts the full URL from the response
+- Opens the extracted URL in the browser
+
+**Problem:**
+- Cannot build URLs dynamically by combining static parts with response data
+- Cannot append query parameters or path segments from response
+- Limited to URLs that exist complete in the response
+
+**Enhancement:**
+Allow `launchBrowser` to accept expressions with variable substitution:
+- Static URL with dynamic parts: `https://example.com/verify/{{ .responses.current.verificationId }}`
+- Append query parameters: `{{ .responses.auth.baseUrl }}?token={{ .responses.auth.token }}`
+- Mix global variables: `{{ .vars.dashboardUrl }}/users/{{ .responses.createUser.id }}`
+
+**Example:**
+```json
+{
+  "id": "create-verification",
+  "name": "Create verification code",
+  "method": "POST",
+  "url": "/verify",
+  "launchBrowser": "https://myapp.com/verify?code={{ .responses.create-verification.code }}&userId={{ .responses.login.userId }}"
+}
+```
+
+**Benefits:**
+- More flexible URL construction for OAuth flows
+- Support dynamic verification/activation links
+- Combine multiple response fields into URL
+- Better support for multi-step authentication flows
+
+**Implementation Notes:**
+- Reuse existing `lib/substitution.js` logic
+- Backwards compatible: If no `{{` found, treat as JSONPath (current behavior)
+- Apply same substitution rules as other fields (variables, responses, user input)
+- Validate resulting URL before launching browser
+
+---
+
+### 5. Execution Log Visualizer
 
 **Status:** Planned
 
@@ -152,7 +200,7 @@ A visual interface for exploring, analyzing, and comparing execution logs with r
 
 ---
 
-### 4. Swagger/OpenAPI Import
+### 6. Swagger/OpenAPI Import
 
 **Status:** Planned
 
@@ -169,7 +217,7 @@ Import API specifications directly into FlowSphere Studio for automatic config g
 
 ---
 
-### 5. Enhanced Postman Import
+### 7. Enhanced Postman Import
 
 **Status:** Planned
 
@@ -186,7 +234,7 @@ Improve the existing Postman import with multi-environment support and better va
 
 ---
 
-### 6. Export to Postman Collection/Environment
+### 8. Export to Postman Collection/Environment
 
 **Status:** Planned
 
@@ -203,7 +251,7 @@ Convert FlowSphere configs back into Postman collection and environment files fo
 
 ---
 
-### 7. Visual Workflow Storytelling & Export
+### 9. Visual Workflow Storytelling & Export
 
 **Status:** Planned
 
