@@ -280,7 +280,10 @@ function confirmNewConfig() {
                     renderEditor();
                     updatePreview();
 
-                    // Show Import Nodes button
+                    // Update button visibility
+                    if (typeof updateStartButton === 'function') {
+                        updateStartButton();
+                    }
                     if (typeof updateImportNodesButton === 'function') {
                         updateImportNodesButton();
                     }
