@@ -728,6 +728,45 @@ const substitutionsHtml = result.substitutions.map(sub => `
 - `text-muted` - Gray (secondary info, labels)
 - `text-primary` - Default text color (theme-aware)
 
+### Modal Behavior
+
+**⚠️ CRITICAL: All modals must be "sticky" (cannot be dismissed by clicking outside)**
+
+When implementing modals in FlowSphere Studio:
+
+1. **Disable backdrop dismiss:**
+   ```javascript
+   // Bootstrap 5 modal configuration
+   const modal = new bootstrap.Modal(document.getElementById('myModal'), {
+       backdrop: 'static',  // Prevents closing on backdrop click
+       keyboard: false      // Optional: also prevents ESC key dismiss
+   });
+   ```
+
+2. **Explicit close actions only:**
+   - Modals should ONLY close via explicit user actions:
+     - ✅ Click "Close", "Cancel", "Done", or "X" button
+     - ✅ Click "Save" or action button that completes the task
+   - Modals should NEVER close via:
+     - ❌ Clicking outside the modal (backdrop click)
+     - ❌ Accidental ESC key press (use `keyboard: false`)
+
+3. **Rationale:**
+   - Prevents accidental data loss (user typing in form, clicks outside by mistake)
+   - Ensures users make conscious decisions to close/cancel
+   - Consistent with professional UX patterns for data-entry forms
+   - Reduces frustration from accidental modal dismissals
+
+4. **Examples in codebase:**
+   - Flow Runner modal (`studio/js/flow-runner.js`)
+   - Try it Out modal (`studio/js/try-it-out.js`)
+   - All modals in `studio/js/modals.js`
+
+**When creating new modals:**
+- Always use `backdrop: 'static'` in modal configuration
+- Always provide clear "Close" or "Cancel" button
+- Test that clicking outside does NOT close the modal
+
 ### Consistency Checklist
 
 When implementing new UI features that display execution results:
@@ -738,6 +777,7 @@ When implementing new UI features that display execution results:
 - ✅ Match text colors: green for success, red for failure, yellow for values
 - ✅ Match indentation and spacing: `ps-4`, `small` class
 - ✅ Test in both dark and light themes
+- ✅ Modals use `backdrop: 'static'` and cannot be dismissed by clicking outside
 
 ### Substitution Display Pattern with Path
 
