@@ -491,8 +491,8 @@
      * @param {object} mockResponses - Mock response values by node ID
      */
     async function executeNode(node, mockResponses) {
-        // Show loading state
-        const loadingToast = showToast('Node in Motion...', 'info', 0); // 0 = no auto-hide
+        // Show modal immediately with "Executing" state
+        const modalEl = showResultsModal(node, null); // null = executing state
 
         try {
             console.log('[TryItOut] Executing node with mockResponses:', mockResponses);
@@ -512,21 +512,23 @@
             const result = await response.json();
             console.log('[TryItOut] API response:', result);
 
-            // Hide loading toast
-            if (loadingToast && loadingToast.hide) {
-                loadingToast.hide();
-            }
-
-            // Show results modal
-            showResultsModal(node, result);
+            // Update modal with actual results
+            updateResultsModal(modalEl, node, result);
 
         } catch (error) {
-            // Hide loading toast
-            if (loadingToast && loadingToast.hide) {
-                loadingToast.hide();
-            }
+            // Update modal with error state
+            const errorResult = {
+                success: false,
+                error: error.message,
+                request: {
+                    method: node.method || 'GET',
+                    url: node.url || '',
+                    headers: node.headers || {},
+                    body: node.body || {}
+                }
+            };
+            updateResultsModal(modalEl, node, errorResult);
 
-            showToast('Error: ' + error.message, 'error');
             console.error('[TryItOut] Execution error:', error);
         }
     }
@@ -534,7 +536,8 @@
     /**
      * Show results modal with execution details
      * @param {object} node - The executed node
-     * @param {object} result - Execution result from API
+     * @param {object} result - Execution result from API (null = executing state)
+     * @returns {HTMLElement} The modal element
      */
     function showResultsModal(node, result) {
         const modalId = 'tryItOutResultsModal';
@@ -545,23 +548,41 @@
             existingModal.remove();
         }
 
-        const statusIcon = result.success ? '✅' : '❌';
-        const statusText = result.success ? 'Success' : 'Failed';
-        const statusClass = result.success ? 'text-success' : 'text-danger';
+        // Determine state - executing or completed
+        const isExecuting = result === null;
+        const statusIcon = isExecuting ? '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>'
+                          : (result.success ? '✅' : '❌');
+        const statusText = isExecuting ? 'Executing...' : (result.success ? 'Success' : 'Failed');
+        const statusClass = isExecuting ? 'text-primary' : (result.success ? 'text-success' : 'text-danger');
 
-        // Handle missing request object (error before execution)
-        if (!result.request) {
-            result.request = {
-                method: node.method || 'GET',
-                url: node.url || '',
-                headers: node.headers || {},
-                body: node.body || {}
-            };
-        }
+        // Build modal body content
+        let modalBodyContent = '';
 
-        // Format validations (match Flow Runner styling)
-        let validationsHtml = '';
-        if (result.validations && Array.isArray(result.validations)) {
+        if (isExecuting) {
+            // Executing state - show spinner and basic info
+            modalBodyContent = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5>${node.name || node.method + ' ' + node.url}</h5>
+                    <p class="text-muted">Executing request...</p>
+                </div>
+            `;
+        } else {
+            // Handle missing request object (error before execution)
+            if (!result.request) {
+                result.request = {
+                    method: node.method || 'GET',
+                    url: node.url || '',
+                    headers: node.headers || {},
+                    body: node.body || {}
+                };
+            }
+
+            // Format validations (match Flow Runner styling)
+            let validationsHtml = '';
+            if (result.validations && Array.isArray(result.validations)) {
             const validationParts = result.validations.map(v => {
                 const icon = v.passed ? '<span class="text-success">✓</span>' : '<span class="text-danger">✗</span>';
 
@@ -597,86 +618,97 @@
             `;
         }
 
-        // Substitutions are now highlighted inline in the URL, headers, and body
-        // No separate substitutions section needed - hover over highlighted values to see details
+            // Completed state - show request/response details
+            modalBodyContent = `
+                <div class="alert alert-${result.success ? 'success' : 'danger'} mb-3">
+                    <strong>${node.name || node.method + ' ' + node.url}</strong>
+                    <span class="ms-2">${statusIcon} ${statusText}</span>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Request</h6>
+                        <div class="mb-2">
+                            <strong>${result.request.method}</strong>
+                            <code>${highlightSubstitutionsInText(result.request.url, result.substitutions)}</code>
+                        </div>
+
+                        ${Object.keys(result.request.headers || {}).length > 0 ? `
+                            <details class="mb-2" open>
+                                <summary><strong>Headers</strong></summary>
+                                <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${highlightSubstitutionsInJSON(result.request.headers, result.substitutions)}</pre>
+                            </details>
+                        ` : ''}
+
+                        ${result.request.body && Object.keys(result.request.body).length > 0 ? `
+                            <details class="mb-2" open>
+                                <summary><strong>Body</strong></summary>
+                                <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${highlightSubstitutionsInJSON(result.request.body, result.substitutions)}</pre>
+                            </details>
+                        ` : ''}
+                    </div>
+
+                    <div class="col-md-6">
+                        <h6>Response</h6>
+                        <div class="mb-2">
+                            <strong class="${statusClass}">${statusText}</strong>
+                            ${result.response ? `
+                                <span class="badge bg-${result.response.status >= 200 && result.response.status < 300 ? 'success' : 'danger'}">
+                                    ${result.response.status} ${result.response.statusText || ''}
+                                </span>
+                            ` : ''}
+                            ${result.duration !== undefined ? `<small class="text-muted">(${result.duration}s)</small>` : ''}
+                        </div>
+
+                        ${result.error && !validationsHtml ? `
+                            <div class="alert alert-danger">
+                                <strong>Error:</strong> ${result.error}
+                            </div>
+                        ` : ''}
+
+                        ${validationsHtml}
+
+                        ${result.response && result.response.body ? `
+                            <details open>
+                                <summary><strong>Response Body</strong></summary>
+                                <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color); max-height: 400px; overflow-y: auto;" class="p-2 small">${JSON.stringify(result.response.body, null, 2)}</pre>
+                            </details>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Modal footer content
+        const modalFooterContent = isExecuting ? `
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        ` : `
+            ${result.response?.body ? `
+            <button type="button" class="btn btn-success" id="storeSchemaBtn">
+                <i class="bi bi-save me-2"></i>Store Response Schema
+            </button>
+            ` : ''}
+            <button type="button" class="btn btn-primary" id="reengageNode">
+                <i class="bi bi-arrow-clockwise me-2"></i>Re-engage Node
+            </button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        `;
 
         const modalHtml = `
             <div class="modal fade" id="${modalId}" tabindex="-1">
                 <div class="modal-dialog modal-xl">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">
-                                <i class="bi bi-check-circle-fill me-2 ${statusClass}"></i>Node Execution Complete
+                            <h5 class="modal-title" id="tryItOutModalTitle">
+                                <span class="modal-title-icon">${statusIcon}</span>
+                                <span class="modal-title-text">${isExecuting ? 'Node Executing...' : 'Node Execution Complete'}</span>
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
-                        <div class="modal-body">
-                            <div class="alert alert-${result.success ? 'success' : 'danger'} mb-3">
-                                <strong>${node.name || node.method + ' ' + node.url}</strong>
-                                <span class="ms-2">${statusIcon} ${statusText}</span>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h6>Request</h6>
-                                    <div class="mb-2">
-                                        <strong>${result.request.method}</strong>
-                                        <code>${highlightSubstitutionsInText(result.request.url, result.substitutions)}</code>
-                                    </div>
-
-                                    ${Object.keys(result.request.headers || {}).length > 0 ? `
-                                        <details class="mb-2" open>
-                                            <summary><strong>Headers</strong></summary>
-                                            <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${highlightSubstitutionsInJSON(result.request.headers, result.substitutions)}</pre>
-                                        </details>
-                                    ` : ''}
-
-                                    ${result.request.body && Object.keys(result.request.body).length > 0 ? `
-                                        <details class="mb-2" open>
-                                            <summary><strong>Body</strong></summary>
-                                            <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${highlightSubstitutionsInJSON(result.request.body, result.substitutions)}</pre>
-                                        </details>
-                                    ` : ''}
-                                </div>
-
-                                <div class="col-md-6">
-                                    <h6>Response</h6>
-                                    <div class="mb-2">
-                                        <strong class="${statusClass}">${statusText}</strong>
-                                        ${result.response ? `
-                                            <span class="badge bg-${result.response.status >= 200 && result.response.status < 300 ? 'success' : 'danger'}">
-                                                ${result.response.status} ${result.response.statusText || ''}
-                                            </span>
-                                        ` : ''}
-                                        ${result.duration !== undefined ? `<small class="text-muted">(${result.duration}s)</small>` : ''}
-                                    </div>
-
-                                    ${result.error && !validationsHtml ? `
-                                        <div class="alert alert-danger">
-                                            <strong>Error:</strong> ${result.error}
-                                        </div>
-                                    ` : ''}
-
-                                    ${validationsHtml}
-
-                                    ${result.response && result.response.body ? `
-                                        <details open>
-                                            <summary><strong>Response Body</strong></summary>
-                                            <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color); max-height: 400px; overflow-y: auto;" class="p-2 small">${JSON.stringify(result.response.body, null, 2)}</pre>
-                                        </details>
-                                    ` : ''}
-                                </div>
-                            </div>
+                        <div class="modal-body" id="tryItOutModalBody">
+                            ${modalBodyContent}
                         </div>
-                        <div class="modal-footer">
-                            ${result.response?.body ? `
-                            <button type="button" class="btn btn-success" id="storeSchemaBtn">
-                                <i class="bi bi-save me-2"></i>Store Response Schema
-                            </button>
-                            ` : ''}
-                            <button type="button" class="btn btn-primary" id="reengageNode">
-                                <i class="bi bi-arrow-clockwise me-2"></i>Re-engage Node
-                            </button>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <div class="modal-footer" id="tryItOutModalFooter">
+                            ${modalFooterContent}
                         </div>
                     </div>
                 </div>
@@ -690,19 +722,21 @@
         const modalEl = document.getElementById(modalId);
         const modal = window.configureModal(modalEl);
 
-        // Add Re-engage Node button handler
-        const reengageBtn = modalEl.querySelector('#reengageNode');
-        if (reengageBtn) {
-            reengageBtn.addEventListener('click', () => {
-                modal.hide();
-                // Re-run with same dependencies - need to show mocking modal again
-                tryItOutNode(config.nodes.indexOf(node));
-            });
-        }
+        // Only attach event handlers if not in executing state
+        if (!isExecuting) {
+            // Add Re-engage Node button handler
+            const reengageBtn = modalEl.querySelector('#reengageNode');
+            if (reengageBtn) {
+                reengageBtn.addEventListener('click', () => {
+                    modal.hide();
+                    // Re-run with same dependencies - need to show mocking modal again
+                    tryItOutNode(config.nodes.indexOf(node));
+                });
+            }
 
-        // Compare schema and style button accordingly
-        const storeSchemaBtn = modalEl.querySelector('#storeSchemaBtn');
-        if (storeSchemaBtn && result.response?.body && node.id) {
+            // Compare schema and style button accordingly
+            const storeSchemaBtn = modalEl.querySelector('#storeSchemaBtn');
+            if (storeSchemaBtn && result.response?.body && node.id) {
             const newSchema = extractSchema(result.response.body);
             const existingSchema = config.responseSchemas?.[node.id];
 
@@ -763,7 +797,8 @@
                     showToast('Response schema stored successfully', 'success', 3000);
                 }
             });
-        }
+            }
+        } // End of !isExecuting block
 
         // Clean up modal on close
         modalEl.addEventListener('hidden.bs.modal', () => {
@@ -771,6 +806,218 @@
         });
 
         modal.show();
+        return modalEl;
+    }
+
+    /**
+     * Update results modal with actual execution results
+     * @param {HTMLElement} modalEl - The modal element to update
+     * @param {object} node - The executed node
+     * @param {object} result - Execution result from API
+     */
+    function updateResultsModal(modalEl, node, result) {
+        if (!modalEl) return;
+
+        const statusIcon = result.success ? '✅' : '❌';
+        const statusText = result.success ? 'Success' : 'Failed';
+        const statusClass = result.success ? 'text-success' : 'text-danger';
+
+        // Handle missing request object (error before execution)
+        if (!result.request) {
+            result.request = {
+                method: node.method || 'GET',
+                url: node.url || '',
+                headers: node.headers || {},
+                body: node.body || {}
+            };
+        }
+
+        // Format validations (match Flow Runner styling)
+        let validationsHtml = '';
+        if (result.validations && Array.isArray(result.validations)) {
+            const validationParts = result.validations.map(v => {
+                const icon = v.passed ? '<span class="text-success">✓</span>' : '<span class="text-danger">✗</span>';
+
+                if (v.type === 'httpStatusCode') {
+                    const label = v.passed ? 'Validated' : 'Failed';
+                    return `
+                        <div class="ps-4 small">
+                            ${icon} ${label} status = <span class="text-warning">${v.actual}</span>${v.passed ? '' : ` (expected ${v.expected})`}
+                        </div>
+                    `;
+                } else if (v.type === 'jsonpath') {
+                    const displayValue = typeof v.value === 'object'
+                        ? JSON.stringify(v.value)
+                        : String(v.value);
+                    const shortValue = displayValue.length > 80
+                        ? displayValue.substring(0, 77) + '...'
+                        : displayValue;
+                    const label = v.passed ? 'Extracted' : 'Failed';
+                    return `
+                        <div class="ps-4 small">
+                            ${icon} ${label} ${escapeHtml(v.path)} = <span class="text-warning">${escapeHtml(shortValue)}</span>
+                        </div>
+                    `;
+                }
+                return '';
+            });
+
+            validationsHtml = `
+                <div class="mb-3">
+                    <h6>Validations:</h6>
+                    ${validationParts.join('')}
+                </div>
+            `;
+        }
+
+        // Update modal title
+        const modalTitle = modalEl.querySelector('#tryItOutModalTitle');
+        if (modalTitle) {
+            modalTitle.innerHTML = `
+                <span class="modal-title-icon">${statusIcon}</span>
+                <span class="modal-title-text">Node Execution Complete</span>
+            `;
+        }
+
+        // Update modal body
+        const modalBody = modalEl.querySelector('#tryItOutModalBody');
+        if (modalBody) {
+            modalBody.innerHTML = `
+                <div class="alert alert-${result.success ? 'success' : 'danger'} mb-3">
+                    <strong>${node.name || node.method + ' ' + node.url}</strong>
+                    <span class="ms-2">${statusIcon} ${statusText}</span>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Request</h6>
+                        <div class="mb-2">
+                            <strong>${result.request.method}</strong>
+                            <code>${highlightSubstitutionsInText(result.request.url, result.substitutions)}</code>
+                        </div>
+
+                        ${Object.keys(result.request.headers || {}).length > 0 ? `
+                            <details class="mb-2" open>
+                                <summary><strong>Headers</strong></summary>
+                                <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${highlightSubstitutionsInJSON(result.request.headers, result.substitutions)}</pre>
+                            </details>
+                        ` : ''}
+
+                        ${result.request.body && Object.keys(result.request.body).length > 0 ? `
+                            <details class="mb-2" open>
+                                <summary><strong>Body</strong></summary>
+                                <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color);" class="p-2 small">${highlightSubstitutionsInJSON(result.request.body, result.substitutions)}</pre>
+                            </details>
+                        ` : ''}
+                    </div>
+
+                    <div class="col-md-6">
+                        <h6>Response</h6>
+                        <div class="mb-2">
+                            <strong class="${statusClass}">${statusText}</strong>
+                            ${result.response ? `
+                                <span class="badge bg-${result.response.status >= 200 && result.response.status < 300 ? 'success' : 'danger'}">
+                                    ${result.response.status} ${result.response.statusText || ''}
+                                </span>
+                            ` : ''}
+                            ${result.duration !== undefined ? `<small class="text-muted">(${result.duration}s)</small>` : ''}
+                        </div>
+
+                        ${result.error && !validationsHtml ? `
+                            <div class="alert alert-danger">
+                                <strong>Error:</strong> ${result.error}
+                            </div>
+                        ` : ''}
+
+                        ${validationsHtml}
+
+                        ${result.response && result.response.body ? `
+                            <details open>
+                                <summary><strong>Response Body</strong></summary>
+                                <pre style="background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color); max-height: 400px; overflow-y: auto;" class="p-2 small">${JSON.stringify(result.response.body, null, 2)}</pre>
+                            </details>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update modal footer
+        const modalFooter = modalEl.querySelector('#tryItOutModalFooter');
+        if (modalFooter) {
+            modalFooter.innerHTML = `
+                ${result.response?.body ? `
+                <button type="button" class="btn btn-success" id="storeSchemaBtn">
+                    <i class="bi bi-save me-2"></i>Store Response Schema
+                </button>
+                ` : ''}
+                <button type="button" class="btn btn-primary" id="reengageNode">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Re-engage Node
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            `;
+        }
+
+        // Re-attach event handlers
+        const reengageBtn = modalEl.querySelector('#reengageNode');
+        if (reengageBtn) {
+            reengageBtn.addEventListener('click', () => {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                tryItOutNode(config.nodes.indexOf(node));
+            });
+        }
+
+        // Store schema button handler
+        const storeSchemaBtn = modalEl.querySelector('#storeSchemaBtn');
+        if (storeSchemaBtn && result.response?.body && node.id) {
+            const newSchema = extractSchema(result.response.body);
+            const existingSchema = config.responseSchemas?.[node.id];
+
+            if (existingSchema) {
+                const diff = getSchemaDiff(existingSchema.schema, newSchema);
+                const hasDifferences = diff.added.length > 0 || diff.removed.length > 0 || diff.changed.length > 0;
+
+                if (!hasDifferences) {
+                    storeSchemaBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Schema Up-to-Date';
+                    storeSchemaBtn.disabled = true;
+                    storeSchemaBtn.classList.remove('btn-success');
+                    storeSchemaBtn.classList.add('btn-outline-success');
+                } else {
+                    storeSchemaBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Update Schema';
+                    storeSchemaBtn.classList.remove('btn-success');
+                    storeSchemaBtn.classList.add('btn-warning');
+                }
+            }
+
+            storeSchemaBtn.addEventListener('click', () => {
+                if (storeSchemaBtn.disabled) return;
+
+                const schema = extractSchema(result.response.body);
+
+                if (config.responseSchemas?.[node.id]) {
+                    const existingSchema = config.responseSchemas[node.id];
+                    const diff = getSchemaDiff(existingSchema.schema, schema);
+                    const hasDifferences = diff.added.length > 0 || diff.removed.length > 0 || diff.changed.length > 0;
+
+                    if (!hasDifferences) {
+                        storeSchemaBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Schema Up-to-Date';
+                        storeSchemaBtn.disabled = true;
+                        storeSchemaBtn.classList.remove('btn-success', 'btn-warning');
+                        storeSchemaBtn.classList.add('btn-outline-success');
+                        return;
+                    }
+
+                    showSchemaUpdateChoice(node, schema, modalEl);
+                } else {
+                    storeResponseSchema(node, schema, false);
+                    storeSchemaBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Schema Stored!';
+                    storeSchemaBtn.disabled = true;
+                    storeSchemaBtn.classList.remove('btn-success', 'btn-warning');
+                    storeSchemaBtn.classList.add('btn-outline-success');
+                    showToast('Response schema stored successfully', 'success', 3000);
+                }
+            });
+        }
     }
 
     /**
