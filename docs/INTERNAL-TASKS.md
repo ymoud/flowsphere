@@ -136,11 +136,60 @@ studio/resources/
 - Virtual scrolling for large step lists (>50 steps)
 - Optimize JSON preview rendering
 
+### 6. Version Display & Update Check in Settings
+
+**Goal:** Help users identify their current version and know when updates are available.
+
+**Components:**
+
+**A. Display Current Version**
+- Add version display to Settings panel → About page
+- Read version from `package.json` via server endpoint
+- Display format: `FlowSphere Studio v0.1.1`
+- Show installation path/mode (global vs local npm install)
+
+**B. Version Check (Optional Enhancement)**
+- Check npm registry for latest published version
+- Compare with current version (semver)
+- If update available, show notification badge on Settings icon
+- Display update notification in About page
+
+**C. Update Instructions**
+- If newer version detected, show clear instructions:
+  ```
+  Update Available: v0.2.0 (current: v0.1.1)
+
+  To update FlowSphere:
+  1. Stop the Studio server (Ctrl+C in terminal)
+  2. Run: npm update -g flowsphere
+  3. Restart: flowsphere studio
+
+  What's new in v0.2.0:
+  - [Link to release notes/changelog]
+  ```
+- Differentiate instructions for global vs local installs
+- Include link to GitHub releases page
+
+**Implementation Notes:**
+- Add `/api/version` endpoint returning `package.json` version
+- Add `/api/version/check` endpoint to query npm registry
+- Cache version check results (check once per session)
+- Store last check timestamp in localStorage
+- Show "Check for Updates" button for manual check
+
+**Benefits:**
+- Users know what version they're running (helpful for bug reports)
+- Clear upgrade path when updates available
+- Reduces confusion about feature availability
+- Professional polish for the application
+
+**Priority:** Medium - Nice-to-have improvement, helpful for support/troubleshooting
+
 ---
 
 ## Low Priority
 
-### 6. Developer Experience
+### 7. Developer Experience
 
 **TODO:** Improve development workflow:
 - Add `npm run dev` script with hot reload for Studio
@@ -148,7 +197,7 @@ studio/resources/
 - Add VS Code debug configurations (`.vscode/launch.json`)
 - Document contribution guidelines
 
-### 7. CI/CD Pipeline
+### 8. CI/CD Pipeline
 
 **TODO:** Automate quality checks:
 - GitHub Actions workflow for testing
