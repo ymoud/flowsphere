@@ -92,8 +92,8 @@ const ImportNodesModal = {
     // Add modal to DOM
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-    // Get modal element
-    this.modal = new bootstrap.Modal(document.getElementById('importNodesModal'));
+    // Get modal element with global configuration
+    this.modal = window.configureModal('importNodesModal');
   },
 
   /**

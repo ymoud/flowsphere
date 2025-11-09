@@ -409,7 +409,7 @@
 
         // Initialize Bootstrap modal
         const modalEl = document.getElementById(modalId);
-        const modal = new bootstrap.Modal(modalEl);
+        const modal = window.configureModal(modalEl);
 
         // Handle Run button
         document.getElementById('executeMockedNode').addEventListener('click', () => {
@@ -688,7 +688,7 @@
 
         // Initialize and show Bootstrap modal
         const modalEl = document.getElementById(modalId);
-        const modal = new bootstrap.Modal(modalEl);
+        const modal = window.configureModal(modalEl);
 
         // Add Re-engage Node button handler
         const reengageBtn = modalEl.querySelector('#reengageNode');
@@ -1079,7 +1079,7 @@
 
         // Initialize and show choice modal
         const choiceModalEl = document.getElementById(choiceModalId);
-        const choiceModal = new bootstrap.Modal(choiceModalEl);
+        const choiceModal = window.configureModal(choiceModalEl);
 
         // Replace button handler
         const replaceBtn = choiceModalEl.querySelector('#replaceSchemaBtn');

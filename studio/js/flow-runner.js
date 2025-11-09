@@ -3,6 +3,42 @@
  * Handles execution of flow sequences via the /api/execute-stream endpoint
  */
 
+/**
+ * Global Modal Configuration
+ * Centralized settings that all modals inherit
+ * Add global modal behaviors here and all modals will automatically inherit them
+ */
+window.FlowSphereModalConfig = {
+    // Prevent dismissal by clicking outside or pressing ESC
+    backdrop: 'static',
+    keyboard: false
+};
+
+/**
+ * Configure a Bootstrap modal with global settings
+ * @param {string|HTMLElement} modalElement - Modal element or selector
+ * @param {Object} customConfig - Optional custom configuration to override defaults
+ * @returns {bootstrap.Modal} Configured Bootstrap modal instance
+ */
+window.configureModal = function(modalElement, customConfig = {}) {
+    const element = typeof modalElement === 'string'
+        ? document.getElementById(modalElement) || document.querySelector(modalElement)
+        : modalElement;
+
+    if (!element) {
+        console.warn('[Modal Config] Modal element not found:', modalElement);
+        return null;
+    }
+
+    // Merge global config with custom config
+    const config = { ...window.FlowSphereModalConfig, ...customConfig };
+
+    // Get or create Bootstrap modal instance with config
+    const modalInstance = bootstrap.Modal.getOrCreateInstance(element, config);
+
+    return modalInstance;
+};
+
 // Store the last execution log and result for saving
 let lastExecutionLog = null;
 let lastExecutionResult = null;
@@ -420,9 +456,11 @@ function showExecutionModeSelector() {
     // Show delay selector if Auto-Step is selected
     updateDelaySelectorVisibility();
 
-    // Show modal
-    const bootstrapModal = bootstrap.Modal.getOrCreateInstance(modal);
-    bootstrapModal.show();
+    // Show modal with global configuration
+    const bootstrapModal = window.configureModal(modal);
+    if (bootstrapModal) {
+        bootstrapModal.show();
+    }
 }
 
 /**
@@ -968,9 +1006,11 @@ function showLoadingModal(totalSteps) {
     // Show progress indicator with loading state
     updateProgressIndicator('loading', 0, totalSteps);
 
-    // Show modal
-    const bootstrapModal = bootstrap.Modal.getOrCreateInstance(modal);
-    bootstrapModal.show();
+    // Show modal with global configuration
+    const bootstrapModal = window.configureModal(modal);
+    if (bootstrapModal) {
+        bootstrapModal.show();
+    }
 }
 
 /**
@@ -2010,7 +2050,7 @@ async function collectUserInputForStep(stepData) {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
         const modal = document.getElementById(modalId);
-        const bootstrapModal = new bootstrap.Modal(modal);
+        const bootstrapModal = window.configureModal(modal);
 
         let submittedInput = null;
 

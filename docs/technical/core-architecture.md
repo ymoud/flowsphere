@@ -296,10 +296,13 @@ When `flowsphere studio` is invoked, an Express server starts on port 3737 (conf
 - `main.js` - Initialization, core event handlers
 - `config-manager.js` - Load/save/reset config operations
 - `modals.js` - Modal dialog management (add node, edit defaults, etc.)
-- `flow-runner.js` - Live execution engine with SSE streaming
+- `flow-runner.js` - Live execution engine with SSE streaming (also contains global modal config)
 - `try-it-out.js` - Single node testing feature
 - `autocomplete.js` - Variable substitution autocomplete
 - `bootstrap-modal-bridge.js` - Bridge between vanilla JS and Bootstrap 5 modals
+
+**Modal System:**
+All Bootstrap modals use a centralized configuration system for consistent behavior. See **[Modal System Architecture](./modal-system.md)** for details.
 
 **Data Flow:**
 1. User interacts with UI (button click, form submit)
