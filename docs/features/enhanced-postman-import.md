@@ -302,8 +302,8 @@ Import from Postman ▼
 **Files to modify:**
 - `postman-tools/parse-postman.js` - Add environment file parsing
 
-**Future Enhancement:**
-FlowSphere could support multiple variable groups (similar to Postman environments) and allow users to select which group to use during execution. This would be a separate FlowSphere feature, not part of import.
+**Note on Multi-Environment Support:**
+FlowSphere supports multiple variable groups (environments) similar to Postman environments. See [Multi-Environment Variable Groups](multi-environment-variable-groups.md) feature for details on selecting which environment to use during execution.
 
 **Acceptance Criteria:**
 - ✅ Parse environment file and extract variables
@@ -361,11 +361,16 @@ FlowSphere could support multiple variable groups (similar to Postman environmen
 - ✅ Display auth conversions and extracted validations
 - ✅ Allow user to confirm or cancel
 
-## Future FlowSphere Enhancement (Not Import-Related):
-Support multiple variable groups in FlowSphere config (similar to Postman environments):
-- Add `variableGroups` section to config with named groups (dev, staging, prod)
-- Each group contains environment-specific variables (baseUrl, apiKey, etc.)
-- Allow users to select which group to use during execution
-- CLI: `flowsphere config.json --env=staging`
-- Studio: Dropdown to select environment before running
-- This is a core FlowSphere feature, not specific to import
+## Related Features
+
+### Multi-Environment Variable Groups
+FlowSphere supports multiple variable groups (environments) similar to Postman environments. When importing Postman collections with multiple environment files, each environment can be imported as a separate variable group.
+
+**Integration with Import:**
+- Import multiple Postman environment files → Multiple variable groups in FlowSphere config
+- Each Postman environment becomes a named group (dev, staging, production)
+- Select which environment to use during execution via CLI (`--env=staging`) or Studio dropdown
+
+➡️ See [Multi-Environment Variable Groups](multi-environment-variable-groups.md) for full feature specification
+
+This is a core FlowSphere feature that works seamlessly with Postman import, allowing you to import all your Postman environments at once and switch between them during execution.

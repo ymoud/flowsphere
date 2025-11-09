@@ -18,6 +18,7 @@ Features listed in priority order (highest to lowest):
 | 6 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
 | 7 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
 | 8 | OAuth Callback Capture (Studio) | Planned | [View Details](docs/features/oauth-callback-capture.md) |
+| 9 | Multi-Environment Variable Groups | Planned | [View Details](docs/features/multi-environment-variable-groups.md) |
 
 ### Completed & External Features
 
@@ -258,6 +259,70 @@ Automatically capture OAuth authorization codes and state parameters when OAuth 
 - Supports complex multi-step OAuth patterns
 
 ➡️ [Full Feature Specification](docs/features/oauth-callback-capture.md)
+
+---
+
+### 9. Multi-Environment Variable Groups
+
+**Status:** Planned
+
+Support multiple named variable groups (environments) in configs, allowing users to switch between dev, staging, and production variables without editing the config file.
+
+**Current Problem:**
+- Single `variables` section forces manual editing to switch environments
+- Must maintain duplicate config files for each environment
+- Risk of accidentally running against wrong environment
+- Tedious and error-prone for frequent environment switches
+
+**Solution:**
+- Define multiple named variable groups in config (`dev`, `staging`, `production`)
+- Select environment at runtime via CLI flag or Studio dropdown
+- Zero config editing when switching environments
+
+**Key Features:**
+- `variableGroups` config section with named environments
+- CLI: `flowsphere config.json --env=staging`
+- Studio: Dropdown to select environment before execution
+- `_common` group for shared variables across all environments
+- Variable inheritance: environment → common → legacy `variables`
+- Environment-specific execution logs
+- Production confirmation prompts for safety
+- Sensitive variable redaction (apiKey, secret, password, token)
+
+**Example Config:**
+```json
+{
+  "variableGroups": {
+    "_common": {
+      "apiVersion": "v2",
+      "timeout": 30
+    },
+    "dev": {
+      "baseUrl": "https://api.dev.example.com",
+      "apiKey": "dev-key"
+    },
+    "staging": {
+      "baseUrl": "https://api.staging.example.com",
+      "apiKey": "staging-key"
+    },
+    "production": {
+      "baseUrl": "https://api.example.com",
+      "apiKey": "prod-key",
+      "timeout": 120
+    }
+  },
+  "defaultEnvironment": "dev"
+}
+```
+
+**Benefits:**
+- One config for all environments
+- Safer execution (visual environment indicators)
+- Faster workflow development
+- Better git hygiene (no credential commits)
+- Backwards compatible with existing `variables` configs
+
+➡️ [Full Feature Specification](docs/features/multi-environment-variable-groups.md)
 
 ---
 
