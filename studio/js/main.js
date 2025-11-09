@@ -102,7 +102,9 @@ window.addEventListener('DOMContentLoaded', function() {
                     if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
 
                     // Auto-validate loaded config (silent mode - shows badge only)
-                    if (typeof validateConfig === 'function') {
+                    if (typeof validateConfig === 'function' &&
+                        typeof FeatureRegistry !== 'undefined' &&
+                        FeatureRegistry.isFeatureEnabled('config-validator')) {
                         validateConfig(true);
                     }
 
@@ -176,6 +178,22 @@ window.addEventListener('DOMContentLoaded', function() {
             // Enable/disable Load Config button
             if (typeof updateLoadConfigButtonState === 'function') {
                 updateLoadConfigButtonState('postman');
+            }
+        });
+    }
+
+    // Postman environment file input event listener
+    const postmanEnvFileInput = document.getElementById('postmanEnvironmentFile');
+    if (postmanEnvFileInput) {
+        postmanEnvFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const fileNameSpan = document.getElementById('postmanEnvFileName');
+            if (file && fileNameSpan) {
+                fileNameSpan.textContent = file.name;
+                fileNameSpan.style.color = '#059669';
+            } else if (fileNameSpan) {
+                fileNameSpan.textContent = 'Click to select environment file (optional)';
+                fileNameSpan.style.color = '';
             }
         });
     }

@@ -458,9 +458,17 @@ function parsePostmanCollection(collection, environment = null) {
     });
 
     // Build final config
-    return {
-        enableDebug: false,
-        defaults,
-        nodes
+    const config = {
+        enableDebug: false
     };
+
+    // Add variables section if environment was provided
+    if (environment && Object.keys(envVars).length > 0) {
+        config.variables = envVars;
+    }
+
+    config.defaults = defaults;
+    config.nodes = nodes;
+
+    return config;
 }

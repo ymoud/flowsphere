@@ -1338,7 +1338,9 @@ if (!window.confirmNewConfig) {
                         if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
 
                         // Auto-validate loaded config (silent mode - shows badge only)
-                        if (typeof validateConfig === 'function') {
+                        if (typeof validateConfig === 'function' &&
+                            typeof FeatureRegistry !== 'undefined' &&
+                            FeatureRegistry.isFeatureEnabled('config-validator')) {
                             validateConfig(true);
                         }
 
@@ -1381,51 +1383,79 @@ if (!window.confirmNewConfig) {
                     try {
                         const collection = JSON.parse(e.target.result);
 
-                        // Use parsePostmanCollection from postman-parser.js
-                        if (typeof parsePostmanCollection !== 'function') {
-                            hideLoader();
-                            alert('Postman parser not loaded');
-                            return;
-                        }
+                        // Check for environment file
+                        const envFileInput = document.getElementById('postmanEnvironmentFile');
+                        const envFile = envFileInput?.files[0];
 
-                        const parsedConfig = parsePostmanCollection(collection);
+                        // Function to parse with or without environment
+                        const parseAndLoad = function(environment) {
+                            // Use parsePostmanCollection from postman-parser.js
+                            if (typeof parsePostmanCollection !== 'function') {
+                                hideLoader();
+                                alert('Postman parser not loaded');
+                                return;
+                            }
 
-                        // Set config and filename
-                        config = parsedConfig;
-                        fileName = newFileName;
+                            const parsedConfig = parsePostmanCollection(collection, environment);
 
-                        // Update UI
-                        updateFileNameDisplay();
-                        saveToLocalStorage();
-                        renderEditor();
-                        updatePreview();
+                            // Set config and filename
+                            config = parsedConfig;
+                            fileName = newFileName;
 
-                        // Show Import Nodes button
-                        if (typeof updateImportNodesButton === 'function') {
-                            updateImportNodesButton();
-                        }
+                            // Update UI
+                            updateFileNameDisplay();
+                            saveToLocalStorage();
+                            renderEditor();
+                            updatePreview();
 
-                        // Show Validate button
-                        if (typeof updateValidateButton === 'function') {
-                            updateValidateButton();
-                        }
+                            // Show Import Nodes button
+                            if (typeof updateImportNodesButton === 'function') {
+                                updateImportNodesButton();
+                            }
 
-                        // Scroll JSON preview to top when creating new config
-                        if (typeof scrollJsonPreviewToTop === 'function') {
-                            scrollJsonPreviewToTop();
-                        }
+                            // Show Validate button
+                            if (typeof updateValidateButton === 'function') {
+                                updateValidateButton();
+                            }
 
-                        // Show file actions dropdown
-                        const fileActionsDropdown = document.getElementById('fileActionsDropdown');
-                        if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
+                            // Scroll JSON preview to top when creating new config
+                            if (typeof scrollJsonPreviewToTop === 'function') {
+                                scrollJsonPreviewToTop();
+                            }
 
-                        // Auto-validate loaded config (silent mode - shows badge only)
-                        if (typeof validateConfig === 'function') {
+                            // Show file actions dropdown
+                            const fileActionsDropdown = document.getElementById('fileActionsDropdown');
+                            if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
+
+                            // Auto-validate loaded config (silent mode - shows badge only)
+                        if (typeof validateConfig === 'function' &&
+                            typeof FeatureRegistry !== 'undefined' &&
+                            FeatureRegistry.isFeatureEnabled('config-validator')) {
                             validateConfig(true);
                         }
 
-                        // Hide loader
-                        hideLoader();
+                            // Hide loader
+                            hideLoader();
+                        };
+
+                        // If environment file is provided, read it first
+                        if (envFile) {
+                            const envReader = new FileReader();
+                            envReader.onload = function(envEvent) {
+                                try {
+                                    const environment = JSON.parse(envEvent.target.result);
+                                    parseAndLoad(environment);
+                                } catch (err) {
+                                    hideLoader();
+                                    alert('Error parsing environment file: ' + err.message);
+                                }
+                            };
+                            envReader.readAsText(envFile);
+                        } else {
+                            // No environment file, parse without it
+                            parseAndLoad(null);
+                        }
+
                     } catch (err) {
                         hideLoader();
                         alert('Error parsing Postman collection: ' + err.message);

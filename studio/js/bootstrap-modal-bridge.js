@@ -145,7 +145,9 @@ function confirmNewConfig() {
                 if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
 
                 // Auto-validate loaded config (silent mode - shows badge only)
-                if (typeof validateConfig === 'function') {
+                if (typeof validateConfig === 'function' &&
+                    typeof FeatureRegistry !== 'undefined' &&
+                    FeatureRegistry.isFeatureEnabled('config-validator')) {
                     validateConfig(true);
                 }
 
@@ -175,30 +177,54 @@ function confirmNewConfig() {
             try {
                 const collection = JSON.parse(e.target.result);
 
-                // Use parsePostmanCollection from postman-parser.js
-                if (typeof parsePostmanCollection !== 'function') {
-                    alert('Postman parser not loaded');
-                    return;
-                }
+                // Check for environment file
+                const envFileInput = document.getElementById('postmanEnvironmentFile');
+                const envFile = envFileInput?.files[0];
 
-                const parsedConfig = parsePostmanCollection(collection);
+                // Function to parse with or without environment
+                const parseAndLoad = function(environment) {
+                    // Use parsePostmanCollection from postman-parser.js
+                    if (typeof parsePostmanCollection !== 'function') {
+                        alert('Postman parser not loaded');
+                        return;
+                    }
 
-                // Set config and filename
-                config = parsedConfig;
-                fileName = newFileName;
+                    const parsedConfig = parsePostmanCollection(collection, environment);
 
-                // Close modal using Bootstrap API
-                const modalEl = document.getElementById('newConfigModal');
-                const modal = bootstrap.Modal.getInstance(modalEl);
-                if (modal) modal.hide();
-                updateFileNameDisplay();
-                saveToLocalStorage();
-                renderEditor();
-                updatePreview();
+                    // Set config and filename
+                    config = parsedConfig;
+                    fileName = newFileName;
 
-                // Show Import Nodes button
-                if (typeof updateImportNodesButton === 'function') {
-                    updateImportNodesButton();
+                    // Close modal using Bootstrap API
+                    const modalEl = document.getElementById('newConfigModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                    updateFileNameDisplay();
+                    saveToLocalStorage();
+                    renderEditor();
+                    updatePreview();
+
+                    // Show Import Nodes button
+                    if (typeof updateImportNodesButton === 'function') {
+                        updateImportNodesButton();
+                    }
+                };
+
+                // If environment file is provided, read it first
+                if (envFile) {
+                    const envReader = new FileReader();
+                    envReader.onload = function(envEvent) {
+                        try {
+                            const environment = JSON.parse(envEvent.target.result);
+                            parseAndLoad(environment);
+                        } catch (err) {
+                            alert('Error parsing environment file: ' + err.message);
+                        }
+                    };
+                    envReader.readAsText(envFile);
+                } else {
+                    // No environment file, parse without it
+                    parseAndLoad(null);
                 }
 
                 // Show Validate button
@@ -216,7 +242,9 @@ function confirmNewConfig() {
                 if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
 
                 // Auto-validate loaded config (silent mode - shows badge only)
-                if (typeof validateConfig === 'function') {
+                if (typeof validateConfig === 'function' &&
+                    typeof FeatureRegistry !== 'undefined' &&
+                    FeatureRegistry.isFeatureEnabled('config-validator')) {
                     validateConfig(true);
                 }
 
@@ -260,6 +288,19 @@ function resetLoadConfigModal() {
     if (postmanFileName) {
         postmanFileName.textContent = 'Click to select Postman collection file';
         postmanFileName.style.color = '';
+    }
+
+    // Clear Postman environment file input
+    const postmanEnvFileInput = document.getElementById('postmanEnvironmentFile');
+    if (postmanEnvFileInput) {
+        postmanEnvFileInput.value = '';
+    }
+
+    // Reset Postman environment file name display
+    const postmanEnvFileName = document.getElementById('postmanEnvFileName');
+    if (postmanEnvFileName) {
+        postmanEnvFileName.textContent = 'Click to select environment file (optional)';
+        postmanEnvFileName.style.color = '';
     }
 
     // Reset filename input to default

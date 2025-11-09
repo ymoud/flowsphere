@@ -247,7 +247,7 @@
 
                     <!-- Postman Import Section -->
                     <div id="postmanImportSection" class="alert alert-info" style="display: none;">
-                        <h6 class="alert-heading">Postman Collection File</h6>
+                        <h6 class="alert-heading">Postman Collection File (Required)</h6>
                         <input type="file" id="postmanCollectionFile" accept=".json" class="d-none">
                         <div class="border border-2 border-dashed rounded p-4 text-center bg-light cursor-pointer"
                              onclick="document.getElementById('postmanCollectionFile').click()"
@@ -258,14 +258,28 @@
                             <div id="postmanFileName" class="fw-semibold mb-1">Click to select Postman collection file</div>
                             <div class="small text-muted">or drag and drop .json file here</div>
                         </div>
+
+                        <h6 class="alert-heading mt-4">Environment File (Optional)</h6>
+                        <input type="file" id="postmanEnvironmentFile" accept=".json" class="d-none">
+                        <div class="border border-2 border-dashed rounded p-4 text-center bg-light cursor-pointer"
+                             onclick="document.getElementById('postmanEnvironmentFile').click()"
+                             style="cursor: pointer;">
+                            <div class="mb-2">
+                                <i class="bi bi-cloud-upload fs-3 text-muted"></i>
+                            </div>
+                            <div id="postmanEnvFileName" class="fw-semibold mb-1 text-muted">Click to select environment file (optional)</div>
+                            <div class="small text-muted">Resolves {{variables}} in collection</div>
+                        </div>
+
                         <div class="small mt-3">
-                            <strong>Collection requirements:</strong><br>
-                            • Valid Postman Collection v2.1 format (.json file)<br>
-                            • Use numeric prefixes (1., 2., 3., etc.) to order requests<br>
-                            • Include example responses for better dependency detection<br>
-                            • Environment variables will be resolved if possible<br>
+                            <strong>Features:</strong><br>
+                            ✅ Auto-detects numbered vs non-numbered collections<br>
+                            ✅ Extracts auth (Basic, Bearer, API Key) to headers<br>
+                            ✅ Mines validations from test scripts<br>
+                            ✅ Resolves environment variables<br>
+                            ✅ Supports all body modes (raw, formdata, urlencoded)<br>
                             <br>
-                            <strong>Note:</strong> This is a best-effort conversion. Complex collections may need manual adjustments.
+                            <strong>Note:</strong> Complex test scripts may need manual conversion.
                         </div>
                     </div>
                 </div>
