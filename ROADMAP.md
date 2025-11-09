@@ -17,6 +17,7 @@ Features listed in priority order (highest to lowest):
 | 5 | Enhanced Postman Import | Planned | [View Details](docs/features/enhanced-postman-import.md) |
 | 6 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
 | 7 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
+| 8 | OAuth Callback Capture (Studio) | Planned | [View Details](docs/features/oauth-callback-capture.md) |
 
 ### Completed & External Features
 
@@ -211,6 +212,52 @@ An **animated workflow storytelling tool** that turns API integrations into beau
 - Sharing workflows with non-technical people
 
 ➡️ [Full Feature Specification](docs/features/visual-workflow-storytelling-export.md)
+
+---
+
+### 8. OAuth Callback Capture (Studio)
+
+**Status:** Planned
+
+Automatically capture OAuth authorization codes and state parameters when OAuth providers redirect to FlowSphere Studio, eliminating manual copy-paste steps in OAuth flows.
+
+**Current Pain Points:**
+- Users must manually copy authorization codes from browser URL
+- Manual intervention breaks automation flow
+- Error-prone and tedious during development
+- Cannot run OAuth flows in automated tests
+
+**Solution:**
+- FlowSphere Studio backend acts as OAuth callback URL receiver
+- Automatically captures `code` and `state` parameters
+- Validates state for CSRF protection
+- Flow continues automatically after callback received
+- Zero manual intervention after browser authentication
+
+**Key Features:**
+- `{{ $studioCallbackUrl }}` dynamic variable for callback URL
+- `captureOAuthCallback` node configuration
+- Real-time SSE communication between server and client
+- State parameter validation for security
+- Timeout handling with clear error messages
+- Multi-session support for concurrent OAuth flows
+- Works with all major OAuth providers (Google, GitHub, Microsoft, etc.)
+
+**Example Flow:**
+1. Node 1: Get auth URL, configure callback to Studio
+2. Browser opens for user authentication
+3. Provider redirects to Studio: `http://localhost:PORT/oauth/callback?code=...&state=...`
+4. Studio captures parameters, validates state
+5. Flow continues automatically to token exchange node
+
+**Benefits:**
+- Fully automated OAuth flows
+- Better developer experience
+- Enables automated testing
+- Reduces errors from manual steps
+- Supports complex multi-step OAuth patterns
+
+➡️ [Full Feature Specification](docs/features/oauth-callback-capture.md)
 
 ---
 
