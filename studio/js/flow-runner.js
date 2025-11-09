@@ -19,10 +19,12 @@ let stopRequested = false; // Flag to track if user requested stop
 let currentExecutionId = null; // Track current execution to ignore old events
 let pendingPlaceholderResolve = null; // Resolve function for pending placeholder click
 
-// Execution mode (Phase 2: Step-by-Step)
-let executionMode = 'full-speed'; // 'full-speed' or 'step-by-step'
+// Execution mode (Phase 2: Step-by-Step, Phase 3: Auto-Step)
+let executionMode = 'full-speed'; // 'full-speed', 'step-by-step', or 'auto-step'
+let autoStepDelay = 3; // Delay in seconds for auto-step mode (default: 3s)
 let continueRequested = false; // Flag for step-by-step continue
 let pendingContinueResolve = null; // Resolve function for continue promise
+let countdownIntervalId = null; // Interval ID for countdown timer
 
 /**
  * Update Run Sequence button visibility based on config state
@@ -154,6 +156,12 @@ function clearResults() {
     continueRequested = false;
     pendingContinueResolve = null;
 
+    // Clear countdown timer if active
+    if (countdownIntervalId) {
+        clearInterval(countdownIntervalId);
+        countdownIntervalId = null;
+    }
+
     // Hide Continue button if visible
     hideContinueButton();
 
@@ -200,11 +208,18 @@ function stopExecution() {
         pendingPlaceholderResolve = null;
     }
 
-    // Resolve pending continue if waiting (Step-by-Step mode)
+    // Resolve pending continue if waiting (Step-by-Step or Auto-Step mode)
     if (pendingContinueResolve) {
-        console.log('[Flow Runner] Resolving pending continue in step-by-step mode');
+        console.log('[Flow Runner] Resolving pending continue in step-by-step/auto-step mode');
         pendingContinueResolve();
         pendingContinueResolve = null;
+    }
+
+    // Clear countdown timer if active (Auto-Step mode)
+    if (countdownIntervalId) {
+        console.log('[Flow Runner] Clearing countdown timer');
+        clearInterval(countdownIntervalId);
+        countdownIntervalId = null;
     }
 
     // Close any open input modal (userInputModal is the ID from collectUserInputForStep)
@@ -303,7 +318,7 @@ function showExecutionModeSelector() {
                                         </div>
                                     </label>
                                 </div>
-                                <div class="form-check p-3 border rounded execution-mode-option" style="cursor: pointer;">
+                                <div class="form-check mb-3 p-3 border rounded execution-mode-option" style="cursor: pointer;">
                                     <input class="form-check-input" type="radio" name="executionMode" id="modeStepByStep" value="step-by-step">
                                     <label class="form-check-label w-100" for="modeStepByStep" style="cursor: pointer;">
                                         <div class="d-flex align-items-start">
@@ -311,6 +326,29 @@ function showExecutionModeSelector() {
                                             <div>
                                                 <strong>Step-by-Step</strong>
                                                 <div class="small text-muted">Pause after each step for manual control (perfect for debugging)</div>
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="form-check p-3 border rounded execution-mode-option" style="cursor: pointer;">
+                                    <input class="form-check-input" type="radio" name="executionMode" id="modeAutoStep" value="auto-step">
+                                    <label class="form-check-label w-100" for="modeAutoStep" style="cursor: pointer;">
+                                        <div class="d-flex align-items-start">
+                                            <i class="bi bi-clock-history text-info fs-5 me-2"></i>
+                                            <div class="flex-grow-1">
+                                                <strong>Auto-Step</strong>
+                                                <div class="small text-muted">Auto-resume after configurable delay (hands-free debugging)</div>
+                                                <div class="mt-2" id="delaySelector" style="display: none;">
+                                                    <label class="form-label small mb-1">Delay between steps:</label>
+                                                    <select class="form-select form-select-sm" id="autoStepDelaySelect" onclick="event.stopPropagation()">
+                                                        <option value="1">1 second</option>
+                                                        <option value="2">2 seconds</option>
+                                                        <option value="3" selected>3 seconds</option>
+                                                        <option value="5">5 seconds</option>
+                                                        <option value="10">10 seconds</option>
+                                                        <option value="30">30 seconds</option>
+                                                    </select>
+                                                </div>
                                             </div>
                                         </div>
                                     </label>
@@ -341,16 +379,46 @@ function showExecutionModeSelector() {
             });
             option.addEventListener('click', () => {
                 option.querySelector('input[type="radio"]').checked = true;
+                updateDelaySelectorVisibility();
             });
+        });
+
+        // Add change listeners to radio buttons for delay selector visibility
+        document.querySelectorAll('input[name="executionMode"]').forEach(radio => {
+            radio.addEventListener('change', updateDelaySelectorVisibility);
         });
     }
 
-    // Load previously selected mode from localStorage
+    // Helper function to show/hide delay selector
+    function updateDelaySelectorVisibility() {
+        const delaySelector = document.getElementById('delaySelector');
+        const autoStepRadio = document.getElementById('modeAutoStep');
+        if (delaySelector && autoStepRadio) {
+            delaySelector.style.display = autoStepRadio.checked ? 'block' : 'none';
+        }
+    }
+
+    // Load previously selected mode and delay from localStorage
     const savedMode = localStorage.getItem('flowsphere-execution-mode') || 'full-speed';
-    const radioButton = document.getElementById(savedMode === 'step-by-step' ? 'modeStepByStep' : 'modeFullSpeed');
+    const savedDelay = localStorage.getItem('flowsphere-auto-step-delay') || '3';
+
+    const radioButton = document.getElementById(
+        savedMode === 'step-by-step' ? 'modeStepByStep' :
+        savedMode === 'auto-step' ? 'modeAutoStep' :
+        'modeFullSpeed'
+    );
     if (radioButton) {
         radioButton.checked = true;
     }
+
+    // Set saved delay
+    const delaySelect = document.getElementById('autoStepDelaySelect');
+    if (delaySelect) {
+        delaySelect.value = savedDelay;
+    }
+
+    // Show delay selector if Auto-Step is selected
+    updateDelaySelectorVisibility();
 
     // Show modal
     const bootstrapModal = bootstrap.Modal.getOrCreateInstance(modal);
@@ -365,8 +433,17 @@ function startFlowWithSelectedMode() {
     const selectedMode = document.querySelector('input[name="executionMode"]:checked').value;
     executionMode = selectedMode;
 
-    // Save to localStorage
+    // Save mode to localStorage
     localStorage.setItem('flowsphere-execution-mode', selectedMode);
+
+    // Get and save delay for Auto-Step mode
+    if (executionMode === 'auto-step') {
+        const delaySelect = document.getElementById('autoStepDelaySelect');
+        if (delaySelect) {
+            autoStepDelay = parseInt(delaySelect.value);
+            localStorage.setItem('flowsphere-auto-step-delay', delaySelect.value);
+        }
+    }
 
     // Close modal
     const modal = document.getElementById('executionModeModal');
@@ -378,6 +455,8 @@ function startFlowWithSelectedMode() {
     // Start execution based on mode
     if (executionMode === 'step-by-step') {
         runSequenceStepByStep();
+    } else if (executionMode === 'auto-step') {
+        runSequenceAutoStep();
     } else {
         runSequenceFullSpeed();
     }
@@ -592,27 +671,29 @@ async function runSequenceFullSpeed() {
                     console.log('[Flow Runner] input_required event received:', data);
 
                     // Set paused state and modal title BEFORE showing placeholder
+                    // Use data.step - 1 to show completed steps (this step is awaiting, not executed yet)
                     setModalTitle('<em>Flow</em> Paused', 'Awaiting User Calibration');
-                    updateProgressIndicator('paused', currentStep, totalSteps);
+                    updateProgressIndicator('paused', data.step - 1, totalSteps);
 
                     // Loop until user provides input or execution is stopped
                     let userInput = null;
+                    let firstAttempt = true;
                     while (!userInput && !stopRequested) {
                         console.log('[Flow Runner] Showing input placeholder for step:', data.step);
 
-                        // Show placeholder with "click to provide input" message
                         // Use data.step as the unique ID (not currentStep, to avoid double-counting)
-                        await showInputPendingPlaceholder(data, data.step, totalSteps);
-
-                        // Check if stop was requested while waiting for placeholder click
-                        if (stopRequested) {
-                            console.log('[Flow Runner] Stop requested after placeholder, before modal');
-                            break;
+                        if (firstAttempt) {
+                            // First attempt: show placeholder and auto-open modal
+                            showInputPendingPlaceholderNonBlocking(data, data.step, totalSteps);
+                            console.log('[Flow Runner] Auto-opening input modal...');
+                            firstAttempt = false;
+                        } else {
+                            // Subsequent attempts: wait for user to click placeholder
+                            await showInputPendingPlaceholder(data, data.step, totalSteps);
+                            console.log('[Flow Runner] Placeholder clicked, opening modal...');
                         }
 
-                        console.log('[Flow Runner] Collecting user input...');
-
-                        // Wait for user to click and provide input
+                        // Collect user input
                         userInput = await collectUserInputForStep(data);
 
                         console.log('[Flow Runner] User input received:', userInput ? 'yes' : 'no (modal closed)');
@@ -624,7 +705,7 @@ async function runSequenceFullSpeed() {
                         }
 
                         // If modal was closed without submitting (returns null), loop again
-                        // This allows user to reopen by clicking the placeholder
+                        // Next iteration will wait for user to click placeholder
                     }
 
                     // If execution was stopped, don't send input to server
@@ -1312,6 +1393,58 @@ function showInputPendingPlaceholder(stepData, stepNumber, totalSteps) {
 }
 
 /**
+ * Show a placeholder for a step waiting for user input (non-blocking version)
+ * Just shows the placeholder, doesn't wait for click
+ */
+function showInputPendingPlaceholderNonBlocking(stepData, stepNumber, totalSteps) {
+    const container = document.getElementById('flowStepsContainer');
+    if (!container) return;
+
+    // Check if placeholder already exists
+    let existingPlaceholder = document.getElementById(`step-${stepNumber}`);
+    if (existingPlaceholder) {
+        // Already shown, just make sure it's clickable
+        const btn = document.getElementById(`inputPendingBtn-${stepNumber}`);
+        if (btn) {
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+        }
+        return;
+    }
+
+    // Create placeholder
+    const placeholderHtml = `
+        <div class="step-card-animated mb-2" id="step-${stepNumber}">
+            <div class="d-flex align-items-center gap-2 py-3 px-3 bg-warning bg-opacity-10 border border-warning rounded cursor-pointer user-select-none"
+                 role="button"
+                 id="inputPendingBtn-${stepNumber}"
+                 style="cursor: pointer; transition: all 0.2s;">
+                <i class="bi bi-hand-index-thumb text-warning fs-5"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold">
+                        <i class="bi bi-pencil-square me-1"></i>
+                        ${escapeHtml(stepData.name)}
+                    </div>
+                    <div class="small text-muted mt-1">
+                        <i class="bi bi-info-circle me-1"></i>
+                        User input required
+                    </div>
+                </div>
+                <span class="badge bg-warning text-dark">Awaiting Input</span>
+            </div>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('afterbegin', placeholderHtml);
+
+    // Scroll to placeholder
+    const placeholder = document.getElementById(`step-${stepNumber}`);
+    if (placeholder) {
+        placeholder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+/**
  * Remove the input pending placeholder
  */
 function removeInputPendingPlaceholder(stepNumber) {
@@ -1726,6 +1859,87 @@ function highlightSubstitutionsInJSON(jsonObj, substitutions = []) {
     });
 
     return escapedParts.join('');
+}
+
+/**
+ * Show a clickable placeholder step card for a node that requires user input
+ * (Used by Step-by-Step and Auto-Step modes before showing input modal)
+ */
+function showInputRequiredPlaceholder(stepResult, stepNumber, totalSteps) {
+    const container = document.getElementById('flowStepsContainer');
+    if (!container) return;
+
+    // Check if step card already exists - if so, just make it clickable again
+    let existingStep = document.getElementById(`step-${stepNumber}`);
+    if (existingStep) {
+        // Update to clickable state
+        const btn = document.getElementById(`inputPendingBtn-${stepNumber}`);
+        if (btn) {
+            btn.style.cursor = 'pointer';
+            btn.style.pointerEvents = 'auto';
+        }
+        return;
+    }
+
+    // Create clickable step card showing the node requesting input
+    const placeholderHtml = `
+        <div class="step-card-animated mb-2" id="step-${stepNumber}">
+            <div class="d-flex align-items-center gap-2 py-3 px-3 bg-warning bg-opacity-10 border border-warning rounded cursor-pointer user-select-none"
+                 role="button"
+                 id="inputPendingBtn-${stepNumber}"
+                 style="cursor: pointer; transition: all 0.2s;">
+                <i class="bi bi-hand-index-thumb text-warning fs-5"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-bold">
+                        <i class="bi bi-pencil-square me-1"></i>
+                        ${escapeHtml(stepResult.name || `Step ${stepNumber}`)}
+                    </div>
+                    <div class="small text-muted mt-1">
+                        <i class="bi bi-info-circle me-1"></i>
+                        User input required. Click here when ready to provide input.
+                    </div>
+                </div>
+                <span class="badge bg-warning text-dark">Click to Continue</span>
+                <i class="bi bi-chevron-right ms-2"></i>
+            </div>
+        </div>
+    `;
+
+    container.insertAdjacentHTML('afterbegin', placeholderHtml);
+
+    // Scroll to placeholder
+    const placeholder = document.getElementById(`step-${stepNumber}`);
+    if (placeholder) {
+        placeholder.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+/**
+ * Wait for user to click the input placeholder (Step-by-Step and Auto-Step modes)
+ */
+function waitForPlaceholderClick() {
+    return new Promise((resolve) => {
+        // Store resolve function globally so stopExecution can unblock it
+        pendingPlaceholderResolve = resolve;
+
+        // Find all input pending buttons and add click handler
+        const buttons = document.querySelectorAll('[id^="inputPendingBtn-"]');
+        buttons.forEach(btn => {
+            btn.onclick = () => {
+                console.log('[Flow Runner] Input placeholder clicked');
+                pendingPlaceholderResolve = null;
+                resolve();
+            };
+
+            // Add hover effect
+            btn.onmouseenter = () => {
+                btn.style.backgroundColor = 'rgba(255, 193, 7, 0.2)';
+            };
+            btn.onmouseleave = () => {
+                btn.style.backgroundColor = '';
+            };
+        });
+    });
 }
 
 /**
@@ -2297,19 +2511,49 @@ async function runSequenceStepByStep() {
 
                 // Handle input required
                 if (stepResult.inputRequired) {
-                    // Collect user input
-                    const newInput = await collectUserInputForStep({
-                        executionId: `step-${i}`,
-                        stepIndex: i,
-                        step: stepNumber,
-                        name: stepResult.name || config.nodes[i].name,
-                        prompts: stepResult.prompts
-                    });
+                    // Update UI to show awaiting input state
+                    // Show completed steps count (this step is awaiting, not executed yet)
+                    setModalTitle('<em>Flow</em> Paused', 'Awaiting User Calibration');
+                    updateProgressIndicator('paused', i, totalStepsCount);
 
-                    if (stopRequested || !newInput) {
-                        console.log('[Flow Runner] Stop requested or input cancelled during input collection');
+                    // Loop until user provides input or stops execution
+                    let newInput = null;
+                    let firstAttempt = true;
+                    while (!newInput && !stopRequested) {
+                        if (firstAttempt) {
+                            // First attempt: show placeholder and auto-open modal
+                            showInputRequiredPlaceholder(stepResult, stepNumber, totalStepsCount);
+                            console.log('[Flow Runner] Auto-opening input modal...');
+                            firstAttempt = false;
+                        } else {
+                            // Subsequent attempts: wait for user to click placeholder
+                            await waitForPlaceholderClick();
+                            console.log('[Flow Runner] Placeholder clicked, opening modal...');
+                        }
+
+                        // Collect user input
+                        newInput = await collectUserInputForStep({
+                            executionId: `step-${i}`,
+                            stepIndex: i,
+                            step: stepNumber,
+                            name: stepResult.name || config.nodes[i].name,
+                            prompts: stepResult.prompts
+                        });
+
+                        // If modal was closed without submitting (returns null), loop again
+                        if (!newInput && !stopRequested) {
+                            console.log('[Flow Runner] Input modal closed without submitting, click placeholder when ready...');
+                        }
+                    }
+
+                    if (stopRequested) {
+                        console.log('[Flow Runner] Stop requested during input collection');
                         break;
                     }
+
+                    // Restore executing state after input collected
+                    setModalTitle('<em>Flow</em> in Motion', 'Executing nodes sequentially');
+                    updateProgressIndicator('running', stepNumber, totalStepsCount);
 
                     // Merge user input
                     userInput = { ...userInput, ...newInput };
@@ -2540,4 +2784,432 @@ function hideContinueButton() {
 
     if (continueBtn) continueBtn.style.display = 'none';
     if (nextStepPreview) nextStepPreview.style.display = 'none';
+}
+
+/**
+ * Run sequence in Auto-Step mode with automatic countdown between steps
+ * Phase 3 implementation
+ */
+async function runSequenceAutoStep() {
+    // Declare executionLog at function scope so catch block can access it
+    let executionLog = [];
+
+    try {
+        // Get current config from state
+        const config = getCurrentConfig();
+
+        if (!config || !config.nodes || config.nodes.length === 0) {
+            showAlert('error', 'No nodes to execute. Please add at least one node to your configuration.');
+            return;
+        }
+
+        // Validate config before execution
+        try {
+            const validationResponse = await fetch('/api/validate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ config: config })
+            });
+
+            if (!validationResponse.ok) {
+                throw new Error(`Validation request failed: ${validationResponse.statusText}`);
+            }
+
+            const validationResult = await validationResponse.json();
+
+            // If validation failed, show errors and abort execution
+            if (!validationResult.valid) {
+                console.log('[Flow Runner] Validation failed, aborting execution');
+
+                // Show validation modal with errors (non-silent mode)
+                if (typeof showConfigValidationResults === 'function') {
+                    showConfigValidationResults(validationResult);
+                } else {
+                    // Fallback: show basic alert
+                    const errorCount = validationResult.errors.length;
+                    showAlert('error', `Config validation failed with ${errorCount} error${errorCount > 1 ? 's' : ''}. Please fix the errors before running.`);
+                }
+                return; // Abort execution
+            }
+
+            console.log('[Flow Runner] Validation passed, proceeding with auto-step execution');
+        } catch (validationError) {
+            console.error('[Flow Runner] Validation error:', validationError);
+            showAlert('error', `Failed to validate config: ${validationError.message}`);
+            return; // Abort execution
+        }
+
+        // Reset state for new execution
+        currentStepNumber = 0;
+        totalStepsCount = config.nodes.length;
+        stopRequested = false;
+        continueRequested = false;
+        pendingContinueResolve = null;
+        countdownIntervalId = null;
+        executionLog = [];
+
+        // Hide post-execution buttons
+        hidePostExecutionButtons();
+
+        // Open modal immediately with loading state
+        showLoadingModal(config.nodes.length);
+
+        // Update to running state
+        updateRunButton('running');
+
+        // Show stop button and hide close button during execution
+        showStopButton();
+        hideCloseMonitorButton();
+
+        // Auto-step execution: call server endpoint for each step
+        const responses = [];
+        let userInput = {}; // Persistent across steps
+
+        for (let i = 0; i < config.nodes.length; i++) {
+            // Check if stop was requested
+            if (stopRequested) {
+                console.log('[Flow Runner] Stop requested at step', i + 1);
+                break;
+            }
+
+            const stepNumber = i + 1;
+            currentStepNumber = stepNumber;
+
+            // Call /api/execute-step endpoint for this single step
+            try {
+                const response = await fetch('/api/execute-step', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        config: config,
+                        stepIndex: i,
+                        responses: responses,
+                        userInput: userInput
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const stepResult = await response.json();
+
+                // Handle input required
+                if (stepResult.inputRequired) {
+                    // Update UI to show awaiting input state
+                    // Show completed steps count (this step is awaiting, not executed yet)
+                    setModalTitle('<em>Flow</em> Paused', 'Awaiting User Calibration');
+                    updateProgressIndicator('paused', i, totalStepsCount);
+
+                    // Loop until user provides input or stops execution
+                    let newInput = null;
+                    let firstAttempt = true;
+                    while (!newInput && !stopRequested) {
+                        if (firstAttempt) {
+                            // First attempt: show placeholder and auto-open modal
+                            showInputRequiredPlaceholder(stepResult, stepNumber, totalStepsCount);
+                            console.log('[Flow Runner] Auto-opening input modal...');
+                            firstAttempt = false;
+                        } else {
+                            // Subsequent attempts: wait for user to click placeholder
+                            await waitForPlaceholderClick();
+                            console.log('[Flow Runner] Placeholder clicked, opening modal...');
+                        }
+
+                        // Collect user input
+                        newInput = await collectUserInputForStep({
+                            executionId: `step-${i}`,
+                            stepIndex: i,
+                            step: stepNumber,
+                            name: stepResult.name || config.nodes[i].name,
+                            prompts: stepResult.prompts
+                        });
+
+                        // If modal was closed without submitting (returns null), loop again
+                        if (!newInput && !stopRequested) {
+                            console.log('[Flow Runner] Input modal closed without submitting, click placeholder when ready...');
+                        }
+                    }
+
+                    if (stopRequested) {
+                        console.log('[Flow Runner] Stop requested during input collection');
+                        break;
+                    }
+
+                    // Restore executing state after input collected
+                    setModalTitle('<em>Flow</em> in Motion', 'Executing nodes sequentially');
+                    updateProgressIndicator('running', stepNumber, totalStepsCount);
+
+                    // Merge user input
+                    userInput = { ...userInput, ...newInput };
+
+                    // Re-execute step with user input
+                    const retryResponse = await fetch('/api/execute-step', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            config: config,
+                            stepIndex: i,
+                            responses: responses,
+                            userInput: userInput
+                        })
+                    });
+
+                    if (!retryResponse.ok) {
+                        throw new Error(`HTTP error! status: ${retryResponse.status}`);
+                    }
+
+                    const retryResult = await retryResponse.json();
+                    Object.assign(stepResult, retryResult);
+                }
+
+                // Store response
+                if (stepResult.response) {
+                    responses.push({
+                        id: config.nodes[i].id,
+                        status: stepResult.response.status,
+                        body: stepResult.response.body
+                    });
+                }
+
+                // Add to execution log
+                executionLog.push(stepResult);
+
+                // Display step result
+                updateModalWithStep(stepResult, stepNumber, totalStepsCount);
+                updateProgressIndicator('running', stepNumber, totalStepsCount);
+
+                // Handle browser launch
+                if (stepResult.status === 'completed' && stepResult.launchBrowser && stepResult.response) {
+                    handleBrowserLaunch(stepResult);
+                }
+
+                // Check if step failed
+                if (stepResult.status === 'failed') {
+                    // Show error and stop
+                    lastExecutionLog = executionLog;
+                    lastExecutionResult = {
+                        success: false,
+                        stepsExecuted: i + 1,
+                        stepsSkipped: 0,
+                        stepsFailed: 1,
+                        executionLog: executionLog
+                    };
+
+                    updateRunButton('failed');
+                    updateProgressIndicator('failed', stepNumber, totalStepsCount);
+                    setModalTitle('<em>Flow</em> Interrupted', 'Integrity Check Required');
+                    hideStopButton();
+                    showCloseMonitorButton();
+                    showPostExecutionButtons(false);
+                    return;
+                }
+
+                // Pause with countdown (unless it's the last step)
+                if (i < config.nodes.length - 1) {
+                    // Show pause state with countdown
+                    updateProgressIndicator('paused', stepNumber, totalStepsCount);
+                    setModalTitle('<em>Flow</em> Paused', `Auto-continuing in ${autoStepDelay}s...`);
+
+                    // Show countdown button with next step preview
+                    showCountdownButton(stepNumber, config.nodes[i + 1], autoStepDelay);
+
+                    // Wait for countdown (or user clicking Continue Now)
+                    const userSkipped = await countdownAndWait(autoStepDelay);
+
+                    // Check if stop was requested during countdown
+                    if (stopRequested) {
+                        console.log('[Flow Runner] Stop requested during countdown');
+                        break;
+                    }
+
+                    // Hide countdown button and restore running state
+                    hideCountdownButton();
+                    setModalTitle('<em>Flow</em> in Motion', 'Executing nodes sequentially');
+                    updateProgressIndicator('running', stepNumber, totalStepsCount);
+                }
+
+            } catch (error) {
+                console.error('[Flow Runner] Step execution error:', error);
+
+                // Save partial log
+                lastExecutionLog = executionLog;
+                lastExecutionResult = {
+                    success: false,
+                    stepsExecuted: i,
+                    stepsSkipped: 0,
+                    stepsFailed: 1,
+                    executionLog: executionLog
+                };
+
+                updateRunButton('failed');
+                updateProgressIndicator('failed', stepNumber, totalStepsCount);
+                showExecutionError(error);
+                hideStopButton();
+                showCloseMonitorButton();
+                showPostExecutionButtons(false);
+                return;
+            }
+        }
+
+        // Save final execution log
+        lastExecutionLog = executionLog;
+        lastExecutionResult = {
+            success: !stopRequested,
+            stepsExecuted: executionLog.length,
+            stepsSkipped: 0,
+            stepsFailed: 0,
+            executionLog: executionLog
+        };
+
+        // Update final state
+        if (stopRequested) {
+            updateRunButton('stopped');
+            updateProgressIndicator('stopped', currentStepNumber, totalStepsCount);
+            const nextStep = currentStepNumber + 1;
+            setModalTitle('<em>Flow</em> Interrupted', currentStepNumber > 0
+                ? `User had second thoughts just before node ${nextStep} could be part of the <em>Flow</em>`
+                : `User had second thoughts...`);
+            showPostExecutionButtons(false);
+        } else {
+            updateRunButton('completed');
+            updateProgressIndicator('completed', totalStepsCount, totalStepsCount);
+            setModalTitle('<em>Flow</em> Complete', 'Precision Achieved');
+            showPostExecutionButtons(true);
+        }
+
+        hideStopButton();
+        showCloseMonitorButton();
+
+    } catch (error) {
+        console.error('[Flow Runner] Execution error:', error);
+        updateRunButton('failed');
+        updateProgressIndicator('failed', currentStepNumber, totalStepsCount);
+        showExecutionError(error);
+        showPostExecutionButtons(false);
+        hideStopButton();
+        showCloseMonitorButton();
+    }
+}
+
+/**
+ * Countdown and wait with auto-resume (Auto-Step mode)
+ * Returns true if user clicked "Continue Now", false if auto-resumed
+ */
+function countdownAndWait(seconds) {
+    return new Promise((resolve) => {
+        let remaining = seconds;
+
+        // Update countdown display
+        const updateCountdown = () => {
+            const countdownEl = document.getElementById('countdownTimer');
+            if (countdownEl) {
+                countdownEl.textContent = remaining;
+            }
+
+            const modalSubtitle = document.getElementById('resultsModalSubtitle');
+            if (modalSubtitle) {
+                modalSubtitle.textContent = `Auto-continuing in ${remaining}s...`;
+            }
+        };
+
+        // Initial update
+        updateCountdown();
+
+        // Store resolve function for "Continue Now" button
+        pendingContinueResolve = () => {
+            if (countdownIntervalId) {
+                clearInterval(countdownIntervalId);
+                countdownIntervalId = null;
+            }
+            pendingContinueResolve = null;
+            resolve(true); // User skipped countdown
+        };
+
+        // Start countdown
+        countdownIntervalId = setInterval(() => {
+            remaining--;
+
+            if (remaining <= 0) {
+                clearInterval(countdownIntervalId);
+                countdownIntervalId = null;
+                pendingContinueResolve = null;
+                resolve(false); // Auto-continued
+            } else {
+                updateCountdown();
+            }
+        }, 1000);
+    });
+}
+
+/**
+ * Show countdown button with "Continue Now" option
+ */
+function showCountdownButton(currentStep, nextNode, delay) {
+    const continueBtn = document.getElementById('continueStepBtn');
+    const nextStepPreview = document.getElementById('nextStepPreview');
+
+    // Create button if it doesn't exist
+    if (!continueBtn) {
+        const modalFooter = document.querySelector('#resultsModal .modal-footer');
+        if (modalFooter) {
+            const stopBtn = document.getElementById('stopExecutionBtn');
+            const continueBtnHtml = `
+                <div id="nextStepPreview" class="me-auto text-start small text-muted">
+                    <i class="bi bi-clock-history me-1"></i>
+                    <strong>Auto-continuing in <span id="countdownTimer">${delay}</span>s</strong>
+                    <div class="mt-1">
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        Next: <span id="nextStepName"></span>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-primary" id="continueStepBtn" onclick="continueToNextStep()">
+                    <i class="bi bi-skip-forward-circle"></i> Continue Now
+                </button>
+            `;
+
+            if (stopBtn) {
+                stopBtn.insertAdjacentHTML('beforebegin', continueBtnHtml);
+            } else {
+                modalFooter.insertAdjacentHTML('afterbegin', continueBtnHtml);
+            }
+        }
+    }
+
+    // Update next step preview and countdown
+    const nextStepNameEl = document.getElementById('nextStepName');
+    if (nextStepNameEl && nextNode) {
+        nextStepNameEl.textContent = nextNode.name || `${nextNode.method} ${nextNode.url}`;
+    }
+
+    const countdownEl = document.getElementById('countdownTimer');
+    if (countdownEl) {
+        countdownEl.textContent = delay;
+    }
+
+    // Show button and preview
+    const btn = document.getElementById('continueStepBtn');
+    const preview = document.getElementById('nextStepPreview');
+    if (btn) btn.style.display = 'inline-block';
+    if (preview) preview.style.display = 'block';
+}
+
+/**
+ * Hide countdown button
+ */
+function hideCountdownButton() {
+    // Clear countdown interval if active
+    if (countdownIntervalId) {
+        clearInterval(countdownIntervalId);
+        countdownIntervalId = null;
+    }
+
+    // Hide button
+    hideContinueButton();
 }
