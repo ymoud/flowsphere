@@ -103,8 +103,8 @@ function updateProgressIndicator(state, stepNumber, totalSteps) {
             progressBar.style.width = percentage + '%';
             if (progressSteps) progressSteps.textContent = `${stepNumber} / ${totalSteps}`;
         } else if (state === 'paused') {
-            progressIcon.innerHTML = '<i class="bi bi-pause-circle-fill text-warning fs-5"></i>';
-            progressBar.className = 'progress-bar bg-warning';
+            progressIcon.innerHTML = '<i class="bi bi-pause-circle-fill fs-5" style="color: var(--accent);"></i>';
+            progressBar.className = 'progress-bar bg-accent';
             const percentage = totalSteps > 0 ? (stepNumber / totalSteps * 100) : 0;
             progressBar.style.width = percentage + '%';
             if (progressSteps) progressSteps.textContent = `${stepNumber} / ${totalSteps}`;
@@ -347,8 +347,8 @@ function showExecutionModeSelector() {
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title" id="executionModeModalLabel">
-                                <i class="bi bi-sliders me-2"></i>
-                                Select Execution Mode
+                                <i class="bi bi-diagram-3 me-2"></i>
+                                Select Flow Dynamics
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
@@ -358,10 +358,10 @@ function showExecutionModeSelector() {
                                     <input class="form-check-input" type="radio" name="executionMode" id="modeFullSpeed" value="full-speed" checked>
                                     <label class="form-check-label w-100" for="modeFullSpeed" style="cursor: pointer;">
                                         <div class="d-flex align-items-start">
-                                            <i class="bi bi-lightning-fill text-primary fs-5 me-2"></i>
+                                            <i class="bi bi-lightning-charge-fill fs-5 me-2" style="color: var(--text-primary);"></i>
                                             <div>
-                                                <strong>Full Speed</strong>
-                                                <div class="small text-muted">Run all steps continuously without stopping</div>
+                                                <strong>Full Throttle</strong>
+                                                <div class="small text-muted">Run all nodes continuously — pure Flow Motion.</div>
                                             </div>
                                         </div>
                                     </label>
@@ -370,10 +370,10 @@ function showExecutionModeSelector() {
                                     <input class="form-check-input" type="radio" name="executionMode" id="modeStepByStep" value="step-by-step">
                                     <label class="form-check-label w-100" for="modeStepByStep" style="cursor: pointer;">
                                         <div class="d-flex align-items-start">
-                                            <i class="bi bi-pause-circle text-warning fs-5 me-2"></i>
+                                            <i class="bi bi-bullseye fs-5 me-2" style="color: var(--text-primary);"></i>
                                             <div>
-                                                <strong>Step-by-Step</strong>
-                                                <div class="small text-muted">Pause after each step for manual control (perfect for debugging)</div>
+                                                <strong>Precision Mode</strong>
+                                                <div class="small text-muted">Engage each node manually — ideal for calibration or debugging.</div>
                                             </div>
                                         </div>
                                     </label>
@@ -382,10 +382,10 @@ function showExecutionModeSelector() {
                                     <input class="form-check-input" type="radio" name="executionMode" id="modeAutoStep" value="auto-step">
                                     <label class="form-check-label w-100" for="modeAutoStep" style="cursor: pointer;">
                                         <div class="d-flex align-items-start">
-                                            <i class="bi bi-clock-history text-info fs-5 me-2"></i>
+                                            <i class="bi bi-stopwatch fs-5 me-2" style="color: var(--text-primary);"></i>
                                             <div class="flex-grow-1">
-                                                <strong>Auto-Step</strong>
-                                                <div class="small text-muted">Auto-resume after configurable delay (hands-free debugging)</div>
+                                                <strong>Automation with rhythm</strong>
+                                                <div class="small text-muted">Auto-resume after configurable delay — hands-free debugging.</div>
                                                 <div class="mt-2" id="delaySelector" style="display: none;">
                                                     <label class="form-label small mb-1">Delay between steps:</label>
                                                     <select class="form-select form-select-sm" id="autoStepDelaySelect" onclick="event.stopPropagation()">
@@ -406,7 +406,7 @@ function showExecutionModeSelector() {
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                             <button type="button" class="btn btn-success" onclick="startFlowWithSelectedMode()">
-                                <i class="bi bi-water"></i> Start <em>Flow</em>
+                                <i class="bi bi-play-fill"></i> Engage Flow
                             </button>
                         </div>
                     </div>
@@ -1675,22 +1675,21 @@ function createResultsModal() {
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header flex-column align-items-stretch">
-                        <!-- First row: Icon + Title on left, Progress bar on right, Close button -->
-                        <div class="d-flex align-items-center w-100">
-                            <div class="d-flex align-items-center gap-2">
-                                <span id="progressIcon"></span>
-                                <h5 class="modal-title mb-0" id="resultsModalLabel">Flow Monitor</h5>
-                            </div>
-                            <div class="d-flex align-items-center gap-3 flex-grow-1 mx-3" id="progressBarContainer" style="display: none;">
-                                <div class="flex-grow-1">
-                                    <div class="progress" style="height: 8px;">
-                                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-                                    </div>
+                        <!-- Row 1: Progress bar (full width) -->
+                        <div class="d-flex align-items-center gap-3 w-100" id="progressBarContainer" style="display: none;">
+                            <div class="flex-grow-1">
+                                <div class="progress" style="height: 8px;">
+                                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
                                 </div>
-                                <span id="progressSteps" class="text-muted small"></span>
                             </div>
+                            <span id="progressSteps" class="text-muted small"></span>
                         </div>
-                        <!-- Second row: Subtitle (full width) -->
+                        <!-- Row 2: Icon + Title (full width) -->
+                        <div class="d-flex align-items-center w-100 mt-2">
+                            <span id="progressIcon"></span>
+                            <h5 class="modal-title mb-0 ms-2" id="resultsModalLabel">Flow Monitor</h5>
+                        </div>
+                        <!-- Row 3: Subtitle (full width) -->
                         <div class="text-muted small mt-1" id="resultsModalSubtitle" style="display: none;"></div>
                     </div>
                     <div class="modal-body" id="resultsModalBody" style="height: 60vh; overflow-y: auto;">
@@ -2708,7 +2707,7 @@ async function runSequenceStepByStep() {
                 if (i < config.nodes.length - 1) {
                     // Show pause state
                     updateProgressIndicator('paused', stepNumber, totalStepsCount);
-                    setModalTitle('<em>Flow</em> Paused', `Step ${stepNumber} Complete - Awaiting Manual Continue`);
+                    setModalTitle('<em>Flow</em> Paused — Awaiting Manual Continue', 'Precision in motion — your flow awaits command.');
 
                     // Show Continue button
                     showContinueButton(stepNumber, config.nodes[i + 1]);
@@ -2864,8 +2863,9 @@ function hideContinueButton() {
     const continueBtn = document.getElementById('continueStepBtn');
     const nextStepPreview = document.getElementById('nextStepPreview');
 
-    if (continueBtn) continueBtn.style.display = 'none';
-    if (nextStepPreview) nextStepPreview.style.display = 'none';
+    // Remove elements completely so they get recreated fresh each time
+    if (continueBtn) continueBtn.remove();
+    if (nextStepPreview) nextStepPreview.remove();
 }
 
 /**
@@ -3109,7 +3109,7 @@ async function runSequenceAutoStep() {
                 if (i < config.nodes.length - 1) {
                     // Show pause state with countdown
                     updateProgressIndicator('paused', stepNumber, totalStepsCount);
-                    setModalTitle('<em>Flow</em> Paused', `Auto-continuing in ${autoStepDelay}s...`);
+                    setModalTitle(`<em>Flow</em> Paused — Auto-continuing in ${autoStepDelay}s`, 'Automation with rhythm — each step engineered for flow.');
 
                     // Show countdown button with next step preview
                     showCountdownButton(stepNumber, config.nodes[i + 1], autoStepDelay);
@@ -3207,9 +3207,10 @@ function countdownAndWait(seconds) {
                 countdownEl.textContent = remaining;
             }
 
-            const modalSubtitle = document.getElementById('resultsModalSubtitle');
-            if (modalSubtitle) {
-                modalSubtitle.textContent = `Auto-continuing in ${remaining}s...`;
+            // Update modal title with countdown while keeping tagline in subtitle
+            const modalTitle = document.getElementById('resultsModalLabel');
+            if (modalTitle) {
+                modalTitle.innerHTML = `<em>Flow</em> Paused — Auto-continuing in ${remaining}s`;
             }
         };
 
@@ -3259,12 +3260,12 @@ function showCountdownButton(currentStep, nextNode, delay) {
                     <i class="bi bi-clock-history me-1"></i>
                     <strong>Auto-continuing in <span id="countdownTimer">${delay}</span>s</strong>
                     <div class="mt-1">
-                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        <i class="bi bi-diagram-3 me-1"></i>
                         Next: <span id="nextStepName"></span>
                     </div>
                 </div>
                 <button type="button" class="btn btn-primary" id="continueStepBtn" onclick="continueToNextStep()">
-                    <i class="bi bi-skip-forward-circle"></i> Continue Now
+                    <i class="bi bi-play-fill"></i> Continue Now
                 </button>
             `;
 

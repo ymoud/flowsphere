@@ -1,169 +1,93 @@
-# 🎛️ Flow Execution Mode — Branding Prompt (Sonnet 4.5, Motion & Interaction Spec)
+# 🎛️ Flow Execution Mode — Branding Prompt (Sonnet 4.5, Updated)
 
 ## 💡 Purpose
-To brand the **Flow Execution Modal** during **Step-by-Step** and **Auto-Step** modes, aligning with FlowSphere’s identity of **industrial precision**, **mechanical rhythm**, and **controlled flow**.
+
+To brand the **Execution Mode Selector Modal** in alignment with **API FlowSphere's** industrial precision, motion, and control ethos, now including the new **Auto-Step** mode.
 
 ---
 
 ## 🧭 Modal Title
-**Title:** `Flow Paused`
-**Icon:** `bi-pause-circle`
+
+**Title:** `Select Flow Dynamics`
+**Icon:** `bi-diagram-3`
 
 **Description:**
-> Indicates a temporary precision state — the flow awaits user command or automated continuation.
+
+> Invites the user to choose between three execution dynamics — continuous motion, calibrated precision, or timed automation.
 
 ---
 
-## 🧩 Step-by-Step Mode (Manual Precision)
-**Header Line:**
-> `Flow Paused — Awaiting Manual Continue`
+## ⚡ Option 1 — Full Throttle
 
-**Tagline:**
-> “Precision in motion — your flow awaits command.”
+**Label:** `Full Throttle`
+**Subtext:** `Run all nodes continuously — pure Flow Motion.`
+**Icon:** `bi-lightning-charge-fill`
 
-**Visual & Behavior Notes:**
-- **Header Accent Bar:** Accent color `#FF4C29` animates subtly when paused.
-- **Primary Button:** `Continue to Next Step`  
-  - Color: Calm blue (`#0D6EFD`)
-  - Icon: `bi-play-circle`
-  - Tooltip: “Engage next node.”
-- **Secondary Button:** `Interrupt the Flow`  
-  - Color: Red accent (`#DC3545`)
-  - Icon: `bi-stop-circle`
-  - Tooltip: “Abort current sequence safely.”
-
-**User Input Card:**
-- Label: `Node Calibration Required`
-- Subtext: “User input required. Click here when ready to provide data.”
-- Icon: `bi-pencil-square`
-- Button: `Click to Continue`
-- Tooltip: “Apply and engage the next node.”
+**Tooltip (optional):** “Flow unleashed.”
 
 ---
 
-## ⏱️ Auto-Step Mode (Rhythmic Automation)
-**Header Line:**
-> `Flow Paused — Auto-continuing in {n}s`
+## 🧩 Option 2 — Precision Mode
 
-**Tagline:**
-> “Automation with rhythm — each step engineered for flow.”
+**Label:** `Precision Mode`
+**Subtext:** `Engage each node manually — ideal for calibration or debugging.`
+**Icon:** `bi-bullseye`
 
-**Visual & Behavior Notes:**
-- **Countdown Indicator:** Pulses gently with each second.
-- **Primary Button:** `Continue Now`  
-  - Icon: `bi-play-fill`
-  - Tooltip: “Skip interval and proceed immediately.”
-- **Secondary Button:** `Interrupt the Flow`  
-  - Icon: `bi-stop-circle`
-  - Tooltip: “Halt automation and regain control.”
-- **Next Node Preview:** `Next: Get User Profile (Using Global Variable)`  
-  Icon: `bi-diagram-3`
+**Tooltip (optional):** “Engineering in motion.”
 
 ---
 
-## 🧠 Branding Voice & Microcopy
-- “Awaiting your signal.”
-- “Automation in cadence.”
-- “Flow paused for calibration.”
-- “Step complete — ready for next.”
+## ⏱️ Option 3 — Auto-Step
+
+**Label:** `Auto-Step`
+**Subtext:** `Auto-resume after configurable delay — hands-free debugging.`
+**Icon:** `bi-stopwatch`
+**Control Element:** Input for interval (e.g., `5 seconds`).
+
+**Tooltip (optional):** “Automation with rhythm.”
+
+**Behavior Notes:**
+
+* User sets delay duration between steps (1–30 seconds recommended).
+* During execution, allow **“Skip Interval”** option to proceed immediately.
+* Use subtle ticking animation or pulsating icon to reflect countdown.
 
 ---
 
-# 🎞️ Motion & Interaction Specification
+## 🌀 Action Button
 
-## 🌀 1. Progress Bar Animation
-**Behavior:**
-- **Full Throttle:** Smooth continuous fill (linear motion).
-- **Step-by-Step:** Animates per node (0.8s forward ease).
-- **Auto-Step:** Pulses rhythmically with countdown.
-
-```css
-.progress-bar {
-  height: 4px;
-  background-color: #FF4C29;
-  transition: width 0.8s ease-in-out;
-}
-
-.progress-bar.pulse {
-  animation: flowPulse 1s infinite ease-in-out;
-}
-
-@keyframes flowPulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
-}
-```
-🧭 *Effect:* Feels like energy circulating through the system.
+**Text:** `Engage Flow`
+**Icon:** `bi-play-fill`
+**Tooltip:** `Initiate execution with selected dynamics.`
 
 ---
 
-## ⏱️ 2. Countdown Pulse (Auto-Step)
-**Behavior:** Countdown number pulses each second with accent glow.
+## 🗨 Voice & Tone
 
-```css
-.auto-countdown {
-  color: #FF4C29;
-  font-weight: 600;
-  animation: countdownPulse 1s infinite ease-in-out;
-}
+Maintain **technical confidence** and **mechanical precision**:
 
-@keyframes countdownPulse {
-  0%, 100% { text-shadow: 0 0 4px #FF4C29; }
-  50% { text-shadow: 0 0 10px #FF4C29; }
-}
-```
-🧩 *Effect:* Conveys calm, rhythmic automation — not urgency.
+* “Choose your flow dynamics.”
+* “Control, calibrate, or automate — your choice.”
+* “Engineering meets motion.”
 
 ---
 
-## ⚙️ 3. Node Completion Feedback
-**Behavior:**
-- Node border flashes with success color on completion.
-- Checkmark (`bi-check-circle-fill`) fades in.
+## 🧠 Interaction Behavior (Optional Flavor)
 
-```css
-.node-card.completed {
-  border-color: #28A745;
-  box-shadow: 0 0 6px rgba(40, 167, 69, 0.4);
-  transition: border-color 0.3s, box-shadow 0.3s;
-}
-```
+* **Full Throttle:** Tagline → “Flow unleashed.”
+* **Precision Mode:** Tagline → “Engineering in motion.”
+* **Auto-Step:** Tagline → “Automation with rhythm.”
 
 ---
 
-## 🎛️ 4. Button Motion Feedback
-| Button | Animation | Branding Purpose |
-|--------|------------|------------------|
-| **Continue to Next Step** | slight scale-up (1.03x) + glow | Encourages precise action |
-| **Interrupt the Flow** | subtle shake | Signals caution |
-| **Continue Now** | pulse synced with countdown | Reflects timing awareness |
+## 🧱 Visual Integration Notes
 
-```css
-button.primary:hover {
-  transform: scale(1.03);
-  box-shadow: 0 0 10px rgba(255, 76, 41, 0.4);
-}
-
-button.danger:hover {
-  animation: shake 0.3s ease-in-out;
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-3px); }
-  75% { transform: translateX(3px); }
-}
-```
-
----
-
-## 🧩 Motion Principles
-- **Mechanical Precision:** No chaotic effects — controlled transitions only.
-- **Energy Flow:** Use pulses, not flashes.
-- **Temporal Clarity:** Every animation conveys a meaningful state.
+* Buttons rounded (6px) with subtle accent border (`#FF4C29`) on focus.
+* Icons animate subtly on hover (rotation, pulse, or ticking for Auto-Step).
+* Modal background respects dark theme tone (`#121826`).
 
 ---
 
 ### ✨ Summary
-The **Flow Execution Modal** merges **manual precision** with **automated rhythm**, bringing FlowSphere’s kinetic identity to life.  
-Animations emphasize clarity, motion, and control — every pulse and glow part of a precise mechanical symphony.
+
+**Select Flow Dynamics** now includes the **Auto-Step** mode — bridging precision and automation with rhythmic control. It embodies FlowSphere’s brand: structured, confident, and kinetic.

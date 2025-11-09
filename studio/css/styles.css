@@ -1705,6 +1705,11 @@ textarea.form-control {
     color: var(--text-primary);
 }
 
+/* Progress bar styling - paused state uses accent color */
+#resultsModal .progress-bar.bg-accent {
+    background-color: var(--accent) !important;
+}
+
 /* Animated step cards appearing */
 .step-card-animated {
     animation: slideInFromTop 0.3s ease-out;
