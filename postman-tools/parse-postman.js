@@ -207,6 +207,17 @@ function extractValidationsFromTests(events) {
         });
     }
 
+    // Track variable assignments that reference pm.response.json()
+    // Matches: const varName = pm.response.json()
+    const responseVars = new Set();
+    const varAssignments = scriptCode.match(/(?:const|let|var)\s+(\w+)\s*=\s*pm\.response\.json\(\)/g);
+    if (varAssignments) {
+        varAssignments.forEach(assignment => {
+            const varName = assignment.match(/(?:const|let|var)\s+(\w+)/)[1];
+            responseVars.add(varName);
+        });
+    }
+
     // Extract field existence checks
     // Matches: pm.response.json().fieldName
     const fieldMatches = scriptCode.match(/pm\.response\.json\(\)\.(\w+)/g);
@@ -216,6 +227,40 @@ function extractValidationsFromTests(events) {
             const field = match.replace('pm.response.json().', '');
             validations.push({ jsonpath: `.${field}`, exists: true });
         });
+    }
+
+    // Extract pm.expect() patterns with direct response reference
+    // Matches: pm.expect(pm.response.json().field).to.eql(value)
+    const directExpectMatches = scriptCode.match(/pm\.expect\(pm\.response\.json\(\)\.(\w+)\)\.to\.eql\(['"]([^'"]+)['"]\)/g);
+    if (directExpectMatches) {
+        directExpectMatches.forEach(match => {
+            const parts = match.match(/pm\.expect\(pm\.response\.json\(\)\.(\w+)\)\.to\.eql\(['"]([^'"]+)['"]\)/);
+            if (parts) {
+                const field = parts[1];
+                const expectedValue = parts[2];
+                validations.push({
+                    jsonpath: `.${field}`,
+                    equals: expectedValue
+                });
+            }
+        });
+    }
+
+    // Extract pm.expect() patterns with variable reference
+    // Matches: pm.expect(varName.field).to.eql(value)
+    if (responseVars.size > 0) {
+        const varPattern = Array.from(responseVars).join('|');
+        const regex = new RegExp(`pm\\.expect\\((${varPattern})\\.(\\w+)\\)\\.to\\.eql\\(['\"]([^'"]+)['\"]\\)`, 'g');
+
+        let match;
+        while ((match = regex.exec(scriptCode)) !== null) {
+            const field = match[2];
+            const expectedValue = match[3];
+            validations.push({
+                jsonpath: `.${field}`,
+                equals: expectedValue
+            });
+        }
     }
 
     return validations;

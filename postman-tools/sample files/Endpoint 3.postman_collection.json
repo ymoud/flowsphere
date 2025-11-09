@@ -1,0 +1,815 @@
+{
+	"info": {
+		"_postman_id": "5e0c4d8a-bc8a-4392-a1b0-24d230e886e0",
+		"name": "Endpoint 3",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "4965743",
+		"_collection_link": "https://www.postman.com/interstellar-equinox-48747/dummy-api-testing/collection/5vleygi/endpoint-3?action=share&source=collection_link&creator=4965743"
+	},
+	"item": [
+		{
+			"name": "3.01",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Status: Success\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.status).to.eql('success');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee Name equals 'test'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.name).to.eql('test');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee salary equals '123'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.salary).to.eql('123');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee age equals '23'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.age).to.eql('23');\r",
+							"});\r",
+							"\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"test\",\r\n    \"salary\":\"123\",\r\n    \"age\":\"23\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.02",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Status: Success\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.status).to.eql('success');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee Name equals 'Tiger Nixon'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.name).to.eql('Tiger Nixon');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee salary equals '320800'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.salary).to.eql('320800');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee age equals '61'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.age).to.eql('61');\r",
+							"});\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"Tiger Nixon\",\r\n    \"salary\":\"320800\",\r\n    \"age\":\"61\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.03",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Status: Success\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.status).to.eql('success');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee Name equals 'test'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.name).to.eql('test');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee salary equals '123'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.salary).to.eql('123');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee age equals '23'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.age).to.eql('23');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee id equals '102'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.id).to.eql('102');\r",
+							"});\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"test\",\r\n    \"salary\":\"123\",\r\n    \"age\":\"23\",\r\n    \"id\":\"25\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.04",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Status: Success\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.status).to.eql('success');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee Name equals 'test'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.name).to.eql('test');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee salary equals '123'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.salary).to.eql('123');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee age equals '23'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.age).to.eql('23');\r",
+							"});\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"test\",\r\n    \"salary\":\"123\",\r\n    \"age\":\"23\",\r\n    \"employee_picture\":\"\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.05",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Status: Success\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.status).to.eql('success');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee Name equals 'test'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.name).to.eql('test');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee salary equals '123'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.salary).to.eql('123');\r",
+							"});\r",
+							"\r",
+							"\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"test\",\r\n    \"salary\":\"123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.06",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Status: Success\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.status).to.eql('success');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee Name equals 'test'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.name).to.eql('test');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee salary equals 'fifty thousand'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.salary).to.eql('fifty thousand');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee age equals 'twenty-three'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.age).to.eql('twenty-three');\r",
+							"});\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"test\",\r\n    \"salary\":\"fifty thousand\",\r\n    \"age\":\"twenty-three\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.07",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Status: Success\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.status).to.eql('success');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee Name equals '5678'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.name).to.eql('5678');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee salary equals '123'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.salary).to.eql('123');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee age equals '23'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.age).to.eql('23');\r",
+							"});\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"5678\",\r\n    \"salary\":\"123\",\r\n    \"age\":\"23\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.08",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Status: Success\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.status).to.eql('success');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee Name equals 'test'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.name).to.eql('test');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee salary equals '123'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.salary).to.eql('123');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee age equals '23'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.age).to.eql('23');\r",
+							"});\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"salary\":\"123\",\r\n    \"name\":\"test\",\r\n    \"age\":\"23\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.09",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Status: Success\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.status).to.eql('success');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee Name equals ''\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.name).to.eql('');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee salary equals '123'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.salary).to.eql('123');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee age equals '23'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.age).to.eql('23');\r",
+							"});\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"\",\r\n    \"salary\":\"123\",\r\n    \"age\":\"23\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.10",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Status: Success\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.status).to.eql('success');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee Name equals '$@N3'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.name).to.eql('$@N3');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee salary equals '123'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.salary).to.eql('123');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check for Employee age equals '23'\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    const employees = jsonData.data;\r",
+							"    pm.expect(employees.age).to.eql('23');\r",
+							"});\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\":\"$@N3\",\r\n    \"salary\":\"123\",\r\n    \"age\":\"23\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.11",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 405: Method Not Allowed\", function () {\r",
+							"    pm.response.to.have.status(405);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "name",
+							"value": "test",
+							"type": "text"
+						},
+						{
+							"key": "salary",
+							"value": "123",
+							"type": "text"
+						},
+						{
+							"key": "age",
+							"value": "23",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3.12",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {\r",
+							"    pm.response.to.have.status(200);\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Status: Success\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.status).to.eql('success');\r",
+							"});\r",
+							"\r",
+							"pm.test(\"Check Response Data: null\", () =>  {\r",
+							"    const jsonData = pm.response.json();\r",
+							"    pm.expect(jsonData.data).to.eql(null);\r",
+							"});\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dummy.restapiexample.com/api/v1/create",
+					"protocol": "https",
+					"host": [
+						"dummy",
+						"restapiexample",
+						"com"
+					],
+					"path": [
+						"api",
+						"v1",
+						"create"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
