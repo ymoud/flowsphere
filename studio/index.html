@@ -188,12 +188,27 @@
                         <div class="form-text">The name for your configuration file</div>
                     </div>
 
-                    <!-- Section A: Start from Scratch -->
-                    <div class="mb-4">
-                        <h6 class="fw-bold text-uppercase mb-3">
-                            <i class="bi bi-bricks"></i> Start from Scratch
-                        </h6>
-                        <p class="small text-muted mb-3">Create a FlowSphere configuration from a template</p>
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="templates-tab" data-bs-toggle="tab"
+                                    data-bs-target="#templates" type="button" role="tab">
+                                <i class="bi bi-bricks me-1"></i> Start from Scratch
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="import-tab" data-bs-toggle="tab"
+                                    data-bs-target="#import" type="button" role="tab">
+                                <i class="bi bi-box-arrow-in-down me-1"></i> Import Configuration
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content">
+                        <!-- Tab 1: Start from Scratch -->
+                        <div class="tab-pane fade show active" id="templates" role="tabpanel">
+                            <p class="small text-muted mb-3">Create a FlowSphere configuration from a template</p>
 
                         <!-- Empty Template -->
                         <div class="card mb-2 template-option" onclick="selectTemplate('empty', this)">
@@ -246,25 +261,19 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                        </div>
 
-                    <!-- Divider -->
-                    <hr class="my-4">
-
-                    <!-- Section B: Import Configuration -->
-                    <div class="mb-4">
-                        <h6 class="fw-bold text-uppercase mb-3">
-                            <i class="bi bi-box-arrow-in-down"></i> Import Configuration
-                        </h6>
-                        <p class="small text-muted mb-3">Load an existing FlowSphere config file or Postman collection</p>
+                        <!-- Tab 2: Import Configuration -->
+                        <div class="tab-pane fade" id="import" role="tabpanel">
+                            <p class="small text-muted mb-3">Load an existing FlowSphere config file or Postman collection</p>
 
                         <!-- FlowSphere JSON Config -->
-                        <div class="card mb-2 template-option selected" onclick="selectTemplate('flowsphere-json', this)">
+                        <div class="card mb-2 template-option" onclick="selectTemplate('flowsphere-json', this)">
                             <div class="card-body py-2">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="template" value="flowsphere-json" id="template-flowsphere-json" checked>
+                                    <input class="form-check-input" type="radio" name="template" value="flowsphere-json" id="template-flowsphere-json">
                                     <label class="form-check-label fw-semibold" for="template-flowsphere-json">
-                                        <i class="bi bi-file-earmark-code"></i> Import FlowSphere Config
+                                        <i class="bi bi-file-earmark-code"></i> FlowSphere Config
                                     </label>
                                     <div class="text-muted small">Open a saved .json configuration file</div>
                                 </div>
@@ -297,10 +306,9 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
 
                     <!-- FlowSphere JSON Import Section -->
-                    <div id="flowsphereJsonImportSection" class="alert alert-info" style="display: block;">
+                    <div id="flowsphereJsonImportSection" class="alert alert-info" style="display: none;">
                         <h6 class="alert-heading">FlowSphere Configuration File</h6>
                         <input type="file" id="flowsphereJsonFile" accept=".json" class="d-none">
                         <div class="border border-2 border-dashed rounded p-4 text-center bg-light cursor-pointer"
@@ -371,6 +379,8 @@
                     <div id="userInputTemplateSection" class="alert alert-success" style="display: none;">
                         <h6 class="alert-heading"><i class="bi bi-person-circle"></i> User Input Template</h6>
                         <p class="mb-0">Demonstrates user prompts, authentication flows, and variable substitution patterns.</p>
+                    </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
