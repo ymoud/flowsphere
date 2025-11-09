@@ -9,12 +9,15 @@
 .idea/
 .claude
 
+# Development and contributor documentation
+docs/
+CLAUDE.md
+ROADMAP.md
+
 # Development and testing
 tests/
-scenarios/
 Postman/
 postman-tools/
-prompts/
 legacy/
 
 # Logs and temporary files

@@ -2,6 +2,45 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## 🚨 REQUIRED: Read Architecture Documentation FIRST
+
+**BEFORE implementing any feature or checking any code files, you MUST read:**
+
+📖 **[docs/technical/core-architecture.md](docs/technical/core-architecture.md)** - How the system works
+
+This document contains critical architecture information including:
+- ✅ Where config is stored (NOT `window.config`!)
+- ✅ How to modify config in Studio (import from `state.js`, call `renderEditor()`)
+- ✅ How execution works (CLI vs Studio vs Try it Out)
+- ✅ Common mistakes to avoid
+- ✅ State management rules
+- ✅ Integration points between components
+
+🔗 **[docs/technical/change-impact-guide.md](docs/technical/change-impact-guide.md)** - What to update when making changes
+
+This document contains "chain of events" showing what files need updating for different types of changes:
+- ✅ Adding a new config field (top-level, node-level)
+- ✅ Adding a new validation type or condition type
+- ✅ Adding a new substitution syntax
+- ✅ Adding a new API endpoint or UI feature
+- ✅ Complete dependency maps and file relationships
+- ✅ Common scenarios and quick reference guides
+
+**Why this matters:**
+Agents frequently make preventable mistakes like accessing `window.config` (doesn't exist), forgetting to re-render the UI after config changes, or duplicating executor logic instead of reusing modules. They also often forget to update all necessary files when adding features (e.g., adding a config field but forgetting to update the validator, UI, docs, examples, and tests). Reading these documents first will save you time and prevent incomplete implementations.
+
+**Workflow:**
+1. Read `docs/technical/core-architecture.md` (Quick Start section)
+2. Read `docs/technical/change-impact-guide.md` (find your change type)
+3. Understand where config is stored and how to access it
+4. Identify all files that need updating for your change type
+5. Review relevant code files for your specific feature
+6. Implement using the correct patterns and update ALL required files
+
+---
+
 ## Overview
 
 This is an HTTP sequence runner tool (FlowSphere) that executes sequential HTTP requests defined in JSON configuration files. The tool is implemented in **Node.js** for cross-platform compatibility and npm distribution.
@@ -404,6 +443,7 @@ docs/
 ├── features/               Feature specifications
 ├── technical/              Architecture & technical designs
 ├── implementation/         Implementation status & tracking
+├── prompts/                AI prompts and branding guidelines (development artifacts)
 └── INTERNAL-TASKS.md       Internal improvements & tooling
 ```
 
@@ -506,6 +546,24 @@ function addNode(node) {
 - Post-implementation documentation of what was actually built
 
 **Note:** These are temporary documents - once implementation is complete, key information should be moved to feature specs or technical docs, and implementation docs can be archived.
+
+### docs/prompts/ - AI Prompts and Development Artifacts
+
+**Purpose:** Store AI prompts, branding guidelines, and other development artifacts used during feature development.
+
+**Content:**
+- API prompts used for feature development
+- Theme and branding guidelines
+- UI/UX prompt templates
+- Execution mode branding specifications
+- Logo and visual identity prompts
+
+**When to Create:**
+- Significant AI-assisted feature development that needs prompt documentation
+- Branding or design work that needs to be documented for consistency
+- Reusable prompt templates for future development
+
+**Note:** These are development artifacts and are excluded from npm package distribution (see `.npmignore`).
 
 ### docs/INTERNAL-TASKS.md - Internal Improvements
 

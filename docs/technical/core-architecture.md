@@ -1,5 +1,151 @@
 # FlowSphere Core Architecture
 
+> **🚨 REQUIRED READING FOR ALL AGENTS**
+> Read this document BEFORE implementing any features. It contains critical architecture details that prevent common mistakes.
+>
+> **Also read**: [Change Impact Guide](change-impact-guide.md) - Shows what files need updating for different types of changes
+
+## Quick Start for Agents
+
+**Before you write any code, know these critical facts:**
+
+### Where is the Config Stored?
+
+| Context | Storage Location | How to Access |
+|---------|------------------|---------------|
+| **Studio (Browser)** | Global variable in `studio/js/state.js` | Import: `import { config } from './state.js'`<br>Access: `config` (not `window.config`!) |
+| **CLI Execution** | Local variable in `lib/executor.js:runSequence()` | Passed as parameter through function calls |
+| **Server API** | Posted from client, stored as temp file | Received in request body, loaded from disk |
+| **Persistence** | Browser localStorage | `localStorage['flowsphere-config']` (JSON string) |
+
+**⚠️ CRITICAL:** In Studio, the config is **NOT** stored in `window.config`. It's a module-level variable exported from `state.js`. Always import it.
+
+### How to Modify Config in Studio?
+
+```javascript
+// ✅ CORRECT - Import and modify
+import { config } from './state.js';
+import { renderEditor } from './main.js';
+
+// Add a node
+config.nodes.push(newNode);
+renderEditor();  // Always re-render after modifications!
+
+// Add a variable
+if (!config.variables) config.variables = {};
+config.variables.newVar = 'value';
+renderGlobalVariables();  // Update variables UI
+```
+
+```javascript
+// ❌ WRONG - Don't do this
+window.config.nodes.push(newNode);  // config is not on window!
+config.nodes.push(newNode);  // Missing renderEditor() call - UI won't update!
+```
+
+### How Does Execution Work?
+
+**Studio Execution (Flow Runner):**
+1. User clicks "Go with the Flow" → `flow-runner.js:runSequence()`
+2. POST config to `/api/execute-stream` (Server-Sent Events)
+3. Server creates temp config file, loads it
+4. Server uses **same executor modules as CLI** (`lib/executor.js`, `lib/validator.js`, etc.)
+5. Server streams events back to client: `step_start`, `step`, `input_required`, `end`
+6. Client updates UI in real-time with step cards
+
+**CLI Execution:**
+1. User runs `flowsphere config.json`
+2. `bin/flowsphere.js` calls `lib/executor.js:runSequence(configPath)`
+3. Executor loads config, iterates through nodes, executes HTTP requests
+4. Returns final result (success/failure, execution log)
+
+**Try it Out (Single Node):**
+1. User clicks "Try it Out" on a node → `try-it-out.js:executeNode()`
+2. POST single node + full config to `/api/execute-node`
+3. Server executes ONE step using executor modules
+4. Returns synchronous JSON response (not streaming)
+
+### Key Architecture Principles
+
+1. **Modular Execution Engine**: All execution logic lives in `lib/` (executor, validator, http-client, conditions, substitution)
+2. **Shared Code**: Server reuses CLI modules for consistency (no duplicate logic)
+3. **State Management**:
+   - CLI: Local variables (no global state)
+   - Studio: Global `config` from `state.js` + always call `renderEditor()` after changes
+   - Server: Execution-scoped state (execution ID, pending requests map)
+4. **Variable Substitution**: Centralized in `lib/substitution.js`, used by all execution contexts
+5. **Validation**: Single source of truth in `lib/validator.js`, supports httpStatusCode + jsonpath validations
+
+---
+
+## Common Mistakes to Avoid
+
+### ❌ Mistake #1: Accessing `window.config`
+**Problem:** Agents assume config is on the global window object.
+
+**Why it fails:** Config is a module-level export from `state.js`, not attached to window.
+
+**Solution:**
+```javascript
+// ✅ CORRECT
+import { config } from './state.js';
+```
+
+### ❌ Mistake #2: Forgetting to Re-render UI
+**Problem:** Modify `config` but UI doesn't update.
+
+**Why it fails:** Studio UI renders from `config` state. Changes don't auto-update the DOM.
+
+**Solution:**
+```javascript
+// ✅ CORRECT
+config.nodes.push(newNode);
+renderEditor();  // Trigger UI update!
+```
+
+### ❌ Mistake #3: Duplicating Executor Logic
+**Problem:** Implementing execution logic in server endpoints instead of reusing `lib/` modules.
+
+**Why it fails:** Creates inconsistency between CLI and Studio behavior.
+
+**Solution:** Always import and use existing modules from `lib/`:
+```javascript
+// ✅ CORRECT - In server endpoint
+const { executeStep } = require('./lib/executor');
+const { validateResponse } = require('./lib/validator');
+const { substituteWithTracking } = require('./lib/substitution');
+```
+
+### ❌ Mistake #4: Not Understanding Context Object
+**Problem:** Trying to access responses or variables directly instead of through context.
+
+**Why it fails:** Execution engine passes state via the `context` object.
+
+**Solution:**
+```javascript
+// ✅ CORRECT - Context structure
+const context = {
+  vars: config.variables || {},      // Global variables
+  responses: [],                      // Previous step responses (indexed by position)
+  input: {},                          // User input from prompts
+  enableDebug: config.enableDebug || false
+};
+```
+
+### ❌ Mistake #5: Hardcoding Paths Instead of Using path.join()
+**Problem:** Using `/` or `\` in file paths breaks cross-platform compatibility.
+
+**Why it fails:** Windows uses `\`, Unix uses `/`.
+
+**Solution:**
+```javascript
+// ✅ CORRECT
+const path = require('path');
+const configPath = path.join(__dirname, 'config.json');
+```
+
+---
+
 ## Overview
 
 FlowSphere is an HTTP sequence runner implemented in **Node.js** with two execution modes:
@@ -355,12 +501,15 @@ Each substitution logged as:
 
 ## Future Architecture Considerations
 
-**When adding new features:**
-- **New validation types**: Add to `lib/validator.js` and update validation schema
-- **New substitution sources**: Add to `lib/substitution.js` context handling
-- **New condition types**: Add to `lib/conditions.js` evaluation logic
-- **New Studio features**: Create new module in `studio/js/`, integrate with global `config` from `state.js`
-- **New API endpoints**: Add to `bin/flowsphere.js` Express server
+> **📋 IMPORTANT**: When adding new features, always consult the **[Change Impact Guide](change-impact-guide.md)** for complete "chain of events" showing all files that need updating.
+
+**Quick Guidelines**:
+- **New validation types**: See [Chain 3](change-impact-guide.md#chain-3-adding-a-new-validation-type) in Change Impact Guide
+- **New substitution sources**: See [Chain 5](change-impact-guide.md#chain-5-adding-a-new-substitution-syntax) in Change Impact Guide
+- **New condition types**: See [Chain 4](change-impact-guide.md#chain-4-adding-a-new-condition-source-type) in Change Impact Guide
+- **New Studio features**: See [Chain 7](change-impact-guide.md#chain-7-adding-a-new-studio-ui-componentfeature) in Change Impact Guide
+- **New API endpoints**: See [Chain 6](change-impact-guide.md#chain-6-adding-a-new-server-api-endpoint) in Change Impact Guide
+- **New config fields**: See [Chain 1](change-impact-guide.md#chain-1-adding-a-new-top-level-config-field) (root-level) or [Chain 2](change-impact-guide.md#chain-2-adding-a-new-node-level-field) (node-level) in Change Impact Guide
 
 **State management rules:**
 - CLI: Keep execution state in local variables (no global state)
