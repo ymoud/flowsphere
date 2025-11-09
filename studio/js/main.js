@@ -82,12 +82,13 @@ window.addEventListener('DOMContentLoaded', function() {
                     renderEditor();
                     updatePreview();
 
-                    // Show Import Nodes button
+                    // Update button visibility
+                    if (typeof updateStartButton === 'function') {
+                        updateStartButton();
+                    }
                     if (typeof updateImportNodesButton === 'function') {
                         updateImportNodesButton();
                     }
-
-                    // Show Validate button
                     if (typeof updateValidateButton === 'function') {
                         updateValidateButton();
                     }
@@ -201,12 +202,13 @@ window.addEventListener('DOMContentLoaded', function() {
     // Restore JSON preview collapse state from localStorage
     restoreJsonPreviewState();
 
-    // Initialize Import Nodes button visibility
+    // Initialize button visibility
+    if (typeof updateStartButton === 'function') {
+        updateStartButton();
+    }
     if (typeof updateImportNodesButton === 'function') {
         updateImportNodesButton();
     }
-
-    // Initialize Validate button visibility
     if (typeof updateValidateButton === 'function') {
         updateValidateButton();
     }

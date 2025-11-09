@@ -82,8 +82,8 @@
                     <div class="card-header bg-white border-bottom sticky-top">
                         <div class="d-flex gap-2 align-items-center flex-wrap">
                             <input type="file" id="fileInput" accept=".json" class="d-none">
-                            <button class="btn btn-primary btn-sm" onclick="createNew()">
-                                <i class="bi bi-folder-open"></i> Load Config
+                            <button class="btn btn-primary btn-sm" onclick="createNew()" id="startBtn" title="Start a new FlowSphere session — create or import configuration">
+                                <i class="bi bi-rocket-takeoff"></i> Start
                             </button>
                             <button class="btn btn-success btn-sm" id="importNodesBtn" onclick="ImportNodesModal.open()">
                                 <i class="bi bi-plus-circle"></i> Import Nodes
@@ -133,8 +133,8 @@
                     <div class="card-body overflow-auto flex-grow-1">
                         <div id="editorContent" class="empty-state text-center py-5">
                             <i class="bi bi-file-earmark-text fs-1 opacity-25"></i>
-                            <p class="mt-3 text-muted">No configuration loaded</p>
-                            <p class="small text-muted">Use "Load Config" to open a file or "New Config" to create one</p>
+                            <p class="mt-3 text-muted">No configuration active</p>
+                            <p class="small text-muted">Start a new FlowSphere setup or import an existing one</p>
                         </div>
                     </div>
                 </div>
@@ -171,9 +171,12 @@
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <div>
-                        <h5 class="modal-title">Load Configuration</h5>
-                        <p class="text-muted small mb-0">Import from file or start from template</p>
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-diagram-3 fs-4"></i>
+                        <div>
+                            <h5 class="modal-title mb-0">Start Configuration</h5>
+                            <p class="text-muted small mb-0">Begin a new setup or load an existing configuration file</p>
+                        </div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -185,9 +188,75 @@
                         <div class="form-text">The name for your configuration file</div>
                     </div>
 
-                    <!-- Section 1: Import from File -->
+                    <!-- Section A: Start from Scratch -->
                     <div class="mb-4">
-                        <label class="form-label fw-semibold mb-3">Choose Import Source</label>
+                        <h6 class="fw-bold text-uppercase mb-3">
+                            <i class="bi bi-bricks"></i> Start from Scratch
+                        </h6>
+                        <p class="small text-muted mb-3">Create a FlowSphere configuration from a template</p>
+
+                        <!-- Empty Template -->
+                        <div class="card mb-2 template-option" onclick="selectTemplate('empty', this)">
+                            <div class="card-body py-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="template" value="empty" id="template-empty">
+                                    <label class="form-check-label fw-semibold" for="template-empty">
+                                        <i class="bi bi-file-earmark"></i> Empty Template
+                                    </label>
+                                    <div class="text-muted small">Blank configuration with no nodes</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Simple Template -->
+                        <div class="card mb-2 template-option" onclick="selectTemplate('simple', this)">
+                            <div class="card-body py-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="template" value="simple" id="template-simple">
+                                    <label class="form-check-label fw-semibold" for="template-simple">
+                                        <i class="bi bi-lightning"></i> Simple Template
+                                    </label>
+                                    <div class="text-muted small">Basic example using JSONPlaceholder API</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- OAuth Template -->
+                        <div class="card mb-2 template-option" onclick="selectTemplate('oauth', this)">
+                            <div class="card-body py-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="template" value="oauth" id="template-oauth">
+                                    <label class="form-check-label fw-semibold" for="template-oauth">
+                                        <i class="bi bi-shield-lock"></i> OAuth Flow Template
+                                    </label>
+                                    <div class="text-muted small">OAuth authorization with browser launch and user input</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- User Input Template -->
+                        <div class="card mb-2 template-option" onclick="selectTemplate('user-input', this)">
+                            <div class="card-body py-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="template" value="user-input" id="template-user-input">
+                                    <label class="form-check-label fw-semibold" for="template-user-input">
+                                        <i class="bi bi-person-circle"></i> User Input Template
+                                    </label>
+                                    <div class="text-muted small">Demonstrates user prompts and authentication flows</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Divider -->
+                    <hr class="my-4">
+
+                    <!-- Section B: Import Configuration -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold text-uppercase mb-3">
+                            <i class="bi bi-box-arrow-in-down"></i> Import Configuration
+                        </h6>
+                        <p class="small text-muted mb-3">Load an existing FlowSphere config file or Postman collection</p>
 
                         <!-- FlowSphere JSON Config -->
                         <div class="card mb-2 template-option selected" onclick="selectTemplate('flowsphere-json', this)">
@@ -195,22 +264,22 @@
                                 <div class="form-check">
                                     <input class="form-check-input" type="radio" name="template" value="flowsphere-json" id="template-flowsphere-json" checked>
                                     <label class="form-check-label fw-semibold" for="template-flowsphere-json">
-                                        <i class="bi bi-file-earmark-code"></i> FlowSphere JSON Config
+                                        <i class="bi bi-file-earmark-code"></i> Import FlowSphere Config
                                     </label>
-                                    <div class="text-muted small">Load an existing FlowSphere configuration file</div>
+                                    <div class="text-muted small">Open a saved .json configuration file</div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Postman Collection -->
+                        <!-- Postman Files -->
                         <div class="card mb-2 template-option" onclick="selectTemplate('postman', this)">
                             <div class="card-body py-2">
                                 <div class="form-check">
                                     <input class="form-check-input" type="radio" name="template" value="postman" id="template-postman">
                                     <label class="form-check-label fw-semibold" for="template-postman">
-                                        <i class="bi bi-box-seam"></i> Postman Collection
+                                        <i class="bi bi-box-seam"></i> Postman Files
                                     </label>
-                                    <div class="text-muted small">Import from Postman collection + environment (best effort)</div>
+                                    <div class="text-muted small">Import Postman collection with optional environment file (best effort)</div>
                                 </div>
                             </div>
                         </div>
@@ -282,10 +351,33 @@
                             <strong>Note:</strong> Complex test scripts may need manual conversion.
                         </div>
                     </div>
+
+                    <!-- Template Confirmation Sections -->
+                    <div id="emptyTemplateSection" class="alert alert-success" style="display: none;">
+                        <h6 class="alert-heading"><i class="bi bi-file-earmark"></i> Empty Template</h6>
+                        <p class="mb-0">Create a blank FlowSphere configuration with no nodes or connections. Perfect for starting from scratch.</p>
+                    </div>
+
+                    <div id="simpleTemplateSection" class="alert alert-success" style="display: none;">
+                        <h6 class="alert-heading"><i class="bi bi-lightning"></i> Simple Template</h6>
+                        <p class="mb-0">Creates a basic configuration using JSONPlaceholder API with 2 sample nodes demonstrating variable substitution.</p>
+                    </div>
+
+                    <div id="oauthTemplateSection" class="alert alert-success" style="display: none;">
+                        <h6 class="alert-heading"><i class="bi bi-shield-lock"></i> OAuth Flow Template</h6>
+                        <p class="mb-0">Complete OAuth authorization flow example with browser launch and user input prompts.</p>
+                    </div>
+
+                    <div id="userInputTemplateSection" class="alert alert-success" style="display: none;">
+                        <h6 class="alert-heading"><i class="bi bi-person-circle"></i> User Input Template</h6>
+                        <p class="mb-0">Demonstrates user prompts, authentication flows, and variable substitution patterns.</p>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="loadConfigBtn" onclick="confirmNewConfig()" disabled>Load Config</button>
+                    <button type="button" class="btn btn-primary" id="loadConfigBtn" onclick="confirmNewConfig()" disabled>
+                        <span id="loadConfigBtnText">Load Config</span>
+                    </button>
                 </div>
             </div>
         </div>

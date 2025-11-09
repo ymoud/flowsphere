@@ -48,6 +48,14 @@ function updateFileNameDisplay() {
     }
 }
 
+function updateStartButton() {
+    const btn = document.getElementById('startBtn');
+    if (!btn) return;
+
+    // Show button only when NO config is loaded (opposite of other buttons)
+    btn.style.display = !config ? 'inline-block' : 'none';
+}
+
 function updateImportNodesButton() {
     const btn = document.getElementById('importNodesBtn');
     if (!btn) return;
@@ -157,10 +165,9 @@ function closeFile() {
             updateRunSequenceButton();
         }
 
-        // Hide Import Nodes button
+        // Update button visibility
+        updateStartButton();
         updateImportNodesButton();
-
-        // Hide Validate button
         updateValidateButton();
 
         // Hide file actions dropdown
@@ -188,10 +195,9 @@ function loadFromLocalStorage() {
             renderEditor();
             updatePreview();
 
-            // Show Import Nodes button
+            // Update button visibility
+            updateStartButton();
             updateImportNodesButton();
-
-            // Show Validate button
             updateValidateButton();
 
             // Scroll JSON preview to top when loading from localStorage

@@ -49,37 +49,55 @@ function selectTemplate(templateType, element) {
         radio.checked = true;
     }
 
-    // Show/hide import sections based on selection
-    const flowsphereJsonSection = document.getElementById('flowsphereJsonImportSection');
-    const postmanSection = document.getElementById('postmanImportSection');
+    // Show/hide all sections based on selection
+    const sections = {
+        'flowsphere-json': 'flowsphereJsonImportSection',
+        'postman': 'postmanImportSection',
+        'empty': 'emptyTemplateSection',
+        'simple': 'simpleTemplateSection',
+        'oauth': 'oauthTemplateSection',
+        'user-input': 'userInputTemplateSection'
+    };
 
-    if (flowsphereJsonSection) {
-        flowsphereJsonSection.style.display = templateType === 'flowsphere-json' ? 'block' : 'none';
-    }
+    Object.entries(sections).forEach(([type, sectionId]) => {
+        const section = document.getElementById(sectionId);
+        if (section) {
+            section.style.display = templateType === type ? 'block' : 'none';
+        }
+    });
 
-    if (postmanSection) {
-        postmanSection.style.display = templateType === 'postman' ? 'block' : 'none';
-    }
-
-    // Update Load Config button state based on file selection
+    // Update Load Config button state and text based on selection
     updateLoadConfigButtonState(templateType);
 }
 
 function updateLoadConfigButtonState(templateType) {
     const loadConfigBtn = document.getElementById('loadConfigBtn');
+    const loadConfigBtnText = document.getElementById('loadConfigBtnText');
     if (!loadConfigBtn) return;
 
-    let hasFile = false;
+    // Determine button state and text based on template type
+    const isTemplate = ['empty', 'simple', 'oauth', 'user-input'].includes(templateType);
+    let isEnabled = false;
+    let buttonText = 'Load Config';
 
-    if (templateType === 'flowsphere-json') {
+    if (isTemplate) {
+        // Templates don't require files - always enabled
+        isEnabled = true;
+        buttonText = 'Create Config';
+    } else if (templateType === 'flowsphere-json') {
         const fileInput = document.getElementById('flowsphereJsonFile');
-        hasFile = fileInput?.files && fileInput.files.length > 0;
+        isEnabled = fileInput?.files && fileInput.files.length > 0;
+        buttonText = 'Load Config';
     } else if (templateType === 'postman') {
         const fileInput = document.getElementById('postmanCollectionFile');
-        hasFile = fileInput?.files && fileInput.files.length > 0;
+        isEnabled = fileInput?.files && fileInput.files.length > 0;
+        buttonText = 'Load Config';
     }
 
-    loadConfigBtn.disabled = !hasFile;
+    loadConfigBtn.disabled = !isEnabled;
+    if (loadConfigBtnText) {
+        loadConfigBtnText.textContent = buttonText;
+    }
 }
 
 function confirmNewConfig() {
@@ -95,6 +113,64 @@ function confirmNewConfig() {
         if (!confirmed) {
             return; // User cancelled
         }
+    }
+
+    // Handle template creation (not file imports)
+    const templateTypes = ['empty', 'simple', 'oauth', 'user-input'];
+    if (templateTypes.includes(templateType)) {
+        // Get template from templates.js
+        if (typeof getTemplate !== 'function') {
+            alert('Template system not available');
+            return;
+        }
+
+        const templateConfig = getTemplate(templateType);
+
+        // Set config and filename
+        config = templateConfig;
+        fileName = newFileName;
+
+        // Close modal
+        const modalEl = document.getElementById('newConfigModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+
+        // Update UI
+        updateFileNameDisplay();
+        saveToLocalStorage();
+        renderEditor();
+        updatePreview();
+
+        // Update button visibility
+        if (typeof updateStartButton === 'function') {
+            updateStartButton();
+        }
+        if (typeof updateImportNodesButton === 'function') {
+            updateImportNodesButton();
+        }
+        if (typeof updateValidateButton === 'function') {
+            updateValidateButton();
+        }
+
+        // Scroll JSON preview to top
+        if (typeof scrollJsonPreviewToTop === 'function') {
+            scrollJsonPreviewToTop();
+        }
+
+        // Show file actions dropdown
+        const fileActionsDropdown = document.getElementById('fileActionsDropdown');
+        if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
+
+        // Auto-validate created config (silent mode - shows badge only)
+        if (typeof validateConfig === 'function' &&
+            typeof FeatureRegistry !== 'undefined' &&
+            FeatureRegistry.isFeatureEnabled('config-validator')) {
+            validateConfig(true);
+        }
+
+        // Clear modal and reset UI
+        resetLoadConfigModal();
+        return;
     }
 
     if (templateType === 'flowsphere-json') {
