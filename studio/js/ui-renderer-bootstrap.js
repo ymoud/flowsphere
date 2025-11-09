@@ -51,7 +51,7 @@ function renderEditor() {
         <div class="accordion-item mb-3 border rounded">
             <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#globalVariables">
-                    Global Variables
+                    Global Variables (${Object.keys(config.variables || {}).length})
                 </button>
             </h2>
             <div id="globalVariables" class="accordion-collapse collapse">

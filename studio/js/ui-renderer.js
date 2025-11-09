@@ -32,7 +32,7 @@ function renderEditor() {
 
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2>Global Variables</h2>
+                <h2>Global Variables (${Object.keys(config.variables || {}).length})</h2>
                 <span class="toggle">▼</span>
             </div>
             <div class="section-content">
