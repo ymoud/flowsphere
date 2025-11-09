@@ -63,6 +63,15 @@ const FeatureRegistry = (function() {
             loaded: false,
             essential: false,
             category: 'Testing'
+        },
+        'config-validator': {
+            name: 'Config Validator',
+            description: 'Validate configs on load and before execution',
+            script: 'js/config-validator-ui.js',
+            enabled: true,
+            loaded: false,
+            essential: false,
+            category: 'Productivity'
         }
     };
 

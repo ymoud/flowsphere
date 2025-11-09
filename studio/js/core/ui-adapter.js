@@ -55,6 +55,11 @@
             });
         }
 
+        // Update Validate button visibility based on config-validator feature
+        if (typeof updateValidateButton === 'function') {
+            updateValidateButton();
+        }
+
         console.log('[UI Adapter] Updated UI for loaded features');
     }
 

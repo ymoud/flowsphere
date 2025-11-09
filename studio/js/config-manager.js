@@ -60,8 +60,10 @@ function updateValidateButton() {
     const btn = document.getElementById('validateConfigBtn');
     if (!btn) return;
 
-    // Show button only if config is loaded
-    btn.style.display = config ? 'inline-block' : 'none';
+    // Show button only if config is loaded AND feature is enabled
+    const featureEnabled = typeof FeatureRegistry !== 'undefined' &&
+                          FeatureRegistry.isFeatureEnabled('config-validator');
+    btn.style.display = (config && featureEnabled) ? 'inline-block' : 'none';
 }
 
 function renameFile() {
