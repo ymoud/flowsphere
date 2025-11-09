@@ -1,64 +1,106 @@
-# 🎛️ Flow Execution Mode — Branding Prompt (Sonnet 4.5)
+# 🎛️ Flow Execution Mode — Branding Prompt (Sonnet 4.5, Step-by-Step + Auto-Step Modal Enhancement)
 
 ## 💡 Purpose
-To brand the **Execution Mode Selector Modal** in alignment with **API FlowSphere's** industrial precision, motion, and control ethos.
+
+To brand the **Flow Execution Modal** during **Step-by-Step** and **Auto-Step** modes, aligning it with FlowSphere’s core traits of **precision**, **motion**, and **technical control**.
 
 ---
 
 ## 🧭 Modal Title
-**Title:** `Select Flow Dynamics`
-**Icon:** `bi-diagram-3`
+
+**Title:** `Flow Paused`
+**Icon:** `bi-pause-circle`
 
 **Description:**
-> Invites the user to choose between two execution styles — calm precision or full-speed automation.
+
+> Indicates a temporary state of precision control — the flow awaits user engagement or automated continuation.
 
 ---
 
-## ⚡ Option 1 — Full Throttle
-**Label:** `Full Throttle`
-**Subtext:** `Run all nodes continuously — pure Flow Motion.`
-**Icon:** `bi-lightning-charge-fill`
+## 🧩 Step-by-Step Mode (Manual Precision)
 
-**Tooltip (optional):** “Flow unleashed.”
+**Header Line:**
 
----
+> `Flow Paused — Awaiting Manual Continue`
 
-## 🧩 Option 2 — Precision Mode
-**Label:** `Precision Mode`
-**Subtext:** `Engage each node manually — ideal for calibration or debugging.`
-**Icon:** `bi-bullseye`
+**Tagline:**
 
-**Tooltip (optional):** “Engineering in motion.”
+> “Precision in motion — your flow awaits command.”
 
----
+**Visual & Behavior Notes:**
 
-## 🌀 Action Button
-**Text:** `Engage Flow`
-**Icon:** `bi-play-fill`
-**Tooltip:** `Initiate execution with selected dynamics.`
+* **Header Accent Bar:** Use the accent color `#FF4C29` as the progress line highlight.
+* **Primary Button:** `Continue to Next Step`
 
----
+  * Color: Calm blue (`#0D6EFD`)
+  * Icon: `bi-play-circle`
+  * Tooltip: “Engage next node.”
+* **Secondary Button:** `Interrupt the Flow`
 
-## 🗨 Voice & Tone
-Maintain **technical confidence** and **mechanical precision**:
-- “Choose your flow dynamics.”
-- “Control or unleash — your choice.”
-- “Calibrate. Then engage.”
+  * Color: Red accent (`#DC3545`)
+  * Icon: `bi-stop-circle`
+  * Tooltip: “Abort current sequence safely.”
 
----
+**User Input Card:**
 
-## 🧠 Interaction Behavior (Optional Flavor)
-- If user selects **Full Throttle** → Show small animated tagline: “Flow unleashed.”
-- If user selects **Precision Mode** → Show tagline: “Engineering in motion.”
+* Label: `Node Calibration Required`
+* Subtext: “User input required. Click here when ready to provide data.”
+* Icon: `bi-pencil-square`
+* Button: `Click to Continue`
+* Tooltip: “Apply and engage the next node.”
 
 ---
 
-## 🧱 Visual Integration Notes
-- Buttons rounded (6px) with subtle accent border (`#FF4C29`) on focus.
-- Icons animate subtly on hover (rotation or pulse).
-- Modal background respects dark theme tone (`#121826`).
+## ⏱️ Auto-Step Mode (Rhythmic Automation)
+
+**Header Line:**
+
+> `Flow Paused — Auto-continuing in {n}s`
+
+**Tagline:**
+
+> “Automation with rhythm — each step engineered for flow.”
+
+**Visual & Behavior Notes:**
+
+* **Countdown Indicator:** Subtle pulse animation synchronized with countdown seconds.
+* **Primary Button:** `Continue Now`
+
+  * Icon: `bi-play-fill`
+  * Tooltip: “Skip interval and proceed immediately.”
+* **Secondary Button:** `Interrupt the Flow`
+
+  * Icon: `bi-stop-circle`
+  * Tooltip: “Halt automation and regain control.”
+* **Bottom Section:** Display next node preview (icon: `bi-diagram-3`)
+  Example: `Next: Get User Profile (Using Global Variable)`
+
+---
+
+## 🧠 Branding Voice & Microcopy
+
+Maintain FlowSphere’s confident, technical, and structured tone:
+
+* “Awaiting your signal.”
+* “Automation in cadence.”
+* “Flow paused for calibration.”
+* “Step complete — ready for next.”
+
+---
+
+## 🧱 Visual Identity Notes
+
+* **Background:** Dark industrial tone (`#121826`).
+* **Node Cards:** Slight elevation (shadow depth: 4dp) and accent highlights for active nodes.
+* **Icons:** Dynamic motion icons (pulse for countdown, subtle nudge for continue).
+* **Progress Bar:** Smooth 1.5s animation between node completions.
 
 ---
 
 ### ✨ Summary
-**Select Flow Dynamics** expresses the FlowSphere brand essence: structured, confident, and action-oriented — where automation meets engineering clarity.
+
+The **Flow Execution Modal** embodies FlowSphere’s brand of industrial precision — blending control and motion.
+
+* **Step-by-Step:** Human-guided calibration and command.
+* **Auto-Step:** Timed automation with rhythmic cadence.
+  Each state expresses clarity, confidence, and mechanical harmony.
