@@ -652,6 +652,90 @@
         </div>
     </div>
 
+    <!-- Postman Import Preview Modal -->
+    <div class="modal fade" id="postmanPreviewModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header" style="background: var(--bg-surface); border-bottom: 1px solid var(--border-color);">
+                    <div>
+                        <h5 class="modal-title">
+                            <i class="bi bi-box-seam text-primary"></i> Postman Import Preview
+                        </h5>
+                        <p class="text-muted small mb-0">Review the imported configuration before loading</p>
+                    </div>
+                    <button type="button" class="btn-close" onclick="cancelPostmanPreview()" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Summary Section -->
+                    <div class="alert alert-info mb-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="alert-heading mb-2">
+                                    <i class="bi bi-info-circle"></i> Import Summary
+                                </h6>
+                                <div id="postmanPreviewSummary" class="small">
+                                    <!-- Summary stats will be rendered here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Nodes Section -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-diagram-3"></i> Discovered Nodes
+                            <span class="badge bg-primary" id="nodesCountBadge">0</span>
+                        </h6>
+                        <div id="postmanPreviewNodes" class="list-group">
+                            <!-- Nodes will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Variables Section (conditional) -->
+                    <div id="postmanPreviewVariablesSection" class="mb-4" style="display: none;">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-braces"></i> Global Variables
+                            <span class="badge bg-success" id="variablesCountBadge">0</span>
+                        </h6>
+                        <div id="postmanPreviewVariables">
+                            <!-- Variables will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Auth Conversion Section (conditional) -->
+                    <div id="postmanPreviewAuthSection" class="mb-4" style="display: none;">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-shield-check"></i> Auth Conversion
+                        </h6>
+                        <div id="postmanPreviewAuth" class="alert alert-warning">
+                            <!-- Auth details will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Validations Summary Section (conditional) -->
+                    <div id="postmanPreviewValidationsSection" class="mb-4" style="display: none;">
+                        <h6 class="fw-bold mb-3">
+                            <i class="bi bi-check2-square"></i> Extracted Validations
+                            <span class="badge bg-info" id="validationsCountBadge">0</span>
+                        </h6>
+                        <div id="postmanPreviewValidations" class="small text-muted">
+                            <!-- Validations summary will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="background: var(--bg-surface); border-top: 1px solid var(--border-color);">
+                    <button type="button" class="btn btn-secondary" onclick="cancelPostmanPreview()">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="confirmPostmanImport()">
+                        <i class="bi bi-check-circle"></i> Confirm Import
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 

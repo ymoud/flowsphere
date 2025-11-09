@@ -1398,45 +1398,50 @@ if (!window.confirmNewConfig) {
 
                             const parsedConfig = parsePostmanCollection(collection, environment);
 
-                            // Set config and filename
-                            config = parsedConfig;
-                            fileName = newFileName;
-
-                            // Update UI
-                            updateFileNameDisplay();
-                            saveToLocalStorage();
-                            renderEditor();
-                            updatePreview();
-
-                            // Update button visibility
-                            if (typeof updateStartButton === 'function') {
-                                updateStartButton();
-                            }
-                            if (typeof updateImportNodesButton === 'function') {
-                                updateImportNodesButton();
-                            }
-                            if (typeof updateValidateButton === 'function') {
-                                updateValidateButton();
-                            }
-
-                            // Scroll JSON preview to top when creating new config
-                            if (typeof scrollJsonPreviewToTop === 'function') {
-                                scrollJsonPreviewToTop();
-                            }
-
-                            // Show file actions dropdown
-                            const fileActionsDropdown = document.getElementById('fileActionsDropdown');
-                            if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
-
-                            // Auto-validate loaded config (silent mode - shows badge only)
-                        if (typeof validateConfig === 'function' &&
-                            typeof FeatureRegistry !== 'undefined' &&
-                            FeatureRegistry.isFeatureEnabled('config-validator')) {
-                            validateConfig(true);
-                        }
-
                             // Hide loader
                             hideLoader();
+
+                            // Show preview modal instead of loading directly
+                            if (typeof showPostmanPreview === 'function') {
+                                showPostmanPreview(parsedConfig);
+                            } else {
+                                // Fallback: load directly if preview not available
+                                config = parsedConfig;
+                                fileName = newFileName;
+
+                                // Update UI
+                                updateFileNameDisplay();
+                                saveToLocalStorage();
+                                renderEditor();
+                                updatePreview();
+
+                                // Update button visibility
+                                if (typeof updateStartButton === 'function') {
+                                    updateStartButton();
+                                }
+                                if (typeof updateImportNodesButton === 'function') {
+                                    updateImportNodesButton();
+                                }
+                                if (typeof updateValidateButton === 'function') {
+                                    updateValidateButton();
+                                }
+
+                                // Scroll JSON preview to top when creating new config
+                                if (typeof scrollJsonPreviewToTop === 'function') {
+                                    scrollJsonPreviewToTop();
+                                }
+
+                                // Show file actions dropdown
+                                const fileActionsDropdown = document.getElementById('fileActionsDropdown');
+                                if (fileActionsDropdown) fileActionsDropdown.style.display = 'inline-block';
+
+                                // Auto-validate loaded config (silent mode - shows badge only)
+                                if (typeof validateConfig === 'function' &&
+                                    typeof FeatureRegistry !== 'undefined' &&
+                                    FeatureRegistry.isFeatureEnabled('config-validator')) {
+                                    validateConfig(true);
+                                }
+                            }
                         };
 
                         // If environment file is provided, read it first

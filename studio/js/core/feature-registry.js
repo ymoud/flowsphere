@@ -46,6 +46,15 @@ const FeatureRegistry = (function() {
             essential: false,
             category: 'Import/Export'
         },
+        'postman-preview': {
+            name: 'Postman Import Preview',
+            description: 'Preview Postman imports before loading',
+            script: 'js/postman-preview.js',
+            enabled: true,
+            loaded: false,
+            essential: false,
+            category: 'Import/Export'
+        },
         'json-scroll-sync': {
             name: 'JSON Preview Auto-Scroll',
             description: 'Automatically scroll JSON preview to match edited sections',

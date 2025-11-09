@@ -1,8 +1,16 @@
 # Enhanced Postman Import
 
-**Status:** Planned
+**Status:** Completed (with known issues)
 
 **Priority:** 4
+
+**Phase Progress:**
+- ✅ Phase 1: Order-of-Appearance Import (Completed)
+- ✅ Phase 2: Environment File Support (Completed)
+- ✅ Phase 3: Import Preview (Completed)
+
+**Known Issues:**
+See [Implementation Status](../implementation/enhanced-postman-import-status.md) for details on known issues and limitations.
 
 ## Overview
 

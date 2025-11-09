@@ -153,18 +153,31 @@ Import API specifications directly into FlowSphere Studio for automatic config g
 
 ### 5. Enhanced Postman Import
 
-**Status:** Planned
+**Status:** Completed (with known issues)
 
-Improve the existing Postman import with multi-environment support and better variable resolution.
+Improve the existing Postman import with environment file support, auth conversion, test script mining, and import preview.
+
+**Completed:**
+- ✅ Phase 1: Order-of-appearance import (works without numeric prefixes)
+- ✅ Phase 1: Auth conversion (Basic, Bearer, API Key)
+- ✅ Phase 1: Test script mining (pm.response.to.have.status, pm.expect patterns)
+- ✅ Phase 1: Query parameter handling and disabled items filtering
+- ✅ Phase 2: Environment file support with variable resolution
+- ✅ Phase 3: Import preview with variable resolution display
+
+**Known Issues:**
+- ⚠️ Request-level "No Auth" not detected (doesn't set skipDefaultHeaders)
+- ⚠️ Basic auth with response-based variables not supported (requires new FlowSphere feature)
 
 **Key Features:**
-- Multiple environment file support
-- Import preview with customization
-- Better variable resolution and mapping
-- Multiple collection merging
-- Batch editing before import
+- Import any Postman collection (numbered or non-numbered)
+- Environment file support with variable resolution
+- Auth conversion to FlowSphere headers
+- Test script mining to extract validations
+- Import preview before finalizing
 
 ➡️ [Full Feature Specification](docs/features/enhanced-postman-import.md)
+➡️ [Implementation Status & Known Issues](docs/implementation/enhanced-postman-import-status.md)
 
 ---
 

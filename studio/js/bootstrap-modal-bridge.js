@@ -13,6 +13,9 @@ function createNew() {
         modal = new bootstrap.Modal(modalEl);
     }
 
+    // Reset modal to default state (templates tab, empty template selected)
+    resetLoadConfigModal();
+
     modal.show();
 }
 
@@ -267,25 +270,33 @@ function confirmNewConfig() {
 
                     const parsedConfig = parsePostmanCollection(collection, environment);
 
-                    // Set config and filename
-                    config = parsedConfig;
-                    fileName = newFileName;
+                    // Hide loader
+                    hideLoader();
 
-                    // Close modal using Bootstrap API
-                    const modalEl = document.getElementById('newConfigModal');
-                    const modal = bootstrap.Modal.getInstance(modalEl);
-                    if (modal) modal.hide();
-                    updateFileNameDisplay();
-                    saveToLocalStorage();
-                    renderEditor();
-                    updatePreview();
+                    // Show preview modal instead of loading directly
+                    if (typeof showPostmanPreview === 'function') {
+                        showPostmanPreview(parsedConfig);
+                    } else {
+                        // Fallback: load directly if preview not available
+                        config = parsedConfig;
+                        fileName = newFileName;
 
-                    // Update button visibility
-                    if (typeof updateStartButton === 'function') {
-                        updateStartButton();
-                    }
-                    if (typeof updateImportNodesButton === 'function') {
-                        updateImportNodesButton();
+                        // Close modal using Bootstrap API
+                        const modalEl = document.getElementById('newConfigModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+                        updateFileNameDisplay();
+                        saveToLocalStorage();
+                        renderEditor();
+                        updatePreview();
+
+                        // Update button visibility
+                        if (typeof updateStartButton === 'function') {
+                            updateStartButton();
+                        }
+                        if (typeof updateImportNodesButton === 'function') {
+                            updateImportNodesButton();
+                        }
                     }
                 };
 
@@ -394,16 +405,23 @@ function resetLoadConfigModal() {
         loadConfigBtn.disabled = true;
     }
 
-    // Reset to FlowSphere JSON option selected
-    const flowsphereRadio = document.getElementById('template-flowsphere-json');
-    if (flowsphereRadio) {
-        flowsphereRadio.checked = true;
+    // Switch to templates tab
+    const templatesTab = document.getElementById('templates-tab');
+    if (templatesTab) {
+        const tab = new bootstrap.Tab(templatesTab);
+        tab.show();
     }
 
-    // Show FlowSphere section, hide Postman section
+    // Reset to empty template option selected
+    const emptyRadio = document.getElementById('template-empty');
+    if (emptyRadio) {
+        emptyRadio.checked = true;
+    }
+
+    // Hide all file upload sections
     const flowsphereSection = document.getElementById('flowsphereJsonImportSection');
     if (flowsphereSection) {
-        flowsphereSection.style.display = 'block';
+        flowsphereSection.style.display = 'none';
     }
 
     const postmanSection = document.getElementById('postmanImportSection');
@@ -411,14 +429,23 @@ function resetLoadConfigModal() {
         postmanSection.style.display = 'none';
     }
 
+    // Hide all template confirmation sections
+    document.getElementById('emptyTemplateSection').style.display = 'none';
+    document.getElementById('simpleTemplateSection').style.display = 'none';
+    document.getElementById('oauthTemplateSection').style.display = 'none';
+    document.getElementById('userInputTemplateSection').style.display = 'none';
+
     // Update selected card styling
     const allOptions = document.querySelectorAll('.template-option');
     allOptions.forEach(opt => opt.classList.remove('selected'));
 
-    const flowsphereOption = document.querySelector('.template-option:has(#template-flowsphere-json)');
-    if (flowsphereOption) {
-        flowsphereOption.classList.add('selected');
+    const emptyOption = document.querySelector('.template-option:has(#template-empty)');
+    if (emptyOption) {
+        emptyOption.classList.add('selected');
     }
+
+    // Update button state
+    updateLoadConfigButtonState('empty');
 }
 
 // Export functions to global scope
