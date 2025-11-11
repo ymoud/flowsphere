@@ -14,16 +14,16 @@ Features listed in priority order (highest to lowest):
 | 2 | Enhanced Launch Browser with Expressions | Planned | See below |
 | 3 | Execution Log Visualizer | Planned | [View Details](docs/features/execution-log-visualizer.md) |
 | 4 | Swagger/OpenAPI Import | Planned | [View Details](docs/features/swagger-openapi-import.md) |
-| 5 | Enhanced Postman Import | Planned | [View Details](docs/features/enhanced-postman-import.md) |
-| 6 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
-| 7 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
-| 8 | OAuth Callback Capture (Studio) | Planned | [View Details](docs/features/oauth-callback-capture.md) |
-| 9 | Multi-Environment Variable Groups | Planned | [View Details](docs/features/multi-environment-variable-groups.md) |
+| 5 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
+| 6 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
+| 7 | OAuth Callback Capture (Studio) | Planned | [View Details](docs/features/oauth-callback-capture.md) |
+| 8 | Multi-Environment Variable Groups | Planned | [View Details](docs/features/multi-environment-variable-groups.md) |
 
 ### Completed & External Features
 
 | Feature | Status |
 |---------|--------|
+| Enhanced Postman Import | ✅ Completed (with known issues) - [Details](docs/features/enhanced-postman-import.md) |
 | Flow Runner - Execution Controls | ✅ Completed (All Phases) |
 | Config Validation & Schema Enforcement | ✅ Completed |
 | Persistent User Input Across Steps | ✅ Completed |
@@ -181,7 +181,7 @@ Improve the existing Postman import with environment file support, auth conversi
 
 ---
 
-### 6. Export to Postman Collection/Environment
+### 5. Export to Postman Collection/Environment
 
 **Status:** Planned
 
@@ -198,7 +198,7 @@ Convert FlowSphere configs back into Postman collection and environment files fo
 
 ---
 
-### 7. Visual Workflow Storytelling & Export
+### 6. Visual Workflow Storytelling & Export
 
 **Status:** Planned
 
@@ -229,7 +229,7 @@ An **animated workflow storytelling tool** that turns API integrations into beau
 
 ---
 
-### 8. OAuth Callback Capture (Studio)
+### 7. OAuth Callback Capture (Studio)
 
 **Status:** Planned
 
@@ -275,7 +275,7 @@ Automatically capture OAuth authorization codes and state parameters when OAuth 
 
 ---
 
-### 9. Multi-Environment Variable Groups
+### 8. Multi-Environment Variable Groups
 
 **Status:** Planned
 
