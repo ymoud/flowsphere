@@ -11,13 +11,14 @@ Features listed in priority order (highest to lowest):
 | Priority | Feature | Status | Details |
 |----------|---------|--------|---------|
 | 1 | JSON Beautify for Request Bodies | Planned | See below |
-| 2 | Enhanced Launch Browser with Expressions | Planned | See below |
-| 3 | Execution Log Visualizer | Planned | [View Details](docs/features/execution-log-visualizer.md) |
-| 4 | Swagger/OpenAPI Import | Planned | [View Details](docs/features/swagger-openapi-import.md) |
-| 5 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
-| 6 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
-| 7 | OAuth Callback Capture (Studio) | Planned | [View Details](docs/features/oauth-callback-capture.md) |
-| 8 | Multi-Environment Variable Groups | Planned | [View Details](docs/features/multi-environment-variable-groups.md) |
+| 2 | Response Header Access | Planned | [View Details](docs/features/response-header-access.md) |
+| 3 | Enhanced Launch Browser with Expressions | Planned | See below |
+| 4 | Execution Log Visualizer | Planned | [View Details](docs/features/execution-log-visualizer.md) |
+| 5 | Swagger/OpenAPI Import | Planned | [View Details](docs/features/swagger-openapi-import.md) |
+| 6 | Export to Postman Collection/Environment | Planned | [View Details](docs/features/export-to-postman.md) |
+| 7 | Visual Workflow Storytelling & Export | Planned | [View Details](docs/features/visual-workflow-storytelling-export.md) |
+| 8 | OAuth Callback Capture (Studio) | Planned | [View Details](docs/features/oauth-callback-capture.md) |
+| 9 | Multi-Environment Variable Groups | Planned | [View Details](docs/features/multi-environment-variable-groups.md) |
 
 ### Completed & External Features
 
@@ -69,7 +70,93 @@ Add a "Beautify" button next to JSON request body textareas in Studio to format/
 
 ---
 
-### 2. Enhanced Launch Browser with Expressions
+### 2. Response Header Access
+
+**Status:** Planned
+
+Access HTTP response headers in variable substitution, validations, and conditions with a new structured response syntax.
+
+**Problem:**
+- Cannot access response headers (auth tokens, rate limits, pagination, etc.)
+- Only response body fields are accessible
+- Many APIs return critical data in headers, not body
+- Forces manual token extraction or external scripts
+
+**Solution:**
+Introduce structured response access pattern:
+- `.responses.<id>.body.<field>` - Response body (explicit)
+- `.responses.<id>.headers.<headerName>` - Response headers (NEW)
+- `.responses.<id>.status` - HTTP status code (NEW)
+- `.responses.<id>.statusText` - Status text (NEW)
+
+**Breaking Change:**
+- Old: `.responses.<id>.<field>` (implicit body access)
+- New: `.responses.<id>.body.<field>` (explicit body access)
+- No backwards compatibility (pre-release v0.x)
+
+**Example - Extract auth token from header:**
+```json
+{
+  "id": "login",
+  "method": "POST",
+  "url": "/auth/login"
+},
+{
+  "id": "get-profile",
+  "method": "GET",
+  "url": "/profile",
+  "headers": {
+    "Authorization": "Bearer {{ .responses.login.headers.x-auth-token }}"
+  }
+}
+```
+
+**Example - Validate rate limit:**
+```json
+{
+  "validations": [
+    {
+      "header": "x-ratelimit-remaining",
+      "greaterThan": 0
+    }
+  ]
+}
+```
+
+**Example - Conditional execution based on header:**
+```json
+{
+  "conditions": [
+    {
+      "node": "check-api",
+      "header": "x-feature-enabled",
+      "equals": "true"
+    }
+  ]
+}
+```
+
+**Key Features:**
+- Access headers: `{{ .responses.step.headers.x-auth-token }}`
+- Header validations (exists, equals, comparisons)
+- Header conditions for conditional execution
+- Case-insensitive header names (auto-normalized to lowercase)
+- Studio autocomplete for header paths
+- Headers displayed in Flow Runner and Try it Out
+
+**Benefits:**
+- Support header-based authentication flows
+- Check rate limits before making requests
+- Use pagination headers for multi-page requests
+- Extract correlation IDs for tracing
+- Validate API versioning headers
+- More realistic API testing workflows
+
+➡️ [Full Feature Specification](docs/features/response-header-access.md)
+
+---
+
+### 3. Enhanced Launch Browser with Expressions
 
 **Status:** Planned
 
@@ -116,7 +203,7 @@ Allow `launchBrowser` to accept expressions with variable substitution:
 
 ---
 
-### 3. Execution Log Visualizer
+### 4. Execution Log Visualizer
 
 **Status:** Planned
 
@@ -134,7 +221,7 @@ A visual interface for exploring, analyzing, and comparing execution logs with r
 
 ---
 
-### 4. Swagger/OpenAPI Import
+### 5. Swagger/OpenAPI Import
 
 **Status:** Planned
 
@@ -151,7 +238,7 @@ Import API specifications directly into FlowSphere Studio for automatic config g
 
 ---
 
-### 5. Enhanced Postman Import
+### 6. Enhanced Postman Import
 
 **Status:** Completed (with known issues)
 
@@ -181,7 +268,7 @@ Improve the existing Postman import with environment file support, auth conversi
 
 ---
 
-### 5. Export to Postman Collection/Environment
+### 7. Export to Postman Collection/Environment
 
 **Status:** Planned
 
@@ -198,7 +285,7 @@ Convert FlowSphere configs back into Postman collection and environment files fo
 
 ---
 
-### 6. Visual Workflow Storytelling & Export
+### 8. Visual Workflow Storytelling & Export
 
 **Status:** Planned
 
@@ -229,7 +316,7 @@ An **animated workflow storytelling tool** that turns API integrations into beau
 
 ---
 
-### 7. OAuth Callback Capture (Studio)
+### 9. OAuth Callback Capture (Studio)
 
 **Status:** Planned
 
@@ -275,7 +362,7 @@ Automatically capture OAuth authorization codes and state parameters when OAuth 
 
 ---
 
-### 8. Multi-Environment Variable Groups
+### 10. Multi-Environment Variable Groups
 
 **Status:** Planned
 
