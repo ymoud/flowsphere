@@ -214,7 +214,7 @@ async function launchStudio(port = 3737) {
       }
 
       // Import required executor modules
-      const { mergeWithDefaults, executeStep } = require('../lib/executor');
+      const { mergeWithDefaults, executeStep, buildRequestLog, maskSubstitutions } = require('../lib/executor');
       const { validateResponse } = require('../lib/validator');
 
       // Merge node with defaults from config
@@ -276,13 +276,9 @@ async function launchStudio(port = 3737) {
               headers: response.headers,
               body: response.body
             },
-            request: {
-              method: requestDetails.method,
-              url: requestDetails.url,
-              headers: requestDetails.headers || {},
-              body: requestDetails.body || {}
-            },
-            substitutions: substitutions,
+            type: requestDetails ? requestDetails.type : (mergedNode.type || 'http'),
+            request: buildRequestLog(requestDetails),
+            substitutions: maskSubstitutions(substitutions),
             validations: validationResults,
             duration: parseFloat(duration.toFixed(3)),
             error: validationError.message
@@ -298,13 +294,9 @@ async function launchStudio(port = 3737) {
             headers: response.headers,
             body: response.body
           },
-          request: {
-            method: requestDetails.method,
-            url: requestDetails.url,
-            headers: requestDetails.headers || {},
-            body: requestDetails.body || {}
-          },
-          substitutions: substitutions,
+          type: requestDetails ? requestDetails.type : (mergedNode.type || 'http'),
+          request: buildRequestLog(requestDetails),
+          substitutions: maskSubstitutions(substitutions),
           validations: validationResults,
           duration: parseFloat(duration.toFixed(3))
         });
@@ -316,18 +308,11 @@ async function launchStudio(port = 3737) {
 
         res.json({
           success: false,
-          request: requestDetails ? {
-            method: requestDetails.method,
-            url: requestDetails.url,
-            headers: requestDetails.headers || {},
-            body: requestDetails.body || {}
-          } : {
-            method: mergedNode.method,
-            url: mergedNode.url,
-            headers: mergedNode.headers || {},
-            body: mergedNode.body || {}
-          },
-          substitutions: substitutions,
+          type: requestDetails ? requestDetails.type : (mergedNode.type || 'http'),
+          request: requestDetails
+            ? buildRequestLog(requestDetails)
+            : buildRequestLog({ type: mergedNode.type || 'http', ...mergedNode }),
+          substitutions: maskSubstitutions(substitutions),
           duration: parseFloat(duration.toFixed(3)),
           error: error.message
         });
@@ -364,7 +349,7 @@ async function launchStudio(port = 3737) {
       console.log(`[Server] Executing single step ${stepIndex + 1}`);
 
       // Import required executor modules
-      const { readJSONFile, mergeWithDefaults, promptUserInput, executeStep } = require('../lib/executor');
+      const { readJSONFile, mergeWithDefaults, promptUserInput, executeStep, describeStep, buildRequestLog, maskSubstitutions } = require('../lib/executor');
       const { validateResponse } = require('../lib/validator');
       const { evaluateConditions } = require('../lib/conditions');
 
@@ -403,7 +388,7 @@ async function launchStudio(port = 3737) {
               stepIndex: stepIndex,
               step: stepNum,
               id: id,
-              name: name || `${method} ${url}`,
+              name: name || describeStep(node),
               prompts: node.userPrompts
             });
           }
@@ -419,8 +404,10 @@ async function launchStudio(port = 3737) {
             step: stepNum,
             id,
             name,
+            type: node.type || 'http',
             method,
             url,
+            request: buildRequestLog({ ...node, type: node.type || 'http' }),
             status: 'skipped',
             skipReason
           };
@@ -442,7 +429,7 @@ async function launchStudio(port = 3737) {
         let requestDetails = null;
         let startTime = Date.now();
 
-        console.log(`[Server] Executing step ${stepNum}: ${method} ${url}`);
+        console.log(`[Server] Executing step ${stepNum}: ${describeStep(node)}`);
 
         try {
           const result = await executeStep(node, context);
@@ -469,19 +456,17 @@ async function launchStudio(port = 3737) {
             step: stepNum,
             id,
             name,
+            type: requestDetails ? requestDetails.type : (node.type || 'http'),
             method: requestDetails.method,
             url: requestDetails.url,
-            request: {
-              headers: requestDetails.headers || {},
-              body: requestDetails.body || {}
-            },
+            request: buildRequestLog(requestDetails),
             response: {
               status: response.status,
               statusText: response.statusText,
               headers: response.headers,
               body: response.body
             },
-            substitutions: result.substitutions || [],
+            substitutions: maskSubstitutions(result.substitutions || []),
             validations: validationResults,
             duration: parseFloat(duration.toFixed(3)),
             status: 'completed'
@@ -511,13 +496,13 @@ async function launchStudio(port = 3737) {
             id,
             name,
             // Use substituted values if available, otherwise use originals
+            type: requestDetails ? requestDetails.type : (node.type || 'http'),
             method: requestDetails ? requestDetails.method : method,
             url: requestDetails ? requestDetails.url : url,
-            request: {
-              headers: requestDetails ? (requestDetails.headers || {}) : (node.headers || {}),
-              body: requestDetails ? (requestDetails.body || {}) : (node.body || {})
-            },
-            substitutions: substitutions,
+            request: requestDetails
+              ? buildRequestLog(requestDetails)
+              : buildRequestLog({ type: node.type || 'http', ...node }),
+            substitutions: maskSubstitutions(substitutions),
             status: 'failed',
             error: error.message,
             duration: parseFloat(duration.toFixed(3))
@@ -636,7 +621,7 @@ async function launchStudio(port = 3737) {
 
       try {
         // Import required executor modules
-        const { readJSONFile, mergeWithDefaults, promptUserInput, executeStep } = require('../lib/executor');
+        const { readJSONFile, mergeWithDefaults, promptUserInput, executeStep, describeStep, buildRequestLog, maskSubstitutions } = require('../lib/executor');
         const { validateResponse } = require('../lib/validator');
         const { evaluateConditions } = require('../lib/conditions');
 
@@ -676,8 +661,10 @@ async function launchStudio(port = 3737) {
               step: stepNum,
               id,
               name,
+              type: node.type || 'http',
               method,
               url,
+              request: buildRequestLog({ ...node, type: node.type || 'http' }),
               status: 'skipped',
               skipReason
             };
@@ -696,7 +683,7 @@ async function launchStudio(port = 3737) {
               executionId,
               stepIndex: i,
               step: stepNum,
-              name: node.name || `${method} ${url}`,
+              name: node.name || describeStep(node),
               prompts: node.userPrompts
             });
 
@@ -726,8 +713,10 @@ async function launchStudio(port = 3737) {
               step: stepNum,
               id,
               name,
+              type: node.type || 'http',
               method,
               url,
+              request: buildRequestLog({ ...node, type: node.type || 'http' }),
               status: 'skipped',
               skipReason
             };
@@ -751,11 +740,13 @@ async function launchStudio(port = 3737) {
             step: stepNum,
             id,
             name,
+            type: node.type || 'http',
             method,
-            url
+            url,
+            ...(node.type === 'command' ? { command: node.command, args: node.args } : {})
           });
 
-          console.log(`[Server] Executing step ${stepNum}: ${method} ${url}`);
+          console.log(`[Server] Executing step ${stepNum}: ${describeStep(node)}`);
 
           try {
             const result = await executeStep(node, context);
@@ -789,19 +780,17 @@ async function launchStudio(port = 3737) {
               step: stepNum,
               id,
               name,
+              type: requestDetails ? requestDetails.type : (node.type || 'http'),
               method: requestDetails.method,
               url: requestDetails.url,
-              request: {
-                headers: requestDetails.headers || {},
-                body: requestDetails.body || {}
-              },
+              request: buildRequestLog(requestDetails),
               response: {
                 status: response.status,
                 statusText: response.statusText,
                 headers: response.headers,
                 body: response.body
               },
-              substitutions: result.substitutions || [],
+              substitutions: maskSubstitutions(result.substitutions || []),
               validations: validationResults,
               duration: parseFloat(duration.toFixed(3)),
               status: 'completed'
@@ -834,13 +823,13 @@ async function launchStudio(port = 3737) {
               id,
               name,
               // Use substituted values if available, otherwise use originals
+              type: requestDetails ? requestDetails.type : (node.type || 'http'),
               method: requestDetails ? requestDetails.method : method,
               url: requestDetails ? requestDetails.url : url,
-              request: {
-                headers: requestDetails ? (requestDetails.headers || {}) : (node.headers || {}),
-                body: requestDetails ? (requestDetails.body || {}) : (node.body || {})
-              },
-              substitutions: substitutions,
+              request: requestDetails
+                ? buildRequestLog(requestDetails)
+                : buildRequestLog({ type: node.type || 'http', ...node }),
+              substitutions: maskSubstitutions(substitutions),
               status: 'failed',
               error: error.message,
               duration: parseFloat(duration.toFixed(3))
